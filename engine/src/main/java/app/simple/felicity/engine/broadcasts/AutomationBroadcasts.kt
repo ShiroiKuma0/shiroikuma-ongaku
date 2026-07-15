@@ -51,13 +51,14 @@ object AutomationBroadcasts {
 
     /**
      * Sends [ACTION_TRACK_CHANGED] for [song]. `path` is the real filesystem path
-     * resolved from MediaStore ([Audio.getPath]), falling back to the SAF uri string
-     * when the path has not been populated.
+     * resolved from MediaStore ([Audio.getPath]); for SAF-indexed songs without a
+     * populated path it is derived from the document id so it always reads like a
+     * filesystem path (hand-off addendum #3). The `uri` extra keeps the raw SAF string.
      */
     fun sendTrackChanged(context: Context, song: Audio?, paused: Boolean) {
         song ?: return
         context.sendBroadcast(Intent(ACTION_TRACK_CHANGED).apply {
-            putExtra(EXTRA_PATH, song.path?.takeIf { it.isNotEmpty() } ?: song.uri)
+            putExtra(EXTRA_PATH, song.path?.takeIf { it.isNotEmpty() } ?: humanReadablePath(song.uri))
             putExtra(EXTRA_URI, song.uri)
             putExtra(EXTRA_ID, song.id)
             putExtra(EXTRA_TITLE, song.getProperTitle())
@@ -65,5 +66,25 @@ object AutomationBroadcasts {
             putExtra(EXTRA_FAVORITE, song.isFavorite)
             putExtra(EXTRA_PAUSED, paused)
         })
+    }
+
+    /**
+     * Turns a SAF uri string into something that reads like a filesystem path:
+     * the document id is already percent-decoded (e.g. "primary:〇/[277] 音楽/…"),
+     * so `primary:` becomes `/sdcard/`. Non-document uris fall back to plain
+     * percent-decoding — never the raw encoded blob.
+     */
+    private fun humanReadablePath(uri: String?): String? {
+        uri ?: return null
+        return runCatching {
+            val documentId = android.provider.DocumentsContract.getDocumentId(android.net.Uri.parse(uri))
+            if (documentId.startsWith("primary:")) {
+                "/sdcard/" + documentId.removePrefix("primary:")
+            } else {
+                documentId
+            }
+        }.getOrElse {
+            android.net.Uri.decode(uri)
+        }
     }
 }
