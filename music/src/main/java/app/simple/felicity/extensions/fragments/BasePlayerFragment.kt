@@ -6,6 +6,7 @@ import android.text.format.DateUtils
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.fragment.app.viewModels
@@ -171,6 +172,7 @@ abstract class BasePlayerFragment : MediaFragment() {
         setVisualizerCapsState()
         setLyricsState()
         updateMediaControlOverlap()
+        liftLyricsAboveVisualizer()
 
         // Mirror swipe-down-to-close behavior on the album art pager so that a downward
         // swipe on the cover image dismisses the player, exactly like swiping on any other
@@ -417,6 +419,52 @@ abstract class BasePlayerFragment : MediaFragment() {
         shuffleMediaItems(songs = MediaPlaybackManager.getSongs())
     }
 
+    /**
+     * Fork (白い熊 音楽 UI): the visualizer is a full-screen overlay drawn above the
+     * player content, which would also cover the inline lyric line. This lifts the
+     * [lrc] view out of its skin-specific slot into the visualizer's parent (added
+     * after it, so it draws on top) while an invisible placeholder keeps its original
+     * slot; the floating view is pinned to the placeholder's on-screen position on
+     * every frame, so the lyric line renders exactly where each skin designed it —
+     * just above the bars instead of below them.
+     */
+    private fun liftLyricsAboveVisualizer() {
+        val host = visualizer.parent as? ViewGroup ?: return
+        val originalParent = lrc.parent as? ViewGroup ?: return
+        if (originalParent === host) return
+
+        val placeholder = View(requireContext())
+        placeholder.visibility = View.INVISIBLE
+        val index = originalParent.indexOfChild(lrc)
+        val originalParams = lrc.layoutParams
+        originalParent.removeView(lrc)
+        originalParent.addView(placeholder, index, originalParams)
+
+        val floatingParams = android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        (originalParams as? ViewGroup.MarginLayoutParams)?.let { margins ->
+            floatingParams.setMargins(margins.leftMargin, 0, margins.rightMargin, 0)
+        }
+        host.addView(lrc, floatingParams)
+
+        host.viewTreeObserver.addOnPreDrawListener {
+            // Mirror the lyric line's size/visibility into the placeholder so the
+            // original column keeps (or releases) the slot, then pin the floating
+            // view onto the placeholder's window position.
+            val targetHeight = if (lrc.visibility == View.VISIBLE) lrc.height else 0
+            if (placeholder.layoutParams.height != targetHeight) {
+                placeholder.layoutParams = placeholder.layoutParams.apply { height = targetHeight }
+            }
+
+            if (lrc.visibility == View.VISIBLE && placeholder.isLaidOut) {
+                val hostLocation = IntArray(2).also { host.getLocationInWindow(it) }
+                val placeholderLocation = IntArray(2).also { placeholder.getLocationInWindow(it) }
+                lrc.translationY = (placeholderLocation[1] - hostLocation[1] - lrc.top).toFloat()
+            }
+            true
+        }
+    }
+
     private fun setVisualizerState() {
         if (PlayerPreferences.isVisualizerEnabled() && shouldShowProcessors()) {
             // Wire the visualizer view's twin buffers directly to the audio processor so the
@@ -636,6 +684,8 @@ abstract class BasePlayerFragment : MediaFragment() {
             }
             MediaConstants.PLAYBACK_PLAYING -> {
                 updatePlayButtonState(true)
+                // Fork (白い熊 音楽 UI): lift the visualizer's pause-silence latch
+                visualizer.wakeFromSilence()
                 // Also drain any pending waveform that was queued before the ready event arrived
                 // (e.g., when the service emits PLAYING without a preceding READY being observed).
                 pendingWaveformAudio?.let { audio ->
@@ -643,8 +693,11 @@ abstract class BasePlayerFragment : MediaFragment() {
                     pendingWaveformAudio = null
                 }
             }
-            MediaConstants.PLAYBACK_PAUSED -> {
+            MediaConstants.PLAYBACK_PAUSED, MediaConstants.PLAYBACK_STOPPED -> {
                 updatePlayButtonState(false)
+                // Fork (白い熊 音楽 UI): the engine stops writing FFT frames on pause,
+                // which would freeze the visualizer at its last spectrum — ease it to zero.
+                visualizer.dropToSilence()
             }
         }
     }
