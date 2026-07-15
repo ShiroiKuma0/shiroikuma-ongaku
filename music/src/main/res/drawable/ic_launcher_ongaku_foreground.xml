@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- shiroikuma-ongaku fork launcher foreground: the Felicity record / wireless-arc logo as a
+     black-fill / yellow-edge trace on the black adaptive background (house black-yellow style).
+     Structural shapes (record ring, arc) are black-filled + yellow-stroked (painter's-algorithm
+     hidden-line removal over the black background); the accent dot is a solid yellow fill.
+     Traced from upstream's drawable/monochrome_icon.xml (44x44 logo geometry), scaled/centered
+     into the 108 adaptive viewport's safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="3.1"
+        android:scaleY="3.1"
+        android:translateX="-20.4"
+        android:translateY="-7.8">
+        <path
+            android:fillColor="#FF000000"
+            android:strokeColor="#FFFFFF00"
+            android:strokeWidth="0.75"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M33.5,20.6c0.1,0.6 -0.3,1.1 -0.9,1.2h-0.1c-0.5,0 -1,-0.4 -1,-0.9c-0.6,-4.8 -4.7,-8.4 -9.5,-8.4c-0.6,0 -1.1,-0.5 -1.1,-1c0,-0.6 0.4,-1 1,-1H22C27.9,10.4 32.8,14.8 33.5,20.6z" />
+        <path
+            android:fillColor="#FF000000"
+            android:fillType="evenOdd"
+            android:strokeColor="#FFFFFF00"
+            android:strokeWidth="0.75"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M22,14.5c-4.1,0 -7.5,3.4 -7.5,7.5c0,4.1 3.4,7.5 7.5,7.5s7.5,-3.4 7.5,-7.5C29.5,17.9 26.1,14.5 22,14.5zM22,25.1c-1.7,0 -3.1,-1.4 -3.1,-3.1c0,-1.7 1.4,-3.1 3.1,-3.1s3.1,1.4 3.1,3.1C25.1,23.7 23.7,25.1 22,25.1z" />
+        <path
+            android:fillColor="#FFFFFF00"
+            android:pathData="M33.4,24.5c0,0.1 0,0.1 0,0.2c0,0 0,0 0,0.1s0,0 0,0c0,0 0,0 0,0c-0.1,0.5 -0.5,0.8 -1,0.8c-0.1,0 -0.2,0 -0.2,0c-0.5,-0.1 -0.9,-0.7 -0.8,-1.2v0c0,0 0,0 0,0c0.1,-0.5 0.5,-0.8 1,-0.8c0.1,0 0.2,0 0.2,0C33,23.6 33.4,24 33.4,24.5z" />
+    </group>
+</vector>
