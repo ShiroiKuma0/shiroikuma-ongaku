@@ -14,6 +14,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Fork (音楽端灯): system-wide edge-meteors overlay window while music plays -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
         android:name=".application.FelicityApplication"
@@ -47,6 +49,23 @@
         <activity
             android:name=".activities.CrashReporterActivity"
             android:exported="false" />
+
+        <!-- Fork (automation): exported headless entry point for the 自由作業盤 buttons and
+             named play-playlist tasks (hand-off.md B.2). Token-gated at runtime via
+             AutomationPreferences; see AutomationActivity. -->
+        <activity
+            android:name=".automation.AutomationActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="shiroikuma.ongaku.AUTOMATION" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
 
         <service
             android:name=".repository.services.AudioDatabaseService"
