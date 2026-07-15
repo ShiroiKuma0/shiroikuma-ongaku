@@ -17,6 +17,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import app.simple.felicity.R
 import app.simple.felicity.adapters.ui.page.PageAdapter
@@ -59,6 +60,11 @@ class PlaylistPage : BasePageFragment() {
 
     override val pageType: PageAdapter.PageType by lazy { PageAdapter.PageType.PlaylistPage(playlist) }
 
+    private var itemTouchHelper: ItemTouchHelper? = null
+
+    /** True once at least one row move happened during the current drag gesture. */
+    private var dragMoved = false
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         binding = FragmentPageArtistBinding.inflate(inflater, container, false)
         return binding.root
@@ -76,6 +82,74 @@ class PlaylistPage : BasePageFragment() {
                 pageAdapter?.updatePlaylist(playlist)
             }
         }
+    }
+
+    /**
+     * Attaches an [ItemTouchHelper] to the page RecyclerView so songs can be manually
+     * reordered by dragging their row handle (the same right-edge handle the playing-queue
+     * screen uses; long-press keeps opening the song menu as before). Only song rows are
+     * draggable — the header and the albums/artists/genres sections are neither drag
+     * sources nor drop targets. On drop, the full new order is written to the database in
+     * one transaction and the playlist switches to manual ("As Added") sort mode.
+     */
+    override fun onPageAdapterCreated() {
+        val helper = ItemTouchHelper(object : ItemTouchHelper.Callback() {
+
+            override fun isLongPressDragEnabled(): Boolean = false
+
+            override fun isItemViewSwipeEnabled(): Boolean = false
+
+            override fun getMovementFlags(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder): Int {
+                return if (pageAdapter?.isSongItem(viewHolder.bindingAdapterPosition) == true) {
+                    makeMovementFlags(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0)
+                } else {
+                    0
+                }
+            }
+
+            override fun canDropOver(recyclerView: RecyclerView, current: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
+                return pageAdapter?.isSongItem(target.bindingAdapterPosition) == true
+            }
+
+            override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
+                val moved = pageAdapter?.moveSongItem(
+                        viewHolder.bindingAdapterPosition, target.bindingAdapterPosition) == true
+                if (moved) dragMoved = true
+                return moved
+            }
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = Unit
+
+            override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+                super.onSelectedChanged(viewHolder, actionState)
+                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+                    pageAdapter?.onDragStarted()
+                }
+            }
+
+            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                super.clearView(recyclerView, viewHolder)
+                val adapter = pageAdapter ?: return
+                val moved = dragMoved
+                dragMoved = false
+                if (moved) {
+                    playlistViewerViewModel.persistManualOrder(adapter.getCurrentSongOrder())
+                }
+                // After a persisted reorder any mid-drag emission is stale — the write above
+                // triggers a fresh one. Without moves, apply whatever arrived while dragging.
+                adapter.onDragEnded(discardPending = moved)
+            }
+        })
+
+        helper.attachToRecyclerView(pageRecyclerView)
+        itemTouchHelper = helper
+        pageAdapter?.setSongDragListener { holder -> itemTouchHelper?.startDrag(holder) }
+    }
+
+    override fun onDestroyView() {
+        itemTouchHelper?.attachToRecyclerView(null)
+        itemTouchHelper = null
+        super.onDestroyView()
     }
 
     /**
