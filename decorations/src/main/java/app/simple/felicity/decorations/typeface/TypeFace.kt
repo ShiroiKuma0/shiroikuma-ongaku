@@ -4,11 +4,42 @@ import android.content.Context
 import android.graphics.Typeface
 import app.simple.felicity.decorations.constants.TypeFaceConstants
 import app.simple.felicity.preferences.AppearancePreferences
+import app.simple.felicity.preferences.ShiroikumaPreferences
+import java.io.File
 
 object TypeFace {
 
+    /**
+     * Fork (白い熊 音楽 UI): app-font keys with this prefix refer to user-imported
+     * font files living in [getExternalFontsDir] rather than bundled assets.
+     */
+    const val EXTERNAL_PREFIX = "external:"
+
     // stores the heavy fonts so they only build ONCE.
     private val typefaceCache = HashMap<String, Typeface>()
+
+    fun getExternalFontsDir(context: Context): File {
+        return File(context.filesDir, "fonts").apply { mkdirs() }
+    }
+
+    fun listExternalFonts(context: Context): List<File> {
+        return getExternalFontsDir(context)
+                .listFiles { file -> file.extension.lowercase() in arrayOf("ttf", "otf") }
+                ?.sortedBy { it.name.lowercase() } ?: emptyList()
+    }
+
+    private fun buildExternalTypeface(appFont: String, weight: Int, context: Context): Typeface {
+        return try {
+            val file = File(getExternalFontsDir(context), appFont.removePrefix(EXTERNAL_PREFIX))
+            val base = Typeface.Builder(file)
+                .setFontVariationSettings("'wght' $weight")
+                .build() ?: Typeface.createFromFile(file)
+            // Static (non-variable) fonts ignore the variation settings; synthesize the weight
+            Typeface.create(base, weight, false)
+        } catch (e: Exception) {
+            Typeface.create(null, weight, false)
+        }
+    }
 
     private fun getFontAssetPath(appFont: String): String? {
         return when (appFont) {
@@ -28,7 +59,7 @@ object TypeFace {
     }
 
     private fun getFontWeight(style: Int): Int {
-        return when (style) {
+        val weight = when (style) {
             TypefaceStyle.EXTRA_LIGHT.style -> 200
             TypefaceStyle.LIGHT.style -> 300
             TypefaceStyle.REGULAR.style -> 400
@@ -37,6 +68,9 @@ object TypeFace {
             TypefaceStyle.BLACK.style -> 900
             else -> 400
         }
+
+        // Fork (白い熊 音楽 UI): global weight adjustment, applied on top of every style
+        return (weight + ShiroikumaPreferences.getFontWeightDelta()).coerceIn(100, 900)
     }
 
     fun getTypeFace(appFont: String, style: Int, context: Context): Typeface {
@@ -47,6 +81,12 @@ object TypeFace {
 
         // CHECK CACHE FIRST: If we already built it, return instantly (0ms)
         typefaceCache[cacheKey]?.let { return it }
+
+        if (appFont.startsWith(EXTERNAL_PREFIX)) {
+            val externalTypeface = buildExternalTypeface(appFont, weight, context)
+            typefaceCache[cacheKey] = externalTypeface
+            return externalTypeface
+        }
 
         val assetPath = getFontAssetPath(appFont)
 
@@ -96,6 +136,14 @@ object TypeFace {
                 typefaceCache.remove("${model.name}-$weight")
             }
         }
+    }
+
+    /**
+     * Drops every cached weight of an external font, so a re-imported file with
+     * the same name is rebuilt from disk.
+     */
+    fun evictExternalFont(fileName: String) {
+        typefaceCache.keys.removeAll { it.startsWith("$EXTERNAL_PREFIX$fileName-") }
     }
 
     fun getBlackTypeFace(context: Context) = getTypeFaceForStyle(TypefaceStyle.BLACK, context)

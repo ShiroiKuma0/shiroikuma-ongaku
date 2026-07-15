@@ -27,6 +27,14 @@ class PreferencesViewModel(application: Application) : WrappedViewModel(applicat
         viewModelScope.launch(Dispatchers.Default) {
             val preferences = mutableListOf<Preference>()
 
+            preferences.add(
+                    Preference(
+                            title = R.string.shiroikuma_ui,
+                            description = R.string.shiroikuma_ui_desc,
+                            icon = R.drawable.ic_settings
+                    )
+            )
+
             if (TrialPreferences.isFullVersion().not()) {
                 preferences.add(Preference(
                         title = R.string.purchase,

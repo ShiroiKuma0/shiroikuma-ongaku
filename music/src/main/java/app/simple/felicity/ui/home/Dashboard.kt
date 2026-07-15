@@ -41,6 +41,7 @@ import app.simple.felicity.ui.pages.AlbumPage
 import app.simple.felicity.ui.pages.ArtistPage
 import app.simple.felicity.ui.panels.MixPanel
 import app.simple.felicity.ui.panels.PlayingQueue
+import app.simple.felicity.ui.preferences.main.ShiroikumaUi
 import app.simple.felicity.viewmodels.panels.DashboardViewModel
 import app.simple.felicity.viewmodels.panels.DashboardViewModel.LibraryStats
 
@@ -122,7 +123,11 @@ class Dashboard : BaseHomeFragment() {
             openPreferencesPanel()
         }
 
-
+        // Fork (白い熊 音楽 UI): long-press on the settings cog jumps straight to the UI page
+        binding.settings.setOnLongClickListener {
+            openFragment(ShiroikumaUi.newInstance(), ShiroikumaUi.TAG)
+            true
+        }
 
         binding.refreshMixes.setOnClickListener {
             mixesViewModel.refresh()

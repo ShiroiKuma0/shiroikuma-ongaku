@@ -32,6 +32,7 @@ object ThemeManager {
 
     var theme: Theme = Theme()
         set(value) {
+            ShiroikumaTheme.apply(value) // fork: inject 白い熊 color overrides before listeners repaint
             val bool = field != value
             field = value
             listeners.forEach { listener -> listener.onThemeChanged(value, bool) }
@@ -39,7 +40,7 @@ object ThemeManager {
 
     var accent = Accent(0, 0, "Felicity")
         set(value) {
-            field = value
+            field = ShiroikumaTheme.interceptAccent(value) // fork: 白い熊 accent override
             listeners.forEach { it.onAccentChanged(accent) }
         }
 
