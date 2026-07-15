@@ -107,6 +107,22 @@ class PlaylistViewerViewModel @AssistedInject constructor(
      */
     fun resort() = Unit
 
+    /**
+     * Persists a drag-and-drop reorder: writes the given song sequence as the playlist's
+     * position order in a single DB transaction and switches the playlist to manual
+     * ("As Added") sort mode so the new order is what the UI and playback use. The Room
+     * flow then re-emits, refreshing [data] and [currentPlaylist] automatically.
+     *
+     * @param orderedSongs The complete song list in its new on-screen order.
+     */
+    fun persistManualOrder(orderedSongs: List<Audio>) {
+        viewModelScope.launch {
+            runCatching {
+                playlistRepository.reorderSongs(playlist.id, orderedSongs.map { it.hash })
+            }.onFailure { e -> Log.e(TAG, "Failed to persist manual playlist order", e) }
+        }
+    }
+
     /** Factory interface required by the Hilt assisted-injection mechanism. */
     @AssistedFactory
     interface Factory {
