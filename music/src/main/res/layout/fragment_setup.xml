@@ -39,7 +39,7 @@
                     android:textSize="@dimen/text_size_14"
                     app:appFontStyle="bold"
                     app:drawableStartCompat="@drawable/ic_felicity_full_16dp"
-                    app:drawableTintStyle="accent"
+                    app:drawableTintStyle="custom"
                     app:textColorStyle="accent" />
 
                 <app.simple.felicity.decorations.typeface.TypeFaceTextView

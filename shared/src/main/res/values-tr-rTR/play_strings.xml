@@ -5,7 +5,7 @@
     <string name="billing_connecting">Google Play\'e bağlanıyor\u2026</string>
     <string name="billing_unavailable">Google Play Faturalandırma bu cihazda kullanılamıyor.</string>
     <string name="billing_error">Bir şeyler ters gitti: %1$s</string>
-    <string name="purchase_complete">Her şey hazır! Felicity\'nin tam sürümüne hoş geldiniz.</string>
+    <string name="purchase_complete">Her şey hazır! 白い熊 音楽\'nin tam sürümüne hoş geldiniz.</string>
     <string name="already_purchased">Buna zaten sahipsiniz — tam sürümün tadını çıkarın!</string>
     <string name="purchase_restored">Satın alma işleminiz geri yüklendi. Tekrar hoş geldiniz!</string>
     <string name="days_left">%1$d gün kaldı</string>
@@ -23,6 +23,6 @@
     <string name="all_features_summary">Uygulamanın tamamını hiçbir kısıtlama olmadan edinin.</string>
     <!-- Restore purchase button and result messages -->
     <string name="restore_purchase">Satın Alınanı Geri Yükle</string>
-    <string name="restore_purchase_failed">Bu hesapta satın alma işlemi bulunamadı.\n\nEğer Felicity\'yi farklı bir Google hesabıyla satın aldıysanız, lütfen Play Store\'da o hesaba geçiş yapın ve tekrar deneyin. Bunun bir hata olduğuna inanıyorsanız destek ile iletişime geçin.</string>
+    <string name="restore_purchase_failed">Bu hesapta satın alma işlemi bulunamadı.\n\nEğer 白い熊 音楽\'yi farklı bir Google hesabıyla satın aldıysanız, lütfen Play Store\'da o hesaba geçiş yapın ve tekrar deneyin. Bunun bir hata olduğuna inanıyorsanız destek ile iletişime geçin.</string>
     <string name="restore_purchase_restoring">Geri yükleniyor\u2026</string>
 </resources>

@@ -148,7 +148,7 @@
     <string name="setup">设置</string>
     <string name="shadow_effect_summary">切换应用中某些图标和专辑封面的阴影效果。</string>
     <string name="rounded_corners">圆角</string>
-    <string name="desc_data_collect">Felicity 不会收集任何数据。</string>
+    <string name="desc_data_collect">白い熊 音楽 不会收集任何数据。</string>
     <string name="desc_setup">在继续之前，建议执行必要的操作以确保应用的所有功能正常运行。</string>
     <string name="required">必须</string>
     <string name="granted">已授权</string>
@@ -156,9 +156,9 @@
     <string name="post_notifications">发送通知</string>
     <string name="desc_post_notifications">显示媒体播放器和其他必要通知所必需。</string>
     <string name="storage_folder_access">存储文件夹访问权限</string>
-    <string name="desc_storage_folder_access">点击以选择您希望 Felicity 扫描的音乐文件夹。您稍后可以在媒体库设置中添加更多文件夹。不需要宽泛的存储权限，只需要您选择的文件夹即可。</string>
+    <string name="desc_storage_folder_access">点击以选择您希望 白い熊 音楽 扫描的音乐文件夹。您稍后可以在媒体库设置中添加更多文件夹。不需要宽泛的存储权限，只需要您选择的文件夹即可。</string>
     <string name="read_media_audio">读取媒体音频</string>
-    <string name="desc_read_media_audio">允许 Felicity 从媒体存储 (MediaStore) 中读取音频文件。</string>
+    <string name="desc_read_media_audio">允许 白い熊 音楽 从媒体存储 (MediaStore) 中读取音频文件。</string>
     <string name="no_folders_granted">暂未添加文件夹。请点击上方选择音乐文件夹。</string>
     <string name="start_app_now">立即开始使用</string>
     <string name="audio">音频</string>
@@ -363,7 +363,7 @@
     <string name="trial_period_summary">试用期还剩 %1$d 天。</string>
     <!-- Trial expired dialog strings -->
     <string name="trial_expired">试用期已结束</string>
-    <string name="trial_expired_message">您的免费试用期已结束。购买完整版本即可继续不受限制地使用 Felicity。</string>
+    <string name="trial_expired_message">您的免费试用期已结束。购买完整版本即可继续不受限制地使用 白い熊 音楽。</string>
     <string name="grace_period_expired_message">所有宽限启动次数已用完。请购买应用以继续收听。</string>
     <string name="purchase_now">立即购买</string>
     <string name="purchase_later">稍后购买</string>

@@ -138,7 +138,7 @@ function playSong(song, ctx) {
     playerArt.src         = artUrl;
 
     seekBar.disabled = false;
-    document.title   = song.title || song.name || "Felicity";
+    document.title   = song.title || song.name || "白い熊 音楽";
 
     buildWaveformBars(song.id);
 
