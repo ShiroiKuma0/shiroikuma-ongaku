@@ -36,6 +36,38 @@
     <string name="sk_section_player" translatable="false">Player</string>
     <string name="sk_color_visualizer" translatable="false">Visualizer color</string>
 
+    <string name="sk_section_meteors" translatable="false">音楽端灯 (Edge meteors)</string>
+    <string name="sk_meteor_enable" translatable="false">Enable edge meteors</string>
+    <string name="sk_meteor_overlay" translatable="false">System-wide overlay</string>
+    <string name="sk_meteor_reactive" translatable="false">Music reactive (音楽反応)</string>
+    <string name="sk_meteor_reverse" translatable="false">Reverse direction</string>
+    <string name="sk_meteor_group_ribbons" translatable="false">Ribbons</string>
+    <string name="sk_meteor_count" translatable="false">Ribbon count</string>
+    <string name="sk_meteor_spawn_ms" translatable="false">Spawn interval</string>
+    <string name="sk_meteor_period_s" translatable="false">Loop period</string>
+    <string name="sk_meteor_min_len" translatable="false">Min length</string>
+    <string name="sk_meteor_max_len" translatable="false">Max length</string>
+    <string name="sk_meteor_group_band" translatable="false">Band &amp; glow</string>
+    <string name="sk_meteor_padding" translatable="false">Band thickness</string>
+    <string name="sk_meteor_radius" translatable="false">Band corner radius</string>
+    <string name="sk_meteor_corner_mask" translatable="false">Corner mask radius</string>
+    <string name="sk_meteor_glow" translatable="false">Glow size</string>
+    <string name="sk_meteor_glow_layers" translatable="false">Glow layers</string>
+    <string name="sk_meteor_glow_spread" translatable="false">Glow spread</string>
+    <string name="sk_meteor_glow_strength" translatable="false">Glow strength</string>
+    <string name="sk_meteor_head_glow" translatable="false">Head star size</string>
+    <string name="sk_meteor_twinkle" translatable="false">Twinkle depth</string>
+    <string name="sk_meteor_hue_drift" translatable="false">Hue drift</string>
+    <string name="sk_meteor_max_fps" translatable="false">Max FPS</string>
+    <string name="sk_meteor_group_reaction" translatable="false">Motion &amp; reaction</string>
+    <string name="sk_meteor_react_gain" translatable="false">Reaction gain</string>
+    <string name="sk_meteor_react_pulse" translatable="false">Beat pulse depth</string>
+    <string name="sk_meteor_react_kick" translatable="false">Beat kick depth</string>
+    <string name="sk_meteor_react_sharp" translatable="false">Beat pump sharpness</string>
+    <string name="sk_meteor_speed_min" translatable="false">Min speed</string>
+    <string name="sk_meteor_speed_max" translatable="false">Max speed</string>
+    <string name="sk_meteor_speed_change_s" translatable="false">Speed retarget period</string>
+
     <string name="sk_section_typography" translatable="false">Typography</string>
     <string name="sk_font" translatable="false">Font</string>
     <string name="sk_text_size" translatable="false">Text size</string>
@@ -64,4 +96,11 @@
     <string name="sk_system_default_font" translatable="false">System default</string>
     <string name="sk_font_invalid" translatable="false">Not a usable font file (.ttf / .otf)</string>
     <string name="sk_none" translatable="false">none</string>
+
+    <string name="sk_section_automation" translatable="false">Automation</string>
+    <string name="sk_automation_enable" translatable="false">Enable automation intents</string>
+    <string name="sk_automation_token" translatable="false">Token</string>
+    <string name="sk_automation_token_copied" translatable="false">Token copied to clipboard</string>
+    <string name="sk_automation_regenerate" translatable="false">Regenerate token</string>
+    <string name="sk_automation_token_regenerated" translatable="false">New token generated</string>
 </resources>

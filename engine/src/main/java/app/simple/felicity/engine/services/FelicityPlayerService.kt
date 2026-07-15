@@ -1,10 +1,14 @@
 package app.simple.felicity.engine.services
 
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.content.res.Configuration
+import android.graphics.PixelFormat
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioFormat
@@ -14,7 +18,9 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.util.Log
+import android.view.WindowManager
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -46,6 +52,7 @@ import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import app.simple.felicity.engine.R
 import app.simple.felicity.engine.audio.FelicityAudioSink
+import app.simple.felicity.engine.broadcasts.AutomationBroadcasts
 import app.simple.felicity.engine.managers.AudioPipelineManager
 import app.simple.felicity.engine.managers.AudioProcessorManager
 import app.simple.felicity.engine.managers.EqualizerManager
@@ -56,11 +63,13 @@ import app.simple.felicity.engine.model.AudioPipelineSnapshot
 import app.simple.felicity.engine.notifications.PlaybackErrorNotifier
 import app.simple.felicity.engine.usb.UsbDacDriver
 import app.simple.felicity.engine.usb.UsbDacManager
+import app.simple.felicity.engine.views.EdgeMeteorsView
 import app.simple.felicity.manager.SharedPreferences.initRegisterSharedPreferenceChangeListener
 import app.simple.felicity.manager.SharedPreferences.unregisterSharedPreferenceChangeListener
 import app.simple.felicity.preferences.AppearancePreferences
 import app.simple.felicity.preferences.AudioPreferences
 import app.simple.felicity.preferences.EqualizerPreferences
+import app.simple.felicity.preferences.MeteorPreferences
 import app.simple.felicity.preferences.PlayerPreferences
 import app.simple.felicity.preferences.ShufflePreferences
 import app.simple.felicity.preferences.UserInterfacePreferences
@@ -222,6 +231,35 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
      * one new push after a short cooldown — only the last call in the burst wins.
      */
     private var snapshotDebounceJob: Job? = null
+
+    /**
+     * Fork (音楽端灯): the system-wide edge-meteors overlay — a [EdgeMeteorsView] hosted in
+     * a TYPE_APPLICATION_OVERLAY full-screen non-touchable window while music plays, so
+     * the edge lighting shows over OTHER apps. Non-null only while the window is attached.
+     */
+    private var meteorOverlayView: EdgeMeteorsView? = null
+
+    /** Fork (音楽端灯): screen interactive state — no overlay frames burn while it is off. */
+    private var isScreenOn = true
+
+    /**
+     * Fork (音楽端灯): removes the overlay when the display turns off and restores it
+     * (playback state permitting) when it turns back on.
+     */
+    private val meteorScreenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_OFF -> {
+                    isScreenOn = false
+                    updateMeteorOverlay()
+                }
+                Intent.ACTION_SCREEN_ON -> {
+                    isScreenOn = true
+                    updateMeteorOverlay()
+                }
+            }
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -386,6 +424,111 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
         serviceScope.launch {
             audioRepository.getAllAudio().collect { list ->
                 cachedSongList = list
+            }
+        }
+
+        // Fork (音楽端灯): track screen on/off so the system-wide meteor overlay never
+        // burns frames with the display off (hand-off.md A.5).
+        registerReceiver(meteorScreenReceiver, IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+        })
+    }
+
+    // ------------------------------------------------------------------ 音楽端灯 overlay
+
+    /**
+     * Fork (音楽端灯): reconciles the system-wide overlay window with the current state —
+     * attached while (master enable AND overlay mode AND playing AND screen on AND the
+     * SYSTEM_ALERT_WINDOW permission is granted), detached otherwise. If the permission is
+     * missing the overlay is skipped silently; the settings switch handler is responsible
+     * for steering 白い熊 to ACTION_MANAGE_OVERLAY_PERMISSION.
+     */
+    private fun updateMeteorOverlay() {
+        val wanted = MeteorPreferences.isEnabled() &&
+                MeteorPreferences.isOverlayEnabled() &&
+                ::player.isInitialized && player.isPlaying &&
+                isScreenOn &&
+                Settings.canDrawOverlays(this)
+        if (wanted) addMeteorOverlay() else removeMeteorOverlay()
+    }
+
+    private fun meteorOverlayParams(): WindowManager.LayoutParams {
+        val params = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                        or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                        or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT)
+        // Cover the full panel including any cutout region — on the Mate XT folded cover
+        // panel a TYPE_APPLICATION_OVERLAY covers the real screen where full-screen
+        // Activities get clipped (hand-off.md A.5).
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+        } else {
+            params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+
+        // Pin the window to the REAL panel size at (0,0). With MATCH_PARENT the window is
+        // sized to the "available" area, which excludes the status-bar strip while an app
+        // is foreground — the band then starts below the status bar. Explicit real-size
+        // bounds + fitInsetsTypes=0 keep the band on the true screen edge regardless of
+        // what is in front; recomputed on every (fold/unfold) configuration change.
+        val windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val bounds = windowManager.maximumWindowMetrics.bounds
+            params.width = bounds.width()
+            params.height = bounds.height()
+            params.fitInsetsTypes = 0
+        } else {
+            val size = android.graphics.Point()
+            @Suppress("DEPRECATION")
+            windowManager.defaultDisplay.getRealSize(size)
+            params.width = size.x
+            params.height = size.y
+        }
+        params.gravity = android.view.Gravity.TOP or android.view.Gravity.START
+        params.x = 0
+        params.y = 0
+
+        return params
+    }
+
+    private fun addMeteorOverlay() {
+        if (meteorOverlayView != null) return
+        val windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        val view = EdgeMeteorsView(this)
+        runCatching {
+            windowManager.addView(view, meteorOverlayParams())
+        }.onSuccess {
+            meteorOverlayView = view
+            Log.i(TAG, "音楽端灯: system-wide overlay attached")
+        }.onFailure {
+            Log.w(TAG, "音楽端灯: overlay attach failed: ${it.message}")
+        }
+    }
+
+    private fun removeMeteorOverlay() {
+        val view = meteorOverlayView ?: return
+        meteorOverlayView = null
+        runCatching {
+            (getSystemService(WINDOW_SERVICE) as WindowManager).removeView(view)
+        }.onFailure {
+            Log.w(TAG, "音楽端灯: overlay detach failed: ${it.message}")
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Fork (音楽端灯): fold/unfold (Mate XT) changes the panel geometry — force the
+        // overlay window through a fresh measure/layout pass so the perimeter band matches
+        // the new panel (hand-off.md A.5). MATCH_PARENT re-resolves on updateViewLayout.
+        meteorOverlayView?.let { view ->
+            runCatching {
+                (getSystemService(WINDOW_SERVICE) as WindowManager).updateViewLayout(view, meteorOverlayParams())
             }
         }
     }
@@ -859,13 +1002,19 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
                 startPeriodicStateSaving()
                 startSnapshotPulse() // internally calls buildAndPushSnapshot() immediately, no need to call it again here
                 broadcastWidgetUpdate()
+                broadcastAutomationStatusChanged() // Fork (automation): hand-off.md B.1
             } else if (player.playbackState == Player.STATE_READY) {
                 MediaPlaybackManager.notifyPlaybackState(MediaConstants.PLAYBACK_PAUSED)
                 stopPeriodicStateSaving()
                 stopSnapshotPulse()
                 savePlaybackStateToDatabase() // Save immediately when paused
                 broadcastWidgetUpdate()
+                broadcastAutomationStatusChanged() // Fork (automation): hand-off.md B.1
             }
+
+            // Fork (音楽端灯): the system-wide overlay lives exactly as long as playback —
+            // attach on play, detach on pause/stop.
+            updateMeteorOverlay()
         }
 
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
@@ -1102,6 +1251,7 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
             savePlaybackStateToDatabase() // Save when track changes
             buildAndPushSnapshot()
             broadcastWidgetUpdate()
+            broadcastAutomationTrackChanged() // Fork (automation): hand-off.md B.1
 
             // Apply tag-based ReplayGain for the incoming track when auto-RG is on.
             // We look up the Audio object from the database on the IO thread, parse the
@@ -1289,6 +1439,11 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
                 Log.d(TAG, "Shuffle preference changed to: $shuffleEnabled")
                 MediaPlaybackManager.setShuffleEnabled(shuffleEnabled)
             }
+            MeteorPreferences.ENABLED,
+            MeteorPreferences.OVERLAY -> {
+                // Fork (音楽端灯): reconcile the system-wide overlay with the new toggles.
+                updateMeteorOverlay()
+            }
             AppearancePreferences.THEME,
             AppearancePreferences.ACCENT_COLOR -> {
                 // Theme or accent color changed — nudge the widget so it redraws
@@ -1402,6 +1557,11 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
         savePlaybackStateToDatabase()
         unregisterSharedPreferenceChangeListener()
 
+        // Fork (音楽端灯): drop the system-wide overlay and its screen-state receiver
+        // before the service context disappears.
+        removeMeteorOverlay()
+        runCatching { unregisterReceiver(meteorScreenReceiver) }
+
         // Unregister the USB DAC driver and release any open USB connection before
         // the service context disappears, so no dangling file descriptor is left open.
         UsbDacManager.removeListener(usbDacManagerListener)
@@ -1469,6 +1629,32 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
             putExtra("extra_song_id", songId)
         }
         sendBroadcast(intent)
+    }
+
+    /**
+     * Fork (automation): emits the `shiroikuma.ongaku.STATUS_CHANGED` contract broadcast
+     * consumed by the 自由作業盤 (hand-off.md B.1). Called from the player listener on
+     * every play/pause flip, right next to [broadcastWidgetUpdate].
+     */
+    private fun broadcastAutomationStatusChanged() {
+        AutomationBroadcasts.sendStatusChanged(
+                applicationContext,
+                MediaPlaybackManager.getCurrentSong(),
+                !player.isPlaying
+        )
+    }
+
+    /**
+     * Fork (automation): emits the `shiroikuma.ongaku.TRACK_CHANGED` contract broadcast
+     * (hand-off.md B.1). Called on every media-item transition and after every favorite
+     * toggle that goes through [COMMAND_TOGGLE_FAVORITE].
+     */
+    private fun broadcastAutomationTrackChanged() {
+        AutomationBroadcasts.sendTrackChanged(
+                applicationContext,
+                MediaPlaybackManager.getCurrentSong(),
+                !player.isPlaying
+        )
     }
 
     /**
@@ -1961,6 +2147,11 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
                                             buildFavoriteCommandButton(newFavoriteState)
                                     )
                             )
+                            // Fork (automation): favorite flips re-emit TRACK_CHANGED so the
+                            // 自由作業盤's cached state self-corrects (hand-off.md B.1). This
+                            // path also covers the AutomationActivity TOGGLE_FAVORITE op,
+                            // which is routed through this same session command.
+                            broadcastAutomationTrackChanged()
                         }
                     }
                 }

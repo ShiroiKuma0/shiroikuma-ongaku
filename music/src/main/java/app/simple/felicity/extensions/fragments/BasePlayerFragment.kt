@@ -30,12 +30,14 @@ import app.simple.felicity.dialogs.app.AudioPipelineDialog.Companion.showAudioPi
 import app.simple.felicity.dialogs.player.VisualizerConfig.Companion.showVisualizerConfig
 import app.simple.felicity.engine.managers.MediaPlaybackManager
 import app.simple.felicity.engine.managers.VisualizerManager
+import app.simple.felicity.engine.views.EdgeMeteorsView
 import app.simple.felicity.engine.usb.UsbDacManager
 import app.simple.felicity.engine.utils.PcmInfoFormatter
 import app.simple.felicity.glide.util.AudioCoverUtils.loadArtCover
 import app.simple.felicity.glide.util.AudioCoverUtils.loadArtCoverWithPayload
 import app.simple.felicity.preferences.AlbumArtPreferences
 import app.simple.felicity.preferences.AudioPreferences
+import app.simple.felicity.preferences.MeteorPreferences
 import app.simple.felicity.preferences.PlayerPreferences
 import app.simple.felicity.preferences.UserInterfacePreferences
 import app.simple.felicity.preferences.VisualizerPreferences
@@ -71,6 +73,9 @@ abstract class BasePlayerFragment : MediaFragment() {
 
     private var imagePageAdapter: ImagePageAdapter? = null
     private var swipeDownListener: SwipeDownToCloseListener? = null
+
+    /** Fork (音楽端灯): the edge-meteors overlay, attached in code above the visualizer. */
+    private var edgeMeteors: EdgeMeteorsView? = null
 
     /** ViewModel that decodes and exposes the per-second waveform amplitude data. */
     private val waveformViewModel: WaveformViewModel by viewModels()
@@ -166,6 +171,7 @@ abstract class BasePlayerFragment : MediaFragment() {
         setVisualizerState()
         setVisualizerCapsState()
         setLyricsState()
+        attachEdgeMeteors()
         liftLyricsAboveVisualizer()
 
         // Mirror swipe-down-to-close behavior on the album art pager so that a downward
@@ -459,6 +465,39 @@ abstract class BasePlayerFragment : MediaFragment() {
         }
     }
 
+    /**
+     * Fork (音楽端灯): adds an [EdgeMeteorsView] as a full-screen non-touchable overlay
+     * directly above the [visualizer] in the same host — i.e., above the player content
+     * but below the lyric line, which [liftLyricsAboveVisualizer] appends to the host
+     * afterwards (the lyrics stay the last/topmost child). One code path covers all three
+     * player skins, since each hosts its visualizer overlay in the full-screen root.
+     */
+    private fun attachEdgeMeteors() {
+        val host = visualizer.parent as? ViewGroup ?: return
+        val meteors = EdgeMeteorsView(requireContext())
+        host.addView(meteors, host.indexOfChild(visualizer) + 1,
+                     ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        edgeMeteors = meteors
+        updateEdgeMeteorsState()
+    }
+
+    /**
+     * Fork (音楽端灯): the meteors show only while enabled AND music is playing — and NOT
+     * while the system-wide overlay window is active, which already covers the whole real
+     * panel (including over this activity). Rendering both would double the band; on the
+     * Mate XT folded cover panel the activity window is additionally misreported 105px
+     * short at the top, so the in-app copy sits visibly lower than the overlay copy.
+     */
+    private fun updateEdgeMeteorsState() {
+        val overlayActive = MeteorPreferences.isOverlayEnabled() &&
+                android.provider.Settings.canDrawOverlays(requireContext())
+        edgeMeteors?.visibility = if (MeteorPreferences.isEnabled() && !overlayActive && MediaPlaybackManager.isPlaying()) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+    }
+
     private fun setVisualizerState() {
         if (PlayerPreferences.isVisualizerEnabled() && shouldShowProcessors()) {
             // Wire the visualizer view's twin buffers directly to the audio processor so the
@@ -576,6 +615,7 @@ abstract class BasePlayerFragment : MediaFragment() {
         VisualizerManager.processor?.clearDirectOutput()
         super.onDestroyView()
         imagePageAdapter = null
+        edgeMeteors = null
     }
 
     override fun onSongListChanged(songs: List<Audio>) {
@@ -661,6 +701,8 @@ abstract class BasePlayerFragment : MediaFragment() {
                 updatePlayButtonState(true)
                 // Fork (白い熊 音楽 UI): lift the visualizer's pause-silence latch
                 visualizer.wakeFromSilence()
+                // Fork (音楽端灯): show the meteors while music plays.
+                updateEdgeMeteorsState()
                 // Also drain any pending waveform that was queued before the ready event arrived
                 // (e.g., when the service emits PLAYING without a preceding READY being observed).
                 pendingWaveformAudio?.let { audio ->
@@ -673,6 +715,8 @@ abstract class BasePlayerFragment : MediaFragment() {
                 // Fork (白い熊 音楽 UI): the engine stops writing FFT frames on pause,
                 // which would freeze the visualizer at its last spectrum — ease it to zero.
                 visualizer.dropToSilence()
+                // Fork (音楽端灯): hide the meteors on pause/stop.
+                updateEdgeMeteorsState()
             }
         }
     }
@@ -697,6 +741,9 @@ abstract class BasePlayerFragment : MediaFragment() {
         when (key) {
             PlayerPreferences.VISUALIZER_ENABLED -> {
                 setVisualizerState()
+            }
+            MeteorPreferences.ENABLED, MeteorPreferences.OVERLAY -> {
+                updateEdgeMeteorsState()
             }
             VisualizerPreferences.CAPS_ENABLED -> {
                 setVisualizerCapsState()
