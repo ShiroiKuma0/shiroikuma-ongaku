@@ -5,7 +5,7 @@
     <string name="billing_connecting">Connessione a Google Play\u2026</string>
     <string name="billing_unavailable">La fatturazione di Google Play non è disponibile su questo dispositivo.</string>
     <string name="billing_error">Qualcosa è andato storto: %1$s</string>
-    <string name="purchase_complete">È tutto pronto! Benvenuto nella versione completa di Felicity.</string>
+    <string name="purchase_complete">È tutto pronto! Benvenuto nella versione completa di 白い熊 音楽.</string>
     <string name="already_purchased">Possiedi già questo articolo — goditi la versione completa!</string>
     <string name="purchase_restored">Il tuo acquisto è stato ripristinato. Bentornato!</string>
     <string name="days_left">%1$d giorni rimanenti</string>
@@ -23,6 +23,6 @@
     <string name="all_features_summary">Ottieni l\'app completa senza restrizioni.</string>
     <!-- Restore purchase button and result messages -->
     <string name="restore_purchase">Ripristina acquisto</string>
-    <string name="restore_purchase_failed">Nessun acquisto trovato su questo account.\n\nSe hai acquistato Felicity con un account Google diverso, passa a quell\'account nel Play Store e riprova. Se ritieni che si tratti di un errore, contatta l\'assistenza.</string>
+    <string name="restore_purchase_failed">Nessun acquisto trovato su questo account.\n\nSe hai acquistato 白い熊 音楽 con un account Google diverso, passa a quell\'account nel Play Store e riprova. Se ritieni che si tratti di un errore, contatta l\'assistenza.</string>
     <string name="restore_purchase_restoring">Ripristino\u2026</string>
 </resources>

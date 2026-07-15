@@ -16,7 +16,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:tintType="accent" />
+        app:tintType="custom" />
 
     <app.simple.felicity.decorations.typeface.TypeFaceTextView
         android:layout_width="0dp"
