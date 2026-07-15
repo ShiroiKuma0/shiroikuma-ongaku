@@ -1,176 +1,46 @@
-# Felicity
+<div align="center">
 
-*_Felicity_ is the third and final app of the three projects I had planned for my own learning, the
-first two are [Positional](https://github.com/Hamza417/Positional)
-and [Inure App Manager](https://github.com/Hamza417/Inure).*
+<img src="music/src/main/ic_launcher-playstore.png" width="120" alt="白い熊 音楽 icon" />
 
-The development of the app has started and if you've used the first two apps you might want to join
-the [Telegram Channel](https://t.me/felicity_music_player) and become the part of the whole initial
-development process.
+# 白い熊 音楽
 
-The project will be developed under the codename Felicity, the final name maybe updated in the
-future.
+**A black-yellow, beat-lit, automation-ready music player.**
 
-## Stats
+A fork of [Felicity Music Player](https://github.com/Hamza417/Felicity) with **major additions**: a full black-yellow theming engine with its own settings page, a PowerAmp-style full-screen spectrum visualizer, the 音楽端灯 edge-meteor light show driven by a sample-accurate PCM beat tracker, a token-secured automation surface for external workspaces, and manual playlist reordering.
 
-[![](https://img.shields.io/github/downloads/Hamza417/Felicity/total?color=blue&label=Total%20Downloads%20(GitHub)&logo=github&logoColor=white)](https://tooomm.github.io/github-release-stats/?username=Hamza417&repository=Felicity)
-[![](https://img.shields.io/endpoint?url=https://ghloc.vercel.app/api/Hamza417/Felicity/badge?style=flat&logo=kotlin&logoColor=white&label=Total%20Lines&color=indianred)](https://ghloc.vercel.app/Hamza417/Felicity?branch=master)
-[![Release](https://img.shields.io/github/v/release/Hamza417/Felicity?color=52be80&label=Current%20Release)](https://github.com/Hamza417/Felicity/releases)
-![](https://img.shields.io/github/languages/count/Hamza417/Felicity?color=white&label=Languages)
-![](https://img.shields.io/github/license/Hamza417/Felicity?color=red&label=License)
-![](https://img.shields.io/badge/Minimum%20SDK-29%20(Android%2010)-839192?logo=android&logoColor=white)
-![](https://img.shields.io/badge/Target%20SDK-36%20(Android%2016)-566573?logo=android&logoColor=white)
-[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/Hamza417/Felicity/build_preview.yml?branch=master&logo=github&logoColor=white&label=build%20(preview)&color=white)](https://github.com/Hamza417/Felicity/actions/workflows/build_preview.yml)
-[![Crowdin](https://badges.crowdin.net/felicity/localized.svg)](https://crowdin.com/project/felicity)
+Installs **side-by-side** with Felicity (app id `shiroikuma.ongaku`).
 
-## Download
+**📥 Latest release: [`0.0.26_alpha+14`](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases)
 
-[![](https://img.shields.io/badge/Play%20Store-05acff?logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=app.simple.felicity)
-[![](https://img.shields.io/github/v/release/Hamza417/Felicity?color=181717&logo=github&label=GitHub%20Release)](https://github.com/Hamza417/Felicity/releases/latest)
-[![](https://img.shields.io/f-droid/v/app.simple.felicity?logo=fdroid&logoColor=white&label=F-Droid&color=1976D2)](https://f-droid.org/en/packages/app.simple.felicity/)
+</div>
 
-## Purchase
+---
 
-[![](https://img.shields.io/badge/License%20Key%20(GumRoad)-Purchase-23a094?logo=gumroad&logoColor=white)](https://hamza417.gumroad.com/l/Felicity/)
+## 🖤💛 白い熊 音楽 UI — the black-yellow theming engine
+A dedicated settings page (first row in Settings, or long-press the home-screen cog) controls the whole look: black background, yellow text, yellow borders everywhere by default. Nineteen color slots with two-tier inheritance (change the foundation, everything derives), each edited in a 4-slider RGBA picker with live preview, hex readout, and one-click recent-color boxes. External `.ttf`/`.otf` fonts import via the system picker and every font choice renders in its own glyphs; global text-size and font-weight sliders, corner radius and border width down to 0 — all with a live preview card.
 
-Play Store users can buy full version directly from the app itself.
+## 📊 PowerAmp-style visualizer
+The player's spectrum reaches over the whole screen: super-thin blue bars (2 dp), upsampled from 40 real frequency bands with progressive height interpolation, overlaying every player element while lyrics float above. Bars ease to zero on pause instead of freezing. Color is settable from the UI page.
 
-## Features
+## 🌠 音楽端灯 — edge meteors
+Comet ribbons orbit the screen perimeter, glowing and beat-locked to the music. The beat source is a native tap on the decoder output (no `Visualizer` API, works under BT offload) with onset detection and a tempo phase-lock grid; the renderer is GPU-native layered capsules tuned over weeks. Runs in-app over the player, and optionally as a system-wide overlay window that lights the screen edge over any app while music plays — every knob (counts, speeds, glow, twinkle, palette, reaction) exposed in settings.
 
-### Custom Audio Engine
+## 🤖 Automation surface
+Play/pause and track-change broadcasts (with title, artist, favorite state, and a human-readable path), plus a token-secured intent endpoint for external automation: toggle favorite, delete the current track, transport controls, and play-playlist-by-name — optionally starting at a named track — all cold-start-safe.
 
-- **Dual Decoder** utilizing both hardware and software decoding through FFmpeg.
-- **Custom DSP:** The entire audio processing chain (EQ, Bass, Reverb) is written in C++ via JNI. It
-  utilizes ARM NEON SIMD auto-vectorization to process audio arrays with absolute minimum CPU
-  overhead.
-    - Supports bass, treble and more.
-    - Native downmixing support to pass multichannel audio to stereo output.
-- **Advanced Effects:** Integrated spatial effects including stereo widening and tape saturation for
-  an analog feel.
-- **10-band Equalizer:** A powerful equalizer with 10 adjustable frequency bands up to +/-15 dB with
-  dedicated PreAmp support.
-- **Gapless Playback:** Seamless transition between tracks without any gaps or interruptions.
-- **High-Resolution Audio Support:** Support for high-resolution audio formats such as FLAC, ALAC,
-  and DSD for audiophile-grade sound quality.
-- **Multi-Channel Audio Support:** Support for multichannel audio formats like 5.1 and 7.1 surround
-  sound for an immersive listening experience.
-- **Milkdrop Visualizer:** Twin buffer enabled Milkdrop visualizer support powered by a native DSP,
-  rendering on GL surface at native fps in real-time.
+## 🎵 Player & library
+Manual drag-reorder of playlist songs (right-edge drag handle, persisted order that playback honors), black-yellow traced placeholder art, bordered chips and miniplayer, and the trial timer removed — permanent full version.
 
-### User Interface
+---
 
-- **Fully custom-built and highly optimized** interface inspired by Inure App Manager.
-- **Dynamic Theming:** The app's theme dynamically adapts to the album art of the currently playing
-  track, creating a visually cohesive and immersive experience.
-- **Custom Animations:** Smooth and visually appealing animations throughout the app, enhancing the
-  user experience and making interactions more engaging.
-- **Themes:** Multiple themes including light, dark, AMOLED black, Material You and others.
-- **Core:** Predictive back, edge to edge and adapted to all modern Android UI features.
-- **Embedded Lyrics:** Reliable, on-the-fly LRC extraction and support for online downloading from
-  LrcLib.
-- **Dual Fast Scroll:** Simultaneous support for both slide to scroll and jump to letter fast
-  scroll.
-- **Realtime Audio Visualizer:** A lock-free, zero-allocation visualizer rendering on the Canvas at
-  native fps, powered by a native PFFFT implementation.
+## Built on Felicity
+A fork of [Felicity Music Player](https://github.com/Hamza417/Felicity) by [Hamza417](https://github.com/Hamza417) (app id `shiroikuma.ongaku`, so it coexists with the official build). Felicity is a beautifully engineered modern Android music player; this fork carries a personal customization layer rebased onto each upstream release. The code remains under AGPL-3.0.
 
-### Library Management
-
-- **Realtime Library Updates:** The app automatically detects and updates the music library in
-  real-time as new tracks are added or removed from the device adapted from Peristyle app.
-- **Auto Scanning:** The app automatically scans for new music files and updates the library without
-  requiring manual refreshes.
-- **Server Mode:** Host Felicity as a local server to create a central music library for all local
-  and possibly remote devices through Wi-Fi.
-
-### Smart Core
-
-- **True Randomized Shuffle:** Choose between Miller and Fisher-Yates shuffle algorithms.
-
-This feature list is not exhaustive and only main features are listed.
-
-## Roadmap
-
-- [x] Initial development and setup
-- [x] Custom audio engine implementation
-- [x] Basic playback controls and UI
-- [x] Library management and scanning
-- [x] Advanced audio effects and equalizer
-- [x] Dynamic theming and custom animations
-- [x] Embedded lyrics support
-- [x] Realtime audio visualizer
-- [x] Milkdrop visualizer support
-- [ ] ~Crossfade support~
-- [ ] Multiple Player interface styles. _(partially fulfilled)_
-- [x] Playlist support
-- [x] LRC Editor
-- [x] Word-by-Word LRC support
-- [x] m3u playlist support
-- [x] Metadata editing support
-- [x] Replay gain
-- [x] Local server for centralized music access across multiple devices.
-- [x] Selection support for library management and playlist creation.
-- [x] Reproducible build
-- [x] Parametric Equalizer
-- [ ] Sleep Timer
-- [ ] Global Search Provider
-- [ ] More widgets
-- [x] Multiple Queue Support
-- [x] Bookmarks
-
-##### Niche Features
-
-Features that are planned but will not be a priority.
-
-- [ ] Cue sheet support
-- [x] ~Native USB DAC support~
-- [x] Oboe
-- [x] AAudio
-
-... and more features will be updated here as development progresses.
-
-## Screenshots
-
-|                          |                          |                          |
-|--------------------------|--------------------------|--------------------------|
-| ![](/screenshots/01.png) | ![](/screenshots/02.png) | ![](/screenshots/03.png) |
-| ![](/screenshots/04.png) | ![](/screenshots/05.png) | ![](/screenshots/06.png) |
-| ![](/screenshots/07.png) | ![](/screenshots/08.png) | ![](/screenshots/11.png) |
-| ![](/screenshots/12.png) | ![](/screenshots/13.png) | ![](/screenshots/14.png) |
-| ![](/screenshots/15.png) | ![](/screenshots/16.png) | ![](/screenshots/17.png) |
-| ![](/screenshots/18.png) | ![](/screenshots/19.png) | ![](/screenshots/20.png) |
-| ![](/screenshots/21.png) | ![](/screenshots/22.png) | ![](/screenshots/23.png) |
-| ![](/screenshots/24.png) | ![](/screenshots/25.png) | ![](/screenshots/26.gif) |
-| ![](/screenshots/27.png) | ![](/screenshots/28.png) | ![](/screenshots/29.png) |
-
-| Artflow Interface        |
-|--------------------------|
-| ![](/screenshots/09.png) |
-| ![](/screenshots/10.png) |
-
-| Server Webpage                        |
-|---------------------------------------|
-| ![](/screenshots/server_01_dark.png)  |
-| ![](/screenshots/server_01_light.png) |
-
-## Translations
-
-[![Crowdin](https://badges.crowdin.net/felicity/localized.svg)](https://crowdin.com/project/felicity)
-
-Felicity now supports localization. If you want to translate it into your own language(s), you can
-do so [here on Crowdin](https://crowdin.com/project/felicity).
-
-[Contributors](https://crowdin.com/project/felicity/members)
-
-## License
-
-**Felicity Music Player** Copyright © 2026 - Hamza Rizwan
-
-**Felicity Music Player** is released as open source software under
-the [GNU AGPL v3](https://www.gnu.org/licenses/agpl-3.0.en.html)
-license, see the [LICENSE](./LICENSE) file in the project root for the full license text.
-
-## History
-
-Felicity as a whole project is a continuation of my first ever programming
-project [Beatz](https://github.com/Hamza417/Beatz) which I
-tried to do back then solely for learning and getting used to building.
+## Building
+```bash
+git clone https://github.com/ShiroiKuma0/shiroikuma-ongaku
+cd shiroikuma-ongaku
+git checkout custom
+sh ./gradlew :music:assembleFossRelease
+```
+Requires JDK 21, Android SDK platform 36, NDK 28.2.13676358, CMake 3.22.1. The release build signs with your own keystore via `local.properties` (`KEYSTORE_PATH`, `SIGNING_*`).
