@@ -1,6 +1,7 @@
 package app.simple.felicity.repository.repositories
 
 import android.content.Context
+import androidx.room.withTransaction
 import app.simple.felicity.repository.database.instances.AudioDatabase
 import app.simple.felicity.repository.models.Album
 import app.simple.felicity.repository.models.Artist
@@ -145,6 +146,17 @@ class PlaylistRepository @Inject constructor(
      */
     fun getPlaylistByIdFlow(playlistId: Long): Flow<Playlist?> =
         dao.getPlaylistByIdFlow(playlistId)
+
+    /**
+     * Fork (automation): resolves a playlist by display name (case-insensitive), or
+     * {@code null} when no playlist carries that name. Used by the {@code PLAY_PLAYLIST}
+     * automation op (hand-off.md B.2).
+     *
+     * @param name The playlist name as supplied by the caller.
+     */
+    suspend fun getPlaylistByName(name: String): Playlist? = withContext(Dispatchers.IO) {
+        dao.getPlaylistByName(name)
+    }
 
     /**
      * Creates a new playlist and returns its auto-generated id.
@@ -306,23 +318,31 @@ class PlaylistRepository @Inject constructor(
         }
 
     /**
-     * Replaces the entire ordered song list for the playlist in a single transaction.
-     * Useful after a full drag-and-drop reorder where many positions change at once.
+     * Replaces the entire ordered song list for the playlist in a single database
+     * transaction, and switches the playlist to manual/position order
+     * ({@code sort_order = -1}) so the new sequence is what the UI and playback use.
+     * Called after a full drag-and-drop reorder where many positions change at once.
+     *
+     * <p>Running everything inside one transaction guarantees the playlist can never be
+     * observed (or left, on process death) in a half-reordered state.</p>
      *
      * @param playlistId    The target playlist.
      * @param orderedHashes The complete new ordering expressed as a list of audio hash values.
      */
     suspend fun reorderSongs(playlistId: Long, orderedHashes: List<Long>) =
         withContext(Dispatchers.IO) {
-            dao.removeAllSongsFromPlaylist(playlistId)
-            val crossRefs = orderedHashes.mapIndexed { index, hash ->
-                PlaylistSongCrossRef(
-                        playlistId = playlistId,
-                        audioHash = hash,
-                        position = index
-                )
+            database.withTransaction {
+                dao.removeAllSongsFromPlaylist(playlistId)
+                val crossRefs = orderedHashes.mapIndexed { index, hash ->
+                    PlaylistSongCrossRef(
+                            playlistId = playlistId,
+                            audioHash = hash,
+                            position = index
+                    )
+                }
+                dao.addSongsToPlaylist(crossRefs)
+                dao.setSortOrderToManual(playlistId)
+                dao.touchModified(playlistId, System.currentTimeMillis())
             }
-            dao.addSongsToPlaylist(crossRefs)
-            dao.touchModified(playlistId, System.currentTimeMillis())
         }
 }
