@@ -40,12 +40,8 @@ object TrialPreferences {
     // ---------------------------------------------------------------------------------------------------------- //
 
     fun getDaysLeft(): Int {
-        return kotlin.runCatching {
-            MAX_TRIAL_DAYS - CalendarUtils.getDaysBetweenTwoDates(Date(getFirstLaunchDate()), CalendarUtils.getToday())
-                .coerceAtLeast(0).coerceAtMost(MAX_TRIAL_DAYS)
-        }.getOrElse {
-            -1
-        }
+        // Fork: trial removed — always report the full trial length remaining.
+        return MAX_TRIAL_DAYS
     }
 
     fun getMaxDays(): Int {
@@ -60,12 +56,13 @@ object TrialPreferences {
     }
 
     fun isAppFullVersionEnabled(): Boolean {
-        return SharedPreferences.getEncryptedSharedPreferences().getBoolean(IS_FULL_VERSION_ENABLED, false) ||
-                CalendarUtils.getDaysBetweenTwoDates(Date(getFirstLaunchDate()), CalendarUtils.getToday()) <= MAX_TRIAL_DAYS
+        // Fork: trial removed — always the full version.
+        return true
     }
 
     fun isWithinTrialPeriod(): Boolean {
-        return CalendarUtils.getDaysBetweenTwoDates(Date(getFirstLaunchDate()), CalendarUtils.getToday()) <= MAX_TRIAL_DAYS
+        // Fork: trial removed — never treated as an expired trial.
+        return true
     }
 
     fun isTrialWithoutFull(): Boolean {
@@ -74,7 +71,8 @@ object TrialPreferences {
     }
 
     fun isFullVersion(): Boolean {
-        return SharedPreferences.getEncryptedSharedPreferences().getBoolean(IS_FULL_VERSION_ENABLED, false)
+        // Fork: trial removed — always the full version.
+        return true
     }
 
     // ---------------------------------------------------------------------------------------------------------- //
@@ -116,7 +114,8 @@ object TrialPreferences {
      * @return `true` if trial is expired and grace launches used is less than [MAX_GRACE_LAUNCHES].
      */
     fun isGracePeriodActive(): Boolean {
-        return !isAppFullVersionEnabled() && !isWithinTrialPeriod() && getGraceLaunchesUsed() < MAX_GRACE_LAUNCHES
+        // Fork: trial removed — no grace period, ever.
+        return false
     }
 
     /**
@@ -126,7 +125,8 @@ object TrialPreferences {
      * @return `true` if trial is expired and grace launches used has reached [MAX_GRACE_LAUNCHES].
      */
     fun isGracePeriodExpired(): Boolean {
-        return !isAppFullVersionEnabled() && !isWithinTrialPeriod() && getGraceLaunchesUsed() >= MAX_GRACE_LAUNCHES
+        // Fork: trial removed — grace period never applies.
+        return false
     }
 
     /**
@@ -136,7 +136,8 @@ object TrialPreferences {
      * @return `true` if the app is not a full version and the trial has expired.
      */
     fun isTrialExpired(): Boolean {
-        return !isAppFullVersionEnabled()
+        // Fork: trial removed — never expired (no paywall screen).
+        return false
     }
 
     // ---------------------------------------------------------------------------------------------------------- //
