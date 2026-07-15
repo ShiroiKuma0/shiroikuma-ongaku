@@ -1,9 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- shiroikuma-ongaku fork: in-app app-logo — the black-yellow traced icon
+     (yellow #FFFF00 line-art on black), matching the launcher icon. Rendered
+     untinted: usage sites set tintType / drawableTintStyle = "custom". -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="16dp"
     android:height="16dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
+    android:viewportWidth="108"
+    android:viewportHeight="108">
     <path
-        android:fillColor="#231f20"
-        android:pathData="m12,1.82C6.38,1.82 1.82,6.38 1.82,12s4.56,10.18 10.18,10.18 10.18,-4.56 10.18,-10.18S17.62,1.82 12,1.82ZM11.94,3.5h0.06c4.29,0 7.92,3.21 8.43,7.46 0.05,0.41 -0.24,0.79 -0.65,0.84h-0.09c-0.38,0 -0.7,-0.28 -0.75,-0.66 -0.42,-3.5 -3.41,-6.14 -6.94,-6.14 -0.41,0 -0.78,-0.33 -0.78,-0.75s0.31,-0.75 0.72,-0.75ZM12,17.49c-3.03,0 -5.49,-2.46 -5.49,-5.49s2.46,-5.49 5.49,-5.49 5.49,2.46 5.49,5.49 -2.46,5.49 -5.49,5.49ZM20.27,13.95s-0.01,0.03 -0.01,0.04 0,0.01 -0.01,0.02h0.01c-0.09,0.34 -0.4,0.57 -0.73,0.57 -0.06,0 -0.12,0 -0.18,-0.02 -0.4,-0.1 -0.65,-0.5 -0.55,-0.91h0s0.01,-0.03 0.01,-0.04c0.08,-0.34 0.39,-0.58 0.73,-0.58 0.06,0 0.11,0.01 0.17,0.02 0.34,0.09 0.58,0.4 0.58,0.74 0,0.05 0,0.1 -0.02,0.16ZM12,9.71c-1.27,0 -2.29,1.02 -2.29,2.29s1.02,2.29 2.29,2.29 2.29,-1.02 2.29,-2.29 -1.02,-2.29 -2.29,-2.29Z" />
+        android:fillColor="#FF000000"
+        android:pathData="M22,0 L86,0 Q108,0 108,22 L108,86 Q108,108 86,108 L22,108 Q0,108 0,86 L0,22 Q0,0 22,0 Z" />
+    <group
+        android:scaleX="3.1"
+        android:scaleY="3.1"
+        android:translateX="-20.4"
+        android:translateY="-7.8">
+        <path
+            android:fillColor="#FF000000"
+            android:strokeColor="#FFFFFF00"
+            android:strokeWidth="1.5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M33.5,20.6c0.1,0.6 -0.3,1.1 -0.9,1.2h-0.1c-0.5,0 -1,-0.4 -1,-0.9c-0.6,-4.8 -4.7,-8.4 -9.5,-8.4c-0.6,0 -1.1,-0.5 -1.1,-1c0,-0.6 0.4,-1 1,-1H22C27.9,10.4 32.8,14.8 33.5,20.6z" />
+        <path
+            android:fillColor="#FF000000"
+            android:fillType="evenOdd"
+            android:strokeColor="#FFFFFF00"
+            android:strokeWidth="1.5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M22,14.5c-4.1,0 -7.5,3.4 -7.5,7.5c0,4.1 3.4,7.5 7.5,7.5s7.5,-3.4 7.5,-7.5C29.5,17.9 26.1,14.5 22,14.5zM22,25.1c-1.7,0 -3.1,-1.4 -3.1,-3.1c0,-1.7 1.4,-3.1 3.1,-3.1s3.1,1.4 3.1,3.1C25.1,23.7 23.7,25.1 22,25.1z" />
+        <path
+            android:fillColor="#FFFFFF00"
+            android:pathData="M33.4,24.5c0,0.1 0,0.1 0,0.2c0,0 0,0 0,0.1s0,0 0,0c0,0 0,0 0,0c-0.1,0.5 -0.5,0.8 -1,0.8c-0.1,0 -0.2,0 -0.2,0c-0.5,-0.1 -0.9,-0.7 -0.8,-1.2v0c0,0 0,0 0,0c0.1,-0.5 0.5,-0.8 1,-0.8c0.1,0 0.2,0 0.2,0C33,23.6 33.4,24 33.4,24.5z" />
+    </group>
 </vector>
