@@ -8,5 +8,5 @@ object AppConstants {
      *
      * See: https://musicbrainz.org/doc/MusicBrainz_API/Rate_Limiting
      */
-    const val MUSIC_BRAINZ_USER_AGENT = "Felicity Music Player/1.0 (hamzarizwan243@gmail.com)"
+    const val MUSIC_BRAINZ_USER_AGENT = "shiroikuma-ongaku/1.0 ( https://github.com/ShiroiKuma0/shiroikuma-ongaku )"
 }
