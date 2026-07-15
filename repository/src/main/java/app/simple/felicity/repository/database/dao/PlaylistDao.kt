@@ -54,6 +54,15 @@ interface PlaylistDao {
     fun getPlaylistByIdFlow(playlistId: Long): Flow<Playlist?>
 
     /**
+     * Fork (automation): resolves a playlist by its display name, case-insensitively.
+     * Used by the {@code PLAY_PLAYLIST} automation op (hand-off.md B.2).
+     *
+     * @param name The playlist name as supplied by the caller.
+     */
+    @Query("SELECT * FROM playlists WHERE name = :name COLLATE NOCASE LIMIT 1")
+    suspend fun getPlaylistByName(name: String): Playlist?
+
+    /**
      * Inserts a new playlist row and returns the auto-generated row id.
      *
      * @param playlist The playlist to insert.
@@ -106,6 +115,16 @@ interface PlaylistDao {
      */
     @Query("UPDATE playlists SET sort_order = :sortOrder, sort_style = :sortStyle WHERE id = :playlistId")
     suspend fun updateSortPreference(playlistId: Long, sortOrder: Int, sortStyle: Int)
+
+    /**
+     * Switches the playlist to manual/position order ({@code sort_order = -1}) without
+     * touching the sort-direction column. Called after a drag-and-drop reorder so the
+     * freshly persisted positions are what the UI (and playback) actually use.
+     *
+     * @param playlistId The target playlist id.
+     */
+    @Query("UPDATE playlists SET sort_order = -1 WHERE id = :playlistId")
+    suspend fun setSortOrderToManual(playlistId: Long)
 
     /**
      * Returns every [PlaylistWithSongs] as a reactive [Flow], ordered alphabetically.
