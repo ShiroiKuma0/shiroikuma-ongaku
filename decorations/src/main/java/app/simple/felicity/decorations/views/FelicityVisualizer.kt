@@ -18,8 +18,10 @@ import app.simple.felicity.decorations.views.FelicityVisualizer.Companion.CORNER
 import app.simple.felicity.decorations.views.FelicityVisualizer.Companion.WAVE_SECONDARY_SCALE
 import app.simple.felicity.manager.SharedPreferences.registerListener
 import app.simple.felicity.manager.SharedPreferences.unregisterListener
+import androidx.core.graphics.ColorUtils
 import app.simple.felicity.preferences.AppearancePreferences
 import app.simple.felicity.preferences.PlayerPreferences
+import app.simple.felicity.preferences.ShiroikumaPreferences
 import app.simple.felicity.preferences.VisualizerPreferences
 import app.simple.felicity.theme.interfaces.ThemeChangedListener
 import app.simple.felicity.theme.managers.ThemeManager
@@ -233,6 +235,12 @@ class FelicityVisualizer @JvmOverloads constructor(
             VisualizerPreferences.PARTICLES_ENABLED -> {
                 particlesEnabled = VisualizerPreferences.areParticlesEnabled()
             }
+            ShiroikumaPreferences.VISUALIZER, ShiroikumaPreferences.UI_ENABLED -> {
+                barColors = buildAccentColors()
+                rebuildGradient(width, height)
+                capPaint.color = visualizerPrimaryColor()
+                invalidate()
+            }
         }
     }
 
@@ -397,11 +405,51 @@ class FelicityVisualizer @JvmOverloads constructor(
     private fun buildAccentColors(): IntArray {
         return if (isInEditMode) {
             intArrayOf(0xFFFF6200.toInt(), 0xFF00B0FF.toInt())
+        } else if (ShiroikumaPreferences.isEnabled()) {
+            // Fork (白い熊 音楽 UI): dedicated visualizer color (default blue), settable on the UI page
+            val color = ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.VISUALIZER)
+            intArrayOf(color, ColorUtils.blendARGB(color, 0xFFFFFFFF.toInt(), 0.35F))
         } else {
             intArrayOf(
                     ThemeManager.accent.primaryAccentColor,
                     ThemeManager.accent.secondaryAccentColor
             )
+        }
+    }
+
+    /**
+     * Fork (白い熊 音楽 UI): called when playback pauses or stops. Zeroes both audio
+     * buffers so every band animates smoothly down to zero instead of freezing at
+     * its last height (the engine stops writing frames on pause, which would
+     * otherwise leave the final spectrum on screen).
+     */
+    fun dropToSilence() {
+        silenced = true
+        bufferA.fill(0f)
+        bufferB.fill(0f)
+        postInvalidateOnAnimation()
+    }
+
+    /** Fork (白い熊 音楽 UI): lifts the silence latch when playback resumes. */
+    fun wakeFromSilence() {
+        silenced = false
+        postInvalidateOnAnimation()
+    }
+
+    /**
+     * While true, band targets are forced to zero regardless of buffer contents —
+     * the audio pipeline can drain one last FFT frame after pause, which would
+     * otherwise overwrite the zeroed buffers and re-freeze the bars mid-height.
+     */
+    @Volatile
+    private var silenced = false
+
+    /** Fork (白い熊 音楽 UI): the color that caps/particles should follow. */
+    private fun visualizerPrimaryColor(): Int {
+        return if (!isInEditMode && ShiroikumaPreferences.isEnabled()) {
+            ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.VISUALIZER)
+        } else {
+            ThemeManager.accent.primaryAccentColor
         }
     }
 
@@ -469,10 +517,13 @@ class FelicityVisualizer @JvmOverloads constructor(
         for (i in 0 until BAND_COUNT) {
             val linear = (frontBuffer[i] * invMax).coerceIn(0f, 1f)
             // Noise floor gate: suppress FFT leakage below 1.5% of the normalized peak.
-            val target = if (linear < NOISE_FLOOR) 0f else sqrt(linear)
+            // The fork's silence latch (paused playback) forces the target to zero.
+            val target = if (silenced || linear < NOISE_FLOOR) 0f else sqrt(linear)
             val current = currentBands[i]
             val speed = if (target > current) RISE_SPEED else FALL_SPEED
-            val next = (current + (target - current) * speed).coerceIn(0f, 1f)
+            var next = (current + (target - current) * speed).coerceIn(0f, 1f)
+            // Snap the asymptotic tail to true zero so paused playback fully clears the bars.
+            if (target == 0f && next < 0.02f) next = 0f
             currentBands[i] = next
             if (abs(next - current) > IDLE_THRESHOLD) stillMoving = true
         }
@@ -502,17 +553,16 @@ class FelicityVisualizer @JvmOverloads constructor(
                 direction == VisualizerDirection.RIGHT_TO_LEFT
 
         // Dimension computations adapt to whether bands run along the horizontal or vertical axis.
-        val slotDim: Float
-        val maxBarLength: Float
-        if (isHorizontal) {
-            slotDim = height.toFloat() / BAND_COUNT
-            maxBarLength = width * maxRenderHeightFraction.coerceIn(0f, 1f)
+        val maxBarLength: Float = if (isHorizontal) {
+            width * maxRenderHeightFraction.coerceIn(0f, 1f)
         } else {
-            slotDim = width.toFloat() / BAND_COUNT
-            maxBarLength = height * maxRenderHeightFraction.coerceIn(0f, 1f)
+            height * maxRenderHeightFraction.coerceIn(0f, 1f)
         }
-        val gapDim = slotDim * BAR_GAP_FRACTION
-        val barThickness = slotDim - gapDim
+
+        // Fork (白い熊 音楽 UI): absolute super-thin bars (PowerAmp-style) — a fixed dp
+        // thickness independent of the screen dimension, so the unfolded display gets
+        // proportionally more bars instead of thicker ones.
+        val barThickness = BAR_THICKNESS_DP * resources.displayMetrics.density
         val cornerRadius = (cornerRadiusFraction * barThickness).coerceIn(0f, barThickness / 2f)
         val capPillDim = (barThickness * 0.3f).coerceAtLeast(3f)
         val viewBottom = height.toFloat()
@@ -549,27 +599,16 @@ class FelicityVisualizer @JvmOverloads constructor(
 
         var stillMoving = initialMoving
 
+        // Fork (白い熊 音楽 UI): PowerAmp-style rendering. The physics pass below still
+        // runs once per real frequency band (peaks, particles); the drawing pass then
+        // upsamples the 40 bands into a dense row of thin "artificial" bars whose
+        // heights bridge neighboring real bands by linear interpolation.
+        val primaryDim = if (isHorizontal) height.toFloat() else width.toFloat()
+        val realSlot = primaryDim / BAND_COUNT
+
         for (i in 0 until BAND_COUNT) {
             val next = currentBands[i]
-            val barLengthPx = (next * maxBarLength).coerceIn(MIN_BAR_PX, maxBarLength)
-            val slotOffset = i * slotDim + gapDim / 2f
-            val barCenter = slotOffset + barThickness / 2f
-
-            // Set bar rect coordinates based on the growth direction.
-            when (direction) {
-                VisualizerDirection.BOTTOM_TO_TOP ->
-                    drawRect.set(slotOffset, viewBottom - barLengthPx, slotOffset + barThickness, viewBottom)
-                VisualizerDirection.TOP_TO_BOTTOM ->
-                    drawRect.set(slotOffset, 0f, slotOffset + barThickness, barLengthPx)
-                VisualizerDirection.LEFT_TO_RIGHT ->
-                    drawRect.set(0f, slotOffset, barLengthPx, slotOffset + barThickness)
-                VisualizerDirection.RIGHT_TO_LEFT ->
-                    drawRect.set(viewRight - barLengthPx, slotOffset, viewRight, slotOffset + barThickness)
-            }
-
-            barPath.reset()
-            barPath.addRoundRect(drawRect, barCornerRadii, Path.Direction.CW)
-            canvas.drawPath(barPath, barPaint)
+            val barCenter = i * realSlot + realSlot / 2f
 
             if (particlesEnabled && particleCooldowns[i] > 0) particleCooldowns[i]--
 
@@ -606,14 +645,50 @@ class FelicityVisualizer @JvmOverloads constructor(
                     particleCooldowns[i] = PARTICLE_COOLDOWN_FRAMES
                 }
             }
+        }
 
-            // Draw the peak cap pill at the peak position along the growth axis.
-            if (peakBands[i] > 0.02f) {
+        // Dense interpolated drawing pass: bar count derives from the available screen
+        // dimension and the real bar thickness (bar + equal gap per visual slot).
+        val visualPitch = (barThickness * 2f).coerceAtLeast(2f)
+        val visualCount = (primaryDim / visualPitch).toInt().coerceAtLeast(BAND_COUNT)
+        val visualSlot = primaryDim / visualCount
+
+        for (v in 0 until visualCount) {
+            val pos = if (visualCount > 1) v * (BAND_COUNT - 1f) / (visualCount - 1f) else 0f
+            val j = pos.toInt().coerceAtMost(BAND_COUNT - 2)
+            val frac = pos - j
+            val value = currentBands[j] + (currentBands[j + 1] - currentBands[j]) * frac
+            val peak = peakBands[j] + (peakBands[j + 1] - peakBands[j]) * frac
+
+            // At silence the bar disappears entirely instead of leaving a baseline stub.
+            if (value < 0.01f && peak <= 0.02f) continue
+
+            val barLengthPx = (value * maxBarLength).coerceIn(MIN_BAR_PX, maxBarLength)
+            val slotOffset = v * visualSlot + (visualSlot - barThickness) / 2f
+
+            // Set bar rect coordinates based on the growth direction.
+            when (direction) {
+                VisualizerDirection.BOTTOM_TO_TOP ->
+                    drawRect.set(slotOffset, viewBottom - barLengthPx, slotOffset + barThickness, viewBottom)
+                VisualizerDirection.TOP_TO_BOTTOM ->
+                    drawRect.set(slotOffset, 0f, slotOffset + barThickness, barLengthPx)
+                VisualizerDirection.LEFT_TO_RIGHT ->
+                    drawRect.set(0f, slotOffset, barLengthPx, slotOffset + barThickness)
+                VisualizerDirection.RIGHT_TO_LEFT ->
+                    drawRect.set(viewRight - barLengthPx, slotOffset, viewRight, slotOffset + barThickness)
+            }
+
+            barPath.reset()
+            barPath.addRoundRect(drawRect, barCornerRadii, Path.Direction.CW)
+            canvas.drawPath(barPath, barPaint)
+
+            // Draw the interpolated peak cap pill at the peak position along the growth axis.
+            if (peak > 0.02f) {
                 val peakPos = when (direction) {
-                    VisualizerDirection.BOTTOM_TO_TOP -> viewBottom - peakBands[i] * maxBarLength
-                    VisualizerDirection.TOP_TO_BOTTOM -> peakBands[i] * maxBarLength
-                    VisualizerDirection.LEFT_TO_RIGHT -> peakBands[i] * maxBarLength
-                    VisualizerDirection.RIGHT_TO_LEFT -> viewRight - peakBands[i] * maxBarLength
+                    VisualizerDirection.BOTTOM_TO_TOP -> viewBottom - peak * maxBarLength
+                    VisualizerDirection.TOP_TO_BOTTOM -> peak * maxBarLength
+                    VisualizerDirection.LEFT_TO_RIGHT -> peak * maxBarLength
+                    VisualizerDirection.RIGHT_TO_LEFT -> viewRight - peak * maxBarLength
                 }
                 if (isHorizontal) {
                     drawRect.set(
@@ -889,7 +964,7 @@ class FelicityVisualizer @JvmOverloads constructor(
             applyModePreferences()
             visibility = if (PlayerPreferences.isVisualizerEnabled()) VISIBLE else GONE
             particlesEnabled = VisualizerPreferences.areParticlesEnabled()
-            capPaint.color = ThemeManager.accent.primaryAccentColor
+            capPaint.color = visualizerPrimaryColor()
         }
     }
 
@@ -914,7 +989,7 @@ class FelicityVisualizer @JvmOverloads constructor(
         super.onAccentChanged(accent)
         barColors = buildAccentColors()
         rebuildGradient(width, height)
-        capPaint.color = accent.primaryAccentColor
+        capPaint.color = visualizerPrimaryColor()
         invalidate()
     }
 
@@ -936,8 +1011,9 @@ class FelicityVisualizer @JvmOverloads constructor(
         /** Number of frequency bands rendered — must match the engine's VisualizerAudioProcessor band count. */
         const val BAND_COUNT = 40
 
-        /** Fraction of each band slot occupied by the gap between adjacent bars. */
-        private const val BAR_GAP_FRACTION = 0.22f
+        /** Fork (白い熊 音楽 UI): absolute bar thickness in dp — super-thin PowerAmp-style
+         *  bars; the visual bar count derives from the screen dimension and this value. */
+        private const val BAR_THICKNESS_DP = 2f
 
         /** Lerp factor per frame when a bar is rising toward a louder target. */
         private const val RISE_SPEED = 0.25f
