@@ -15,10 +15,14 @@ android {
     }
 
     defaultConfig {
-        applicationId "app.simple.felicity"
+        applicationId "shiroikuma.ongaku"
 
-        versionCode 27
-        versionName "0.0.27_alpha"
+        // Fork versioning (shiroikuma): the ongaku-build / upstream-new-version skills inject
+        // -PshiroikumaVersionName / -PshiroikumaVersionCode at the gradlew call (build number N
+        // lives in ~/tmp/.shiroikuma_ongaku_build). The fallbacks below are only used by a bare
+        // build (e.g. Android Studio) and are intentionally NOT kept in sync with the tracked tag.
+        versionCode((project.findProperty('shiroikumaVersionCode') ?: '260000').toString().toInteger())
+        versionName(project.findProperty('shiroikumaVersionName') ?: '0.0.26_alpha+0')
     }
 
     bundle {
@@ -61,7 +65,8 @@ android {
             }
 
             ndk {
-                abiFilters "arm64-v8a", "x86_64" // 64bit only
+                // Fork: arm64-v8a only -> single deterministic APK, faster native (CMake) build.
+                abiFilters "arm64-v8a"
             }
         }
         play { // Play Store build
