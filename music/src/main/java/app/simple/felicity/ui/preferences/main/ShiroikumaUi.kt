@@ -1,6 +1,13 @@
 package app.simple.felicity.ui.preferences.main
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -24,6 +31,8 @@ import app.simple.felicity.dialogs.shiroikuma.SkFontPicker
 import app.simple.felicity.dialogs.shiroikuma.SkRgbaColorPicker
 import app.simple.felicity.extensions.fragments.PreferenceFragment
 import app.simple.felicity.preferences.AppearancePreferences
+import app.simple.felicity.preferences.AutomationPreferences
+import app.simple.felicity.preferences.MeteorPreferences
 import app.simple.felicity.preferences.ShiroikumaPreferences
 import app.simple.felicity.theme.managers.ShiroikumaTheme
 import java.util.Locale
@@ -40,6 +49,7 @@ class ShiroikumaUi : PreferenceFragment() {
 
     private val swatches = HashMap<String, View>()
     private var fontValueView: TypeFaceTextView? = null
+    private var tokenValueView: TypeFaceTextView? = null
 
     private val indentStep: Int
         get() = dp(28)
@@ -109,6 +119,151 @@ class ShiroikumaUi : PreferenceFragment() {
         addSection(R.string.sk_section_player)
         addColorRow(R.string.sk_color_visualizer, ShiroikumaPreferences.VISUALIZER, indent = 1)
 
+        // ------------------------------------------------ 音楽端灯 (edge meteors)
+        addSection(R.string.sk_section_meteors)
+        addSwitchRow(R.string.sk_meteor_enable, indent = 1,
+                     isChecked = { MeteorPreferences.isEnabled() },
+                     onChecked = { MeteorPreferences.setEnabled(it) })
+        addSwitchRow(R.string.sk_meteor_overlay, indent = 1,
+                     isChecked = { MeteorPreferences.isOverlayEnabled() },
+                     onChecked = { checked ->
+                         MeteorPreferences.setOverlayEnabled(checked)
+                         // The overlay window needs SYSTEM_ALERT_WINDOW — steer to the system
+                         // grant page when toggled on without it; the service skips silently
+                         // until the permission is actually granted.
+                         if (checked && !Settings.canDrawOverlays(requireContext())) {
+                             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                                  Uri.parse("package:${requireContext().packageName}")))
+                         }
+                     })
+        addSwitchRow(R.string.sk_meteor_reactive, indent = 1,
+                     isChecked = { MeteorPreferences.isReactive() },
+                     onChecked = { MeteorPreferences.setReactive(it) })
+        addSwitchRow(R.string.sk_meteor_reverse, indent = 1,
+                     isChecked = { MeteorPreferences.isReversed() },
+                     onChecked = { MeteorPreferences.setReversed(it) })
+
+        addSubgroup(R.string.sk_meteor_group_ribbons, indent = 1)
+        addSliderRow(R.string.sk_meteor_count, indent = 2,
+                     min = 1F, max = 60F, default = 18F,
+                     current = { MeteorPreferences.getCount().toFloat() },
+                     label = { it.toInt().toString() },
+                     onChange = { MeteorPreferences.setCount(it.toInt()) })
+        addSliderRow(R.string.sk_meteor_spawn_ms, indent = 2,
+                     min = 10F, max = 500F, default = 60F,
+                     current = { MeteorPreferences.getSpawnMs() },
+                     label = { "${it.toInt()} ms" },
+                     onChange = { MeteorPreferences.setSpawnMs(it) })
+        addSliderRow(R.string.sk_meteor_period_s, indent = 2,
+                     min = 1F, max = 30F, default = 5F,
+                     current = { MeteorPreferences.getPeriodS() },
+                     label = { String.format(Locale.ROOT, "%.1f s", it) },
+                     onChange = { MeteorPreferences.setPeriodS(it) })
+        addSliderRow(R.string.sk_meteor_min_len, indent = 2,
+                     min = 0.01F, max = 0.5F, default = 0.05F,
+                     current = { MeteorPreferences.getMinLen() },
+                     label = { String.format(Locale.ROOT, "%.2f", it) },
+                     onChange = { MeteorPreferences.setMinLen(it) })
+        addSliderRow(R.string.sk_meteor_max_len, indent = 2,
+                     min = 0.01F, max = 0.5F, default = 0.14F,
+                     current = { MeteorPreferences.getMaxLen() },
+                     label = { String.format(Locale.ROOT, "%.2f", it) },
+                     onChange = { MeteorPreferences.setMaxLen(it) })
+
+        addSubgroup(R.string.sk_meteor_group_band, indent = 1)
+        addSliderRow(R.string.sk_meteor_padding, indent = 2,
+                     min = 0F, max = 30F, default = 5F,
+                     current = { MeteorPreferences.getPadding() },
+                     label = { "${it.toInt()} px" },
+                     onChange = { MeteorPreferences.setPadding(it) })
+        addSliderRow(R.string.sk_meteor_radius, indent = 2,
+                     min = 0F, max = 80F, default = 32F,
+                     current = { MeteorPreferences.getRadius() },
+                     label = { "${it.toInt()} px" },
+                     onChange = { MeteorPreferences.setRadius(it) })
+        addSliderRow(R.string.sk_meteor_corner_mask, indent = 2,
+                     min = 0F, max = 60F, default = 18F,
+                     current = { MeteorPreferences.getCornerMask() },
+                     label = { "${it.toInt()} px" },
+                     onChange = { MeteorPreferences.setCornerMask(it) })
+        addSliderRow(R.string.sk_meteor_glow, indent = 2,
+                     min = 0F, max = 40F, default = 12F,
+                     current = { MeteorPreferences.getGlow() },
+                     label = { "${it.toInt()} px" },
+                     onChange = { MeteorPreferences.setGlow(it) })
+        addSliderRow(R.string.sk_meteor_glow_layers, indent = 2,
+                     min = 0F, max = 6F, default = 2F,
+                     current = { MeteorPreferences.getGlowLayers().toFloat() },
+                     label = { it.toInt().toString() },
+                     onChange = { MeteorPreferences.setGlowLayers(it.toInt()) })
+        addSliderRow(R.string.sk_meteor_glow_spread, indent = 2,
+                     min = 0.5F, max = 5F, default = 2F,
+                     current = { MeteorPreferences.getGlowSpread() },
+                     label = { String.format(Locale.ROOT, "%.1f", it) },
+                     onChange = { MeteorPreferences.setGlowSpread(it) })
+        addSliderRow(R.string.sk_meteor_glow_strength, indent = 2,
+                     min = 0F, max = 3F, default = 1F,
+                     current = { MeteorPreferences.getGlowStrength() },
+                     label = { String.format(Locale.ROOT, "%.1f", it) },
+                     onChange = { MeteorPreferences.setGlowStrength(it) })
+        addSliderRow(R.string.sk_meteor_head_glow, indent = 2,
+                     min = 0F, max = 4F, default = 1.5F,
+                     current = { MeteorPreferences.getHeadGlow() },
+                     label = { String.format(Locale.ROOT, "%.1f", it) },
+                     onChange = { MeteorPreferences.setHeadGlow(it) })
+        addSliderRow(R.string.sk_meteor_twinkle, indent = 2,
+                     min = 0F, max = 1F, default = 0.35F,
+                     current = { MeteorPreferences.getTwinkle() },
+                     label = { String.format(Locale.ROOT, "%.2f", it) },
+                     onChange = { MeteorPreferences.setTwinkle(it) })
+        addSliderRow(R.string.sk_meteor_hue_drift, indent = 2,
+                     min = 0F, max = 90F, default = 12F,
+                     current = { MeteorPreferences.getHueDrift() },
+                     label = { "${it.toInt()} °/s" },
+                     onChange = { MeteorPreferences.setHueDrift(it) })
+        addSliderRow(R.string.sk_meteor_max_fps, indent = 2,
+                     min = 0F, max = 120F, default = 45F,
+                     current = { MeteorPreferences.getMaxFps() },
+                     label = { if (it.toInt() == 0) "vsync" else it.toInt().toString() },
+                     onChange = { MeteorPreferences.setMaxFps(it) })
+
+        addSubgroup(R.string.sk_meteor_group_reaction, indent = 1)
+        addSliderRow(R.string.sk_meteor_react_gain, indent = 2,
+                     min = 0F, max = 3F, default = 1F,
+                     current = { MeteorPreferences.getReactGain() },
+                     label = { String.format(Locale.ROOT, "%.1f", it) },
+                     onChange = { MeteorPreferences.setReactGain(it) })
+        addSliderRow(R.string.sk_meteor_react_pulse, indent = 2,
+                     min = 0F, max = 2F, default = 0.6F,
+                     current = { MeteorPreferences.getReactPulse() },
+                     label = { String.format(Locale.ROOT, "%.1f", it) },
+                     onChange = { MeteorPreferences.setReactPulse(it) })
+        addSliderRow(R.string.sk_meteor_react_kick, indent = 2,
+                     min = 0F, max = 3F, default = 1F,
+                     current = { MeteorPreferences.getReactKick() },
+                     label = { String.format(Locale.ROOT, "%.1f", it) },
+                     onChange = { MeteorPreferences.setReactKick(it) })
+        addSliderRow(R.string.sk_meteor_react_sharp, indent = 2,
+                     min = 1F, max = 12F, default = 5F,
+                     current = { MeteorPreferences.getReactSharp() },
+                     label = { String.format(Locale.ROOT, "%.1f", it) },
+                     onChange = { MeteorPreferences.setReactSharp(it) })
+        addSliderRow(R.string.sk_meteor_speed_min, indent = 2,
+                     min = 0F, max = 3F, default = 0F,
+                     current = { MeteorPreferences.getSpeedMin() },
+                     label = { String.format(Locale.ROOT, "%.1f", it) },
+                     onChange = { MeteorPreferences.setSpeedMin(it) })
+        addSliderRow(R.string.sk_meteor_speed_max, indent = 2,
+                     min = 0F, max = 3F, default = 1.5F,
+                     current = { MeteorPreferences.getSpeedMax() },
+                     label = { String.format(Locale.ROOT, "%.1f", it) },
+                     onChange = { MeteorPreferences.setSpeedMax(it) })
+        addSliderRow(R.string.sk_meteor_speed_change_s, indent = 2,
+                     min = 1F, max = 20F, default = 5F,
+                     current = { MeteorPreferences.getSpeedChangeS() },
+                     label = { String.format(Locale.ROOT, "%.1f s", it) },
+                     onChange = { MeteorPreferences.setSpeedChangeS(it) })
+
         // ------------------------------------------------ Typography
         addSection(R.string.sk_section_typography)
         addFontRow(indent = 1)
@@ -146,6 +301,14 @@ class ShiroikumaUi : PreferenceFragment() {
                      current = { AppearancePreferences.getListSpacing() },
                      label = { it.toInt().toString() },
                      onChange = { AppearancePreferences.setListSpacing(it) })
+
+        // ------------------------------------------------ Automation (hand-off.md C)
+        addSection(R.string.sk_section_automation)
+        addSwitchRow(R.string.sk_automation_enable, indent = 1,
+                     isChecked = { AutomationPreferences.isEnabled() },
+                     onChecked = { AutomationPreferences.setEnabled(it) })
+        addTokenRow(indent = 1)
+        addRegenerateTokenRow(indent = 1)
     }
 
     // ------------------------------------------------------------------ row builders
@@ -228,6 +391,36 @@ class ShiroikumaUi : PreferenceFragment() {
                 fontValueView?.text = fontDisplayName(AppearancePreferences.getAppFont())
             }
             picker.show(childFragmentManager, SkFontPicker.TAG)
+        }
+        binding.rowsContainer.addView(row.root)
+    }
+
+    /** Shows the automation token; tapping the row copies it to the clipboard. */
+    private fun addTokenRow(indent: Int) {
+        val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        row.valueLabel.text = getString(R.string.sk_automation_token)
+        row.valueText.text = AutomationPreferences.getToken()
+        tokenValueView = row.valueText
+        indentRow(row.root, indent)
+        row.root.setOnClickListener {
+            val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText(
+                    getString(R.string.sk_automation_token), AutomationPreferences.getToken()))
+            Toast.makeText(requireContext(), getString(R.string.sk_automation_token_copied), Toast.LENGTH_SHORT).show()
+        }
+        binding.rowsContainer.addView(row.root)
+    }
+
+    /** Regenerates the automation token and refreshes the token row. */
+    private fun addRegenerateTokenRow(indent: Int) {
+        val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        row.valueLabel.text = getString(R.string.sk_automation_regenerate)
+        row.valueText.text = ""
+        indentRow(row.root, indent)
+        row.root.setOnClickListener {
+            val fresh = AutomationPreferences.regenerateToken()
+            tokenValueView?.text = fresh
+            Toast.makeText(requireContext(), getString(R.string.sk_automation_token_regenerated), Toast.LENGTH_SHORT).show()
         }
         binding.rowsContainer.addView(row.root)
     }
