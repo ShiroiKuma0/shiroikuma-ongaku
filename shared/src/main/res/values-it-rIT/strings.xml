@@ -148,7 +148,7 @@
     <string name="setup">Configurazione</string>
     <string name="shadow_effect_summary">Attiva o disattiva gli effetti ombra su alcune icone e copertine di album nell\'app.</string>
     <string name="rounded_corners">Angoli arrotondati</string>
-    <string name="desc_data_collect">Felicity non raccoglie alcun dato.</string>
+    <string name="desc_data_collect">白い熊 音楽 non raccoglie alcun dato.</string>
     <string name="desc_setup">Prima di procedere si consiglia di eseguire le azioni necessarie per assicurarsi che tutte le funzionalità dell\'app funzionino.</string>
     <string name="required">Richiesto</string>
     <string name="granted">Concesso</string>
@@ -156,9 +156,9 @@
     <string name="post_notifications">Invia notifiche</string>
     <string name="desc_post_notifications">Necessario per mostrare il lettore multimediale e altre notifiche importanti.</string>
     <string name="storage_folder_access">Accesso alle cartelle di archiviazione</string>
-    <string name="desc_storage_folder_access">Tocca per scegliere le cartelle musicali che vuoi far scansionare a Felicity. Puoi aggiungere altre cartelle in seguito dalle impostazioni della Libreria. Non è richiesta un\'ampia autorizzazione di archiviazione, solo le cartelle che scegli.</string>
+    <string name="desc_storage_folder_access">Tocca per scegliere le cartelle musicali che vuoi far scansionare a 白い熊 音楽. Puoi aggiungere altre cartelle in seguito dalle impostazioni della Libreria. Non è richiesta un\'ampia autorizzazione di archiviazione, solo le cartelle che scegli.</string>
     <string name="read_media_audio">Leggi file audio multimediali</string>
-    <string name="desc_read_media_audio">Permette a Felicity di leggere i file audio dal MediaStore.</string>
+    <string name="desc_read_media_audio">Permette a 白い熊 音楽 di leggere i file audio dal MediaStore.</string>
     <string name="no_folders_granted">Nessuna cartella aggiunta ancora. Tocca sopra per scegliere una cartella musicale.</string>
     <string name="start_app_now">Avvia l\'app ora</string>
     <string name="audio">Audio</string>
@@ -363,7 +363,7 @@
     <string name="trial_period_summary">%1$d giorni rimanenti nel periodo di prova.</string>
     <!-- Trial expired dialog strings -->
     <string name="trial_expired">Prova scaduta</string>
-    <string name="trial_expired_message">Il tuo periodo di prova gratuito è terminato. Acquista la versione completa per continuare a goderti Felicity senza interruzioni.</string>
+    <string name="trial_expired_message">Il tuo periodo di prova gratuito è terminato. Acquista la versione completa per continuare a goderti 白い熊 音楽 senza interruzioni.</string>
     <string name="grace_period_expired_message">Tutti gli avvii di grazia sono stati utilizzati. Ti preghiamo di acquistare l\'app per continuare ad ascoltare.</string>
     <string name="purchase_now">Acquista ora</string>
     <string name="purchase_later">Acquisterò più tardi</string>

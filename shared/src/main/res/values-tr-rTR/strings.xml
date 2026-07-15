@@ -148,7 +148,7 @@
     <string name="setup">Kurulum</string>
     <string name="shadow_effect_summary">Uygulama genelinde bazı simgeler ve albüm kapaklarındaki gölge efektlerini açın/kapatın.</string>
     <string name="rounded_corners">Yuvarlatılmış Köşeler</string>
-    <string name="desc_data_collect">Felicity hiçbir veri toplamaz.</string>
+    <string name="desc_data_collect">白い熊 音楽 hiçbir veri toplamaz.</string>
     <string name="desc_setup">İlerlemeden önce uygulamanın tüm özelliklerinin çalıştığından emin olmak için gerekli işlemleri yapmanız önerilir.</string>
     <string name="required">Gerekli</string>
     <string name="granted">İzin Verildi</string>
@@ -156,9 +156,9 @@
     <string name="post_notifications">Bildirim Gönder</string>
     <string name="desc_post_notifications">Medya oynatıcıyı ve diğer gerekli bildirimleri göstermek için gereklidir.</string>
     <string name="storage_folder_access">Depolama Klasörü Erişimi</string>
-    <string name="desc_storage_folder_access">Felicity\'nin taramasını istediğiniz müzik klasör(ler)ini seçmek için dokunun. Kitaplık ayarlarından daha sonra başka klasörler ekleyebilirsiniz. Geniş depolama izni gerekmez, yalnızca seçtiğiniz klasörlere erişilir.</string>
+    <string name="desc_storage_folder_access">白い熊 音楽\'nin taramasını istediğiniz müzik klasör(ler)ini seçmek için dokunun. Kitaplık ayarlarından daha sonra başka klasörler ekleyebilirsiniz. Geniş depolama izni gerekmez, yalnızca seçtiğiniz klasörlere erişilir.</string>
     <string name="read_media_audio">Medya Seslerini Oku</string>
-    <string name="desc_read_media_audio">Felicity\'nin MediaStore\'dan ses dosyalarını okumasını sağlar.</string>
+    <string name="desc_read_media_audio">白い熊 音楽\'nin MediaStore\'dan ses dosyalarını okumasını sağlar.</string>
     <string name="no_folders_granted">Henüz klasör eklenmedi. Müzik klasörü seçmek için yukarıya dokunun.</string>
     <string name="start_app_now">Uygulamayı Şimdi Başlat</string>
     <string name="audio">Ses</string>
@@ -363,7 +363,7 @@
     <string name="trial_period_summary">Deneme süresinin bitmesine %1$d gün kaldı.</string>
     <!-- Trial expired dialog strings -->
     <string name="trial_expired">Deneme Süresi Sona Erdi</string>
-    <string name="trial_expired_message">Ücretsiz deneme süreniz sona erdi. Felicity\'nin keyfini kesintisiz çıkarmaya devam etmek için tam sürümü satın alın.</string>
+    <string name="trial_expired_message">Ücretsiz deneme süreniz sona erdi. 白い熊 音楽\'nin keyfini kesintisiz çıkarmaya devam etmek için tam sürümü satın alın.</string>
     <string name="grace_period_expired_message">Tüm ek başlatma hakları kullanıldı. Dinlemeye devam etmek için lütfen uygulamayı satın alın.</string>
     <string name="purchase_now">Şimdi Satın Al</string>
     <string name="purchase_later">Daha Sonra Satın Alacağım</string>
