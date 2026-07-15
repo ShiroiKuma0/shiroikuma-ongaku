@@ -16,6 +16,7 @@ import app.simple.felicity.manager.SharedPreferences.registerSharedPreferenceCha
 import app.simple.felicity.manager.SharedPreferences.unregisterSharedPreferenceChangeListener
 import app.simple.felicity.preferences.AppearancePreferences
 import app.simple.felicity.preferences.BehaviourPreferences
+import app.simple.felicity.preferences.ShiroikumaPreferences
 import app.simple.felicity.shared.utils.ColorUtils.animateColorChange
 import app.simple.felicity.shared.utils.ColorUtils.animateDrawableColorChange
 import app.simple.felicity.shared.utils.ConditionUtils.invert
@@ -37,6 +38,7 @@ open class TypeFaceTextView : AppCompatTextView, ThemeChangedListener, SharedPre
     private var drawableTintMode = DRAWABLE_REGULAR
     private var isDrawableHidden = true
     private var lastDrawableColor = Color.GRAY
+    private var baseTextSizePx = 0F // unscaled size from XML/style, fork text-scale applies on top
 
     var fontStyle = MEDIUM
         set(value) {
@@ -67,6 +69,9 @@ open class TypeFaceTextView : AppCompatTextView, ThemeChangedListener, SharedPre
         isDrawableHidden = typedArray.getBoolean(R.styleable.TypeFaceTextView_isDrawableHidden, true)
         hyphenationFrequency = Layout.HYPHENATION_FREQUENCY_NONE
         breakStrategy = LineBreaker.BREAK_STRATEGY_SIMPLE
+
+        baseTextSizePx = textSize
+        applyTextScale()
 
         setTextColor(false)
         setDrawableTint(false)
@@ -230,6 +235,16 @@ open class TypeFaceTextView : AppCompatTextView, ThemeChangedListener, SharedPre
         typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), fontStyle, context)
     }
 
+    /**
+     * Fork (白い熊 音楽 UI): global text-size scale on top of the XML/style size.
+     */
+    private fun applyTextScale() {
+        val scale = ShiroikumaPreferences.getTextScale()
+        if (textSize != baseTextSizePx * scale) {
+            setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, baseTextSizePx * scale)
+        }
+    }
+
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
         when (key) {
             AppearancePreferences.ACCENT_COLOR -> {
@@ -237,6 +252,13 @@ open class TypeFaceTextView : AppCompatTextView, ThemeChangedListener, SharedPre
                 setDrawableTint(animate = true)
             }
             AppearancePreferences.APP_FONT -> {
+                typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), fontStyle, context)
+                invalidate()
+            }
+            ShiroikumaPreferences.TEXT_SCALE -> {
+                applyTextScale()
+            }
+            ShiroikumaPreferences.FONT_WEIGHT_DELTA -> {
                 typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), fontStyle, context)
                 invalidate()
             }
