@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<app.simple.felicity.decorations.ripple.DynamicRippleLinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingVertical="5dp">
+
+    <app.simple.felicity.decorations.typeface.TypeFaceTextView
+        android:id="@+id/switch_label"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textSize="15sp"
+        app:appFontStyle="regular"
+        app:textColorStyle="primary" />
+
+    <app.simple.felicity.decorations.toggles.FelicitySwitch
+        android:id="@+id/switch_toggle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+</app.simple.felicity.decorations.ripple.DynamicRippleLinearLayout>
