@@ -24,9 +24,8 @@
         android:drawablePadding="@dimen/padding_20"
         app:appFontStyle="bold"
         app:drawableEndCompat="@drawable/ic_for_arrow"
-        app:drawableTint="@color/white"
-        app:drawableTintStyle="custom"
-        app:highlightCustomColor="#50000000"
-        app:textColorStyle="white" />
+        app:drawableTintStyle="accent"
+        app:highlightCustomColor="#FF000000"
+        app:textColorStyle="accent" />
 
 </app.simple.felicity.decorations.square.SquareFrameLayout>

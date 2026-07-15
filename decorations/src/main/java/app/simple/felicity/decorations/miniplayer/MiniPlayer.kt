@@ -60,6 +60,7 @@ import app.simple.felicity.manager.SharedPreferences.unregisterSharedPreferenceC
 import app.simple.felicity.preferences.AccessibilityPreferences
 import app.simple.felicity.preferences.AppearancePreferences
 import app.simple.felicity.preferences.BehaviourPreferences
+import app.simple.felicity.preferences.ShiroikumaPreferences
 import app.simple.felicity.preferences.UserInterfacePreferences
 import app.simple.felicity.theme.interfaces.ThemeChangedListener
 import app.simple.felicity.theme.managers.ThemeManager
@@ -1316,8 +1317,10 @@ class MiniPlayer @JvmOverloads constructor(
         val r = Color.red(progressAccentColor)
         val g = Color.green(progressAccentColor)
         val b = Color.blue(progressAccentColor)
-        val trackAlpha = (35 * progressBarAlpha).toInt().coerceIn(0, 255)
-        val fillAlpha = (80 * progressBarAlpha).toInt().coerceIn(0, 255)
+        // Fork (白い熊 音楽 UI): alphas kept low so the card still reads as a black
+        // yellow-bordered box; the played portion stays visible as a subtle fill.
+        val trackAlpha = (12 * progressBarAlpha).toInt().coerceIn(0, 255)
+        val fillAlpha = (50 * progressBarAlpha).toInt().coerceIn(0, 255)
 
         val progressLeft = tx + artSize
         val progressRight = tx + pageW
@@ -2997,7 +3000,14 @@ class MiniPlayer @JvmOverloads constructor(
 
     private fun updateStroke() {
         if (!isInEditMode) {
-            if (AccessibilityPreferences.isStrokeAroundMiniplayerOn()) {
+            if (ShiroikumaPreferences.isEnabled() && ShiroikumaPreferences.getBorderWidth() > 0F) {
+                // Fork (白い熊 音楽 UI): the miniplayer carries the standard border,
+                // same width/color source as LayoutBackground.applyStroke().
+                setStroke(
+                        enabled = true,
+                        color = ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.BORDER),
+                        widthDp = ShiroikumaPreferences.getBorderWidth())
+            } else if (AccessibilityPreferences.isStrokeAroundMiniplayerOn()) {
                 setStroke(
                         enabled = true,
                         color = ThemeManager.theme.textViewTheme.tertiaryTextColor,
