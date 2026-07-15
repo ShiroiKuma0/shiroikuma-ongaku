@@ -1,7 +1,9 @@
 package app.simple.felicity.adapters.ui.page
 
+import android.annotation.SuppressLint
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -24,6 +26,7 @@ import app.simple.felicity.models.PageItem
 import app.simple.felicity.preferences.UserInterfacePreferences
 import app.simple.felicity.repository.models.Album
 import app.simple.felicity.repository.models.Artist
+import app.simple.felicity.repository.models.Audio
 import app.simple.felicity.repository.models.Folder
 import app.simple.felicity.repository.models.Genre
 import app.simple.felicity.repository.models.MusicBrainzAlbumInfo
@@ -70,6 +73,20 @@ class PageAdapter(
     private var livePlaylist: Playlist? = (pageType as? PageType.PlaylistPage)?.playlist
 
     /**
+     * Invoked when the user touches the drag handle of a song row on a playlist page.
+     * Set by [app.simple.felicity.ui.pages.PlaylistPage] to start an
+     * [androidx.recyclerview.widget.ItemTouchHelper] drag for that holder. When null
+     * (every non-playlist page), no drag handle is shown at all.
+     */
+    private var songDragListener: ((RecyclerView.ViewHolder) -> Unit)? = null
+
+    /** True while a drag gesture is in progress — defers external data updates. */
+    private var isDragInProgress = false
+
+    /** Data that arrived mid-drag, applied (or discarded) when the drag ends. */
+    private var pendingData: PageData? = null
+
+    /**
      * Sealed class to represent different page types
      */
     sealed class PageType {
@@ -91,6 +108,12 @@ class PageAdapter(
      * This prevents full list recreation and maintains scroll position.
      */
     fun updateData(newData: PageData) {
+        if (isDragInProgress) {
+            // A DB emission landed while the user is holding a row — applying it now would
+            // clobber the in-flight drag animation. Park it until the drag ends.
+            pendingData = newData
+            return
+        }
         Log.d(TAG, "updateData: Updating with ${newData.songs.size} songs, ${newData.albums.size} albums, ${newData.artists.size} artists")
 
         val oldItems = items.toList()
@@ -359,6 +382,7 @@ class PageAdapter(
         }
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onBindViewHolder(holder: VerticalListViewHolder, position: Int) {
         val item = items[position]
 
@@ -394,6 +418,23 @@ class PageAdapter(
                 holder.binding.container.setOnLongClickListener {
                     listener?.onSongLongClicked(songItem.allSongs, songItem.position, holder.binding.cover)
                     true
+                }
+
+                // On playlist pages the row draws its built-in drag handle (same UX as the
+                // playing-queue screen) and a touch on that region starts the reorder drag.
+                val dragListener = songDragListener
+                if (dragListener != null && pageType is PageType.PlaylistPage) {
+                    holder.binding.container.enableDragHandle = true
+                    holder.binding.container.setOnTouchListener { _, event ->
+                        if (event.actionMasked == MotionEvent.ACTION_DOWN &&
+                                holder.binding.container.isDragHandleRegion(event.x)) {
+                            dragListener.invoke(holder)
+                        }
+                        false
+                    }
+                } else {
+                    holder.binding.container.enableDragHandle = false
+                    holder.binding.container.setOnTouchListener(null)
                 }
             }
             is ArtistInfo -> {
@@ -797,6 +838,66 @@ class PageAdapter(
     fun updatePlaylist(playlist: Playlist) {
         livePlaylist = playlist
         notifyItemChanged(0)
+    }
+
+    /**
+     * Registers the callback that starts an ItemTouchHelper drag when the user touches a
+     * song row's drag handle. Only playlist pages set this — on every other page type the
+     * handle stays hidden and rows are not draggable.
+     *
+     * @param listener Receives the [RecyclerView.ViewHolder] whose handle was touched.
+     */
+    fun setSongDragListener(listener: (RecyclerView.ViewHolder) -> Unit) {
+        songDragListener = listener
+    }
+
+    /** Returns true when the item at [position] is a draggable song row. */
+    fun isSongItem(position: Int): Boolean = items.getOrNull(position) is PageItem.SongItem
+
+    /**
+     * Moves a song row from [from] to [to] inside the adapter list while a drag is in
+     * progress. Both positions must point at [PageItem.SongItem] entries — the header and
+     * the albums/artists/genres sections are never valid drag targets.
+     *
+     * @return true when the move was applied.
+     */
+    fun moveSongItem(from: Int, to: Int): Boolean {
+        if (from == to) return false
+        val fromItem = items.getOrNull(from) as? PageItem.SongItem ?: return false
+        if (items.getOrNull(to) !is PageItem.SongItem) return false
+        items.removeAt(from)
+        items.add(to, fromItem)
+        notifyItemMoved(from, to)
+        return true
+    }
+
+    /**
+     * Returns the songs in their current on-screen order, reflecting any moves performed
+     * during the ongoing (or just finished) drag. Used to persist the manual order.
+     */
+    fun getCurrentSongOrder(): List<Audio> =
+        items.filterIsInstance<PageItem.SongItem>().map { it.audio }
+
+    /** Marks the start of a drag gesture — external data updates are deferred until it ends. */
+    fun onDragStarted() {
+        isDragInProgress = true
+        pendingData = null
+    }
+
+    /**
+     * Marks the end of a drag gesture. A data emission that arrived mid-drag is either
+     * applied now or discarded — the caller discards it after persisting a reorder,
+     * because the write triggers a fresh (and newer) emission anyway.
+     *
+     * @param discardPending True to drop the deferred mid-drag data instead of applying it.
+     */
+    fun onDragEnded(discardPending: Boolean) {
+        isDragInProgress = false
+        val pending = pendingData
+        pendingData = null
+        if (pending != null && !discardPending) {
+            updateData(pending)
+        }
     }
 
     /**
