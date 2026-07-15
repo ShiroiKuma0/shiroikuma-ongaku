@@ -3,6 +3,7 @@ package app.simple.felicity.decorations.highlight
 import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
 import android.content.res.ColorStateList
+import android.content.res.Resources
 import android.graphics.Color
 import android.view.View
 import android.view.animation.DecelerateInterpolator
@@ -12,6 +13,7 @@ import app.simple.felicity.decorations.highlight.HighlightViewDelegate.Companion
 import app.simple.felicity.decorations.ripple.FelicityRippleDrawable
 import app.simple.felicity.preferences.AccessibilityPreferences
 import app.simple.felicity.preferences.AppearancePreferences
+import app.simple.felicity.preferences.ShiroikumaPreferences
 import app.simple.felicity.theme.managers.ThemeManager
 import com.google.android.material.shape.CornerFamily
 import com.google.android.material.shape.MaterialShapeDrawable
@@ -97,6 +99,14 @@ class HighlightViewDelegate(var strokeWidthPx: Float = 0f) {
                 background.fillColor = ColorStateList.valueOf(fillColor)
             }
         }
+
+        // Fork (白い熊 音楽 UI): every highlight pill carries the standard border,
+        // same width/color source as LayoutBackground.applyStroke().
+        if (ShiroikumaPreferences.isEnabled() && ShiroikumaPreferences.getBorderWidth() > 0F) {
+            val borderWidthPx = ShiroikumaPreferences.getBorderWidth() * Resources.getSystem().displayMetrics.density
+            background.setStroke(borderWidthPx, ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.BORDER))
+        }
+
         return background
     }
 
