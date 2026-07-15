@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 白い熊 音楽 UI (fork-only strings, kept out of upstream strings.xml for rebase safety) -->
+    <string name="shiroikuma_ui" translatable="false">白い熊 音楽 UI</string>
+    <string name="shiroikuma_ui_desc" translatable="false">Black-yellow interface — colors, fonts, borders, sizes</string>
+
+    <string name="sk_section_general" translatable="false">General</string>
+    <string name="sk_enable_theme" translatable="false">Enable 白い熊 theme</string>
+
+    <string name="sk_section_colors" translatable="false">Colors</string>
+    <string name="sk_group_foundation" translatable="false">Foundation</string>
+    <string name="sk_color_background" translatable="false">Background</string>
+    <string name="sk_color_text" translatable="false">Text</string>
+    <string name="sk_color_accent" translatable="false">Accent</string>
+    <string name="sk_color_border" translatable="false">Border</string>
+    <string name="sk_group_surfaces" translatable="false">Surfaces</string>
+    <string name="sk_color_highlight" translatable="false">Highlight</string>
+    <string name="sk_color_selected" translatable="false">Selected background</string>
+    <string name="sk_color_divider" translatable="false">Divider</string>
+    <string name="sk_color_spot" translatable="false">Spot</string>
+    <string name="sk_group_text" translatable="false">Text colors</string>
+    <string name="sk_color_text_header" translatable="false">Header</string>
+    <string name="sk_color_text_primary" translatable="false">Primary</string>
+    <string name="sk_color_text_secondary" translatable="false">Secondary</string>
+    <string name="sk_color_text_tertiary" translatable="false">Tertiary</string>
+    <string name="sk_color_text_quaternary" translatable="false">Quaternary</string>
+    <string name="sk_group_icons" translatable="false">Icons</string>
+    <string name="sk_color_icon_regular" translatable="false">Regular</string>
+    <string name="sk_color_icon_secondary" translatable="false">Secondary</string>
+    <string name="sk_color_icon_disabled" translatable="false">Disabled</string>
+    <string name="sk_group_accent" translatable="false">Accent colors</string>
+    <string name="sk_color_accent_primary" translatable="false">Accent primary</string>
+    <string name="sk_color_accent_secondary" translatable="false">Accent secondary</string>
+    <string name="sk_color_switch_off" translatable="false">Switch off state</string>
+
+    <string name="sk_section_player" translatable="false">Player</string>
+    <string name="sk_color_visualizer" translatable="false">Visualizer color</string>
+
+    <string name="sk_section_typography" translatable="false">Typography</string>
+    <string name="sk_font" translatable="false">Font</string>
+    <string name="sk_text_size" translatable="false">Text size</string>
+    <string name="sk_font_weight" translatable="false">Font weight</string>
+
+    <string name="sk_section_shape" translatable="false">Shape &amp; spacing</string>
+    <string name="sk_corner_radius" translatable="false">Corner radius</string>
+    <string name="sk_border_width" translatable="false">Border width</string>
+    <string name="sk_list_spacing" translatable="false">List spacing</string>
+
+    <string name="sk_preview_header" translatable="false">白い熊 音楽 — Header</string>
+    <string name="sk_preview_primary" translatable="false">Primary text AaIiMmQq 0123456789 白い熊相撲道</string>
+    <string name="sk_preview_secondary" translatable="false">Secondary text — artists, albums, details</string>
+    <string name="sk_preview_tertiary" translatable="false">Tertiary text — hints and captions</string>
+    <string name="sk_preview_accent" translatable="false">Accent</string>
+
+    <string name="sk_recent_colors" translatable="false">Recent colors</string>
+    <string name="sk_red" translatable="false">R</string>
+    <string name="sk_green" translatable="false">G</string>
+    <string name="sk_blue" translatable="false">B</string>
+    <string name="sk_alpha" translatable="false">A</string>
+    <string name="sk_apply" translatable="false">Apply</string>
+    <string name="sk_cancel" translatable="false">Cancel</string>
+    <string name="sk_default" translatable="false">Default</string>
+    <string name="sk_add_font" translatable="false">Add font…</string>
+    <string name="sk_system_default_font" translatable="false">System default</string>
+    <string name="sk_font_invalid" translatable="false">Not a usable font file (.ttf / .otf)</string>
+    <string name="sk_none" translatable="false">none</string>
+</resources>
