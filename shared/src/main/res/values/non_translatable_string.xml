@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">Felicity</string>
+    <string name="app_name" translatable="false">白い熊 音楽</string>
     <string name="app_name_full" translatable="false">Felicity Music Player</string>
     <string name="over_scroll_behavior" translatable="false">app.simple.felicity.decorations.behaviors.OverScrollBehavior</string>
     <string name="github" translatable="false">GitHub</string>
