@@ -47,6 +47,7 @@ import app.simple.felicity.dialogs.app.PlaybackInfo.Companion.showPlaybackInfo
 import app.simple.felicity.dialogs.lyrics.Lyrics.Companion.showLyrics
 import app.simple.felicity.dialogs.playlists.AddToPlaylistDialog.Companion.showAddToPlaylistDialog
 import app.simple.felicity.dialogs.songs.ShuffleDialog.Companion.showShuffleDialog
+import app.simple.felicity.engine.broadcasts.AutomationBroadcasts
 import app.simple.felicity.engine.managers.MediaPlaybackManager
 import app.simple.felicity.engine.managers.PlaybackStateManager
 import app.simple.felicity.glide.util.AudioCoverUtils.loadArtCoverWithPayload
@@ -79,6 +80,7 @@ import app.simple.felicity.ui.player.DefaultPlayer
 import app.simple.felicity.ui.player.PlayerFaded
 import app.simple.felicity.ui.subpanels.MetadataEditor
 import app.simple.felicity.utils.AdapterUtils.addAudioQualityIcon
+import app.simple.felicity.utils.SongDeleter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -594,7 +596,14 @@ open class MediaFragment : ScopedFragment(), MiniPlayerPolicy {
                         AudioDatabase.getInstance(requireContext()).audioDao()?.setFavorite(audio.id, newFav)
                         audio.isFavorite = newFav
                         if (MediaPlaybackManager.getCurrentSong()?.id == audio.id) {
-                            withContext(Dispatchers.Main) { MediaPlaybackManager.notifyCurrentSongUpdated() }
+                            withContext(Dispatchers.Main) {
+                                MediaPlaybackManager.notifyCurrentSongUpdated()
+                                // Fork (automation): favorite flips of the current track re-emit
+                                // TRACK_CHANGED so the 自由作業盤's cached state self-corrects
+                                // (hand-off.md B.1).
+                                AutomationBroadcasts.sendTrackChanged(
+                                        requireContext().applicationContext, audio, !MediaPlaybackManager.isPlaying())
+                            }
                         }
                     }
                     dismiss()
@@ -719,6 +728,10 @@ open class MediaFragment : ScopedFragment(), MiniPlayerPolicy {
             audio.isFavorite = newFavorite
             withContext(Dispatchers.Main) {
                 MediaPlaybackManager.notifyCurrentSongUpdated()
+                // Fork (automation): favorite flips re-emit TRACK_CHANGED so the
+                // 自由作業盤's cached state self-corrects (hand-off.md B.1).
+                AutomationBroadcasts.sendTrackChanged(
+                        requireContext().applicationContext, audio, !MediaPlaybackManager.isPlaying())
             }
         }
     }
@@ -808,43 +821,12 @@ open class MediaFragment : ScopedFragment(), MiniPlayerPolicy {
     }
 
     private fun deleteSong(audio: Audio, lyrics: Boolean) {
+        // Fork (automation): the whole flow — queue advance, SAF/file delete, Room removal —
+        // lives in the headless-callable SongDeleter so the DELETE_CURRENT automation op
+        // shares this exact implementation (hand-off.md B.2).
+        val appContext = requireContext().applicationContext
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                // Step 1: Remove the song from the playback queue on the main thread so playback
-                // never tries to open a URI we are about to delete.
-                withContext(Dispatchers.Main) {
-                    val queueIndex = MediaPlaybackManager.getSongs().indexOfFirst { it.id == audio.id }
-                    when {
-                        queueIndex != -1 -> MediaPlaybackManager.removeQueueItemSilently(queueIndex)
-                        MediaPlaybackManager.getCurrentSong()?.id == audio.id -> MediaPlaybackManager.next()
-                    }
-                }
-
-                // Step 2: Delete the audio file itself. Audio is stored as a SAF content URI,
-                // so we use DocumentsContract.deleteDocument instead of File.delete().
-                val audioUri = audio.uri.toUri()
-                val deleted = try {
-                    DocumentsContract.deleteDocument(requireContext().contentResolver, audioUri)
-                } catch (e: Exception) {
-                    Log.w(TAG, "DocumentsContract.deleteDocument failed: ${e.message}", e)
-                    false
-                }
-
-                if (deleted) {
-                    // Step 3: Remove the row from the database.
-                    AudioDatabase.getInstance(requireContext()).audioDao()?.delete(audio)
-                    Log.d(TAG, "Song deleted successfully: ${audio.title}")
-
-                    if (lyrics) {
-                        // Clean up the internally-stored LRC/TXT sidecar files.
-                        LrcRepository.deleteSidecarsStatic(requireContext(), audio.uri)
-                    }
-                } else {
-                    Log.e(TAG, "DocumentsContract could not delete: ${audio.uri}")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error deleting song: ${e.message}", e)
-            }
+            SongDeleter.deleteSong(appContext, audio, lyrics)
         }
     }
 
