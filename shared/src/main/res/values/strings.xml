@@ -147,7 +147,7 @@
     <string name="setup">Setup</string>
     <string name="shadow_effect_summary">Toggle shadow effects on some icons and album arts throughout the app.</string>
     <string name="rounded_corners">Rounded Corners</string>
-    <string name="desc_data_collect">Felicity does not collect any data.</string>
+    <string name="desc_data_collect">白い熊 音楽 does not collect any data.</string>
     <string name="desc_setup">Before moving ahead it is recommended to perform the necessary actions to make sure all the features of the app work.</string>
     <string name="required">Required</string>
     <string name="granted">Granted</string>
@@ -155,9 +155,9 @@
     <string name="post_notifications">Post Notifications</string>
     <string name="desc_post_notifications">Required to show media player and other necessary notifications.</string>
     <string name="storage_folder_access">Storage Folder Access</string>
-    <string name="desc_storage_folder_access">Tap to pick the music folder(s) you want Felicity to scan. You can add more folders later from Library settings. No broad storage permission is required, only the folders you choose.</string>
+    <string name="desc_storage_folder_access">Tap to pick the music folder(s) you want 白い熊 音楽 to scan. You can add more folders later from Library settings. No broad storage permission is required, only the folders you choose.</string>
     <string name="read_media_audio">Read Media Audio</string>
-    <string name="desc_read_media_audio">Allows Felicity to read audio files from MediaStore.</string>
+    <string name="desc_read_media_audio">Allows 白い熊 音楽 to read audio files from MediaStore.</string>
     <string name="no_folders_granted">No folders added yet. Tap above to pick a music folder.</string>
     <string name="start_app_now">Start App Now</string>
     <string name="audio">Audio</string>
@@ -368,7 +368,7 @@
 
     <!-- Trial expired dialog strings -->
     <string name="trial_expired">Trial Expired</string>
-    <string name="trial_expired_message">Your free trial period has ended. Purchase the full version to continue enjoying Felicity without interruption.</string>
+    <string name="trial_expired_message">Your free trial period has ended. Purchase the full version to continue enjoying 白い熊 音楽 without interruption.</string>
     <string name="grace_period_expired_message">All grace launches have been used. Please purchase the app to continue listening.</string>
     <string name="purchase_now">Purchase Now</string>
     <string name="purchase_later">I\'ll Purchase Later</string>

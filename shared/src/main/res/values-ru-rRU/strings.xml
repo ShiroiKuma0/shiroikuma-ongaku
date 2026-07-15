@@ -148,7 +148,7 @@
     <string name="setup">Настройка</string>
     <string name="shadow_effect_summary">Переключение эффектов тени для некоторых иконок и обложек альбомов в приложении.</string>
     <string name="rounded_corners">Скруглить углы</string>
-    <string name="desc_data_collect">Felicity не собирает никаких данных.</string>
+    <string name="desc_data_collect">白い熊 音楽 не собирает никаких данных.</string>
     <string name="desc_setup">Прежде чем продолжить, рекомендуется выполнить необходимые действия, чтобы убедиться в работоспособности всех функций приложения.</string>
     <string name="required">Требуется</string>
     <string name="granted">Разрешено</string>
@@ -363,7 +363,7 @@
     <string name="trial_period_summary">Осталось %1$d дн. пробного периода.</string>
     <!-- Trial expired dialog strings -->
     <string name="trial_expired">Пробный период истек</string>
-    <string name="trial_expired_message">Ваш пробный период закончился. Приобретите полную версию, чтобы продолжить пользКупить сейчасКупить позжеоваться Felicity без ограничений.</string>
+    <string name="trial_expired_message">Ваш пробный период закончился. Приобретите полную версию, чтобы продолжить пользКупить сейчасКупить позжеоваться 白い熊 音楽 без ограничений.</string>
     <string name="grace_period_expired_message">Все дополнительные запуски использованы. Пожалуйста, приобретите приложение, чтобы продолжить прослушивание.</string>
     <string name="purchase_now">Купить сейчас</string>
     <string name="purchase_later">Куплю позже</string>
