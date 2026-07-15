@@ -19,6 +19,7 @@ import app.simple.felicity.ui.preferences.main.Behavior
 import app.simple.felicity.ui.preferences.main.Configuration
 import app.simple.felicity.ui.preferences.main.Library
 import app.simple.felicity.ui.preferences.main.Purchase
+import app.simple.felicity.ui.preferences.main.ShiroikumaUi
 import app.simple.felicity.ui.preferences.main.UserInterface
 import app.simple.felicity.ui.subpanels.PreferenceSearch
 import app.simple.felicity.viewmodels.panels.PreferencesViewModel
@@ -57,6 +58,9 @@ class Preferences : MediaFragment() {
             adapter?.setAdapterPreferenceCallbacks(object : AdapterPreference.Companion.AdapterPreferenceCallbacks {
                 override fun onPreferenceClicked(preference: PreferencesViewModel.Companion.Preference, position: Int, view: View) {
                     when (preference.title) {
+                        R.string.shiroikuma_ui -> {
+                            openFragment(ShiroikumaUi.newInstance(), ShiroikumaUi.TAG)
+                        }
                         R.string.purchase -> {
                             openFragment(Purchase.newInstance(), Purchase.TAG)
                         }
