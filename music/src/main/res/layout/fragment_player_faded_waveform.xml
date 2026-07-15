@@ -7,14 +7,6 @@
     android:clipToPadding="false"
     android:orientation="vertical">
 
-    <app.simple.felicity.decorations.views.FelicityVisualizer
-        android:id="@+id/visualizer"
-        android:layout_width="match_parent"
-        android:layout_height="250dp"
-        android:layout_gravity="bottom"
-        android:alpha="0.25"
-        app:vizMaxRenderHeight="0.45"
-        app:vizParticlesEnabled="true" />
 
     <app.simple.felicity.decorations.padding.NonThemePaddingAwareLinearLayout
         android:layout_width="match_parent"
@@ -297,5 +289,15 @@
         </LinearLayout>
 
     </app.simple.felicity.decorations.padding.NonThemePaddingAwareLinearLayout>
+
+    <!-- Fork (白い熊 音楽 UI): PowerAmp-style visualizer — full-screen overlay above all
+         player items, super-thin bars growing from the bottom to the top of the screen. -->
+    <app.simple.felicity.decorations.views.FelicityVisualizer
+        android:id="@+id/visualizer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:alpha="0.55"
+        app:vizMaxRenderHeight="1.0"
+        app:vizParticlesEnabled="true" />
 
 </app.simple.felicity.decorations.theme.ThemeFrameLayout>
