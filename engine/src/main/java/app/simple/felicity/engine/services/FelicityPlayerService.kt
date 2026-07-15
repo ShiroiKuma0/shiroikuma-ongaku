@@ -1581,10 +1581,10 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
 
         // Decoder info
         val decoderLabel = when {
-            currentDecoderName.contains("ffmpeg", ignoreCase = true) -> "Felicity Native FFmpeg Decoder"
+            currentDecoderName.contains("ffmpeg", ignoreCase = true) -> "白い熊 音楽 Native FFmpeg Decoder"
             currentDecoderName.contains("c2.", ignoreCase = true) -> currentDecoderName
             currentDecoderName != "Unknown" -> currentDecoderName
-            AudioPreferences.getAudioDecoder() == AudioPreferences.FFMPEG -> "Felicity Native FFmpeg Decoder (pending)"
+            AudioPreferences.getAudioDecoder() == AudioPreferences.FFMPEG -> "白い熊 音楽 Native FFmpeg Decoder (pending)"
             else -> "Android Built-in (pending)"
         }
 
@@ -2006,7 +2006,7 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
                         MediaMetadata.Builder()
                             .setIsBrowsable(true)
                             .setIsPlayable(false)
-                            .setTitle("Felicity Music Library")
+                            .setTitle("白い熊 音楽")
                             .build()
                 )
                 .build()
