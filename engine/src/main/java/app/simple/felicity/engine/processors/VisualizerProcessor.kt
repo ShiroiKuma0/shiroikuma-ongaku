@@ -6,6 +6,7 @@ import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.UnstableApi
+import app.simple.felicity.engine.managers.MusicPulse
 import app.simple.felicity.engine.processors.VisualizerProcessor.Companion.BAND_COUNT
 import app.simple.felicity.engine.processors.VisualizerProcessor.Companion.FFT_SIZE
 import java.lang.ref.WeakReference
@@ -378,6 +379,9 @@ class VisualizerProcessor : BaseAudioProcessor() {
                 // Deliver raw mono PCM to any registered tap (e.g., the milkdrop renderer)
                 // before the FFT pass consumes it.
                 pcmWindowCallback?.onPcmWindow(sampleBuffer, fftSize)
+                // Fork (音楽端灯): feed the beat/tempo analyzer — a no-op unless a meteor
+                // view currently holds a MusicPulse reference.
+                MusicPulse.feed(sampleBuffer, fftSize, currentSampleRate)
                 processAndEmit()
                 bufferIndex = 0
             }
@@ -435,6 +439,8 @@ class VisualizerProcessor : BaseAudioProcessor() {
 
             if (bufferIndex >= fftSize) {
                 pcmWindowCallback?.onPcmWindow(sampleBuffer, fftSize)
+                // Fork (音楽端灯): same tap on the AAudio/USB-DAC direct-output path.
+                MusicPulse.feed(sampleBuffer, fftSize, currentSampleRate)
                 processAndEmit()
                 bufferIndex = 0
             }
