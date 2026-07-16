@@ -2,7 +2,6 @@ package app.simple.felicity.activities
 
 import android.os.Build
 import android.os.Bundle
-import android.widget.Toast
 import androidx.lifecycle.ViewModelProvider
 import app.simple.felicity.R
 import app.simple.felicity.databinding.ActivityCrashBinding
@@ -12,6 +11,7 @@ import app.simple.felicity.models.StackTrace
 import app.simple.felicity.preferences.CrashPreferences
 import app.simple.felicity.shared.utils.ConditionUtils.invert
 import app.simple.felicity.utils.DateUtils.toDate
+import app.simple.felicity.utils.SkFlash
 import app.simple.felicity.viewmodels.misc.ErrorViewModel
 
 class CrashReporterActivity : BaseActivity() {
@@ -75,7 +75,7 @@ class CrashReporterActivity : BaseActivity() {
             val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
             val clip = android.content.ClipData.newPlainText("Crash Trace", crash)
             clipboard.setPrimaryClip(clip)
-            Toast.makeText(this, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+            SkFlash.show(this, "Copied to clipboard")
         }
     }
 

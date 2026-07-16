@@ -103,4 +103,14 @@
     <string name="sk_automation_token_copied" translatable="false">Token copied to clipboard</string>
     <string name="sk_automation_regenerate" translatable="false">Regenerate token</string>
     <string name="sk_automation_token_regenerated" translatable="false">New token generated</string>
+
+    <string name="sk_section_library" translatable="false">Library</string>
+    <string name="sk_import_poweramp" translatable="false">Import PowerAmp ratings</string>
+    <string name="sk_poweramp_importing" translatable="false">Importing PowerAmp ratings…</string>
+    <string name="sk_poweramp_result" translatable="false">%1$d rated tracks: %2$d favorited, %3$d not found</string>
+    <string name="sk_poweramp_failed" translatable="false">PowerAmp import failed: %1$s</string>
+    <string name="sk_import_poweramp_art" translatable="false">Import PowerAmp album art</string>
+    <string name="sk_poweramp_art_importing" translatable="false">Importing PowerAmp album art…</string>
+    <string name="sk_poweramp_art_result" translatable="false">%1$d art files: %2$d songs updated, %3$d already had art, %4$d albums not matched, %5$d failed</string>
+    <string name="sk_poweramp_art_failed" translatable="false">PowerAmp art import failed: %1$s</string>
 </resources>

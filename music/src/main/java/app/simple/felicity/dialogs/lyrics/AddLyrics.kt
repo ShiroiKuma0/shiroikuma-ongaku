@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -15,6 +14,7 @@ import app.simple.felicity.extensions.dialogs.MediaBottomDialogFragment
 import app.simple.felicity.repository.constants.BundleConstants
 import app.simple.felicity.repository.models.Audio
 import app.simple.felicity.utils.ParcelUtils.parcelable
+import app.simple.felicity.utils.SkFlash
 import app.simple.felicity.viewmodels.dialogs.AddLyricsViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.withCreationCallback
@@ -65,7 +65,7 @@ class AddLyrics : MediaBottomDialogFragment() {
                             dismiss()
                         }
                         is AddLyricsViewModel.SaveResult.Error -> {
-                            Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
+                            SkFlash.show(requireContext(), result.message)
                         }
                     }
                 }

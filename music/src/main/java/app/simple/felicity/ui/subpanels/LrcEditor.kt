@@ -8,7 +8,6 @@ import android.text.format.DateUtils
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import app.simple.felicity.R
@@ -22,6 +21,7 @@ import app.simple.felicity.repository.utils.AudioUtils.getProperArtists
 import app.simple.felicity.repository.utils.AudioUtils.getProperTitle
 import app.simple.felicity.ui.subpanels.LrcEditor.Companion.SEEK_JUMP_MS
 import app.simple.felicity.utils.ParcelUtils.parcelable
+import app.simple.felicity.utils.SkFlash
 import app.simple.felicity.viewmodels.player.LrcEditorViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.withCreationCallback
@@ -153,10 +153,10 @@ class LrcEditor : MediaFragment() {
                 if (text.isNotBlank()) {
                     viewModel.pasteLines(text)
                 } else {
-                    Toast.makeText(requireContext(), R.string.lrc_clipboard_empty, Toast.LENGTH_SHORT).show()
+                    SkFlash.show(requireContext(), R.string.lrc_clipboard_empty)
                 }
             } else {
-                Toast.makeText(requireContext(), R.string.lrc_clipboard_empty, Toast.LENGTH_SHORT).show()
+                SkFlash.show(requireContext(), R.string.lrc_clipboard_empty)
             }
         }
 
@@ -195,7 +195,7 @@ class LrcEditor : MediaFragment() {
 
         viewModel.getSaved().observe(viewLifecycleOwner) { saved ->
             if (saved == true) {
-                Toast.makeText(requireContext(), R.string.lyrics_saved, Toast.LENGTH_SHORT).show()
+                SkFlash.show(requireContext(), R.string.lyrics_saved)
                 // Signal the Lyrics panel to reload if it is in the back stack.
                 parentFragmentManager.setFragmentResult(REQUEST_KEY_LRC_SAVED, Bundle())
                 goBack()
