@@ -196,6 +196,19 @@ class FelicityVisualizer @JvmOverloads constructor(
         alpha = 220
     }
 
+    /**
+     * Fork (白い熊 音楽 UI): whether the peak-hold cap pills are drawn at all. Tracked as a
+     * field because assigning [Paint.color] resets the paint's alpha to the color's own —
+     * without this, every accent/color update silently resurrected disabled caps.
+     * Reapplied through [applyCapAlpha] after every [capPaint] color assignment.
+     */
+    private var capsEnabled = true
+
+    /** Reapplies the caps-enabled alpha after any [capPaint] color assignment. */
+    private fun applyCapAlpha() {
+        capPaint.alpha = if (capsEnabled) 220 else 0
+    }
+
     /** Reusable rect — avoids per-frame allocation in [onDraw]. */
     private val drawRect = RectF()
 
@@ -239,6 +252,7 @@ class FelicityVisualizer @JvmOverloads constructor(
                 barColors = buildAccentColors()
                 rebuildGradient(width, height)
                 capPaint.color = visualizerPrimaryColor()
+                applyCapAlpha()
                 invalidate()
             }
         }
@@ -381,6 +395,7 @@ class FelicityVisualizer @JvmOverloads constructor(
      */
     fun setCapColor(color: Int) {
         capPaint.color = color
+        applyCapAlpha()
         invalidate()
     }
 
@@ -388,7 +403,8 @@ class FelicityVisualizer @JvmOverloads constructor(
      * Toggle cap visibility
      */
     fun setCapsEnabled(enabled: Boolean) {
-        capPaint.alpha = if (enabled) 220 else 0
+        capsEnabled = enabled
+        applyCapAlpha()
         invalidate()
     }
 
@@ -683,7 +699,7 @@ class FelicityVisualizer @JvmOverloads constructor(
             canvas.drawPath(barPath, barPaint)
 
             // Draw the interpolated peak cap pill at the peak position along the growth axis.
-            if (peak > 0.02f) {
+            if (capsEnabled && peak > 0.02f) {
                 val peakPos = when (direction) {
                     VisualizerDirection.BOTTOM_TO_TOP -> viewBottom - peak * maxBarLength
                     VisualizerDirection.TOP_TO_BOTTOM -> peak * maxBarLength
@@ -964,7 +980,9 @@ class FelicityVisualizer @JvmOverloads constructor(
             applyModePreferences()
             visibility = if (PlayerPreferences.isVisualizerEnabled()) VISIBLE else GONE
             particlesEnabled = VisualizerPreferences.areParticlesEnabled()
+            capsEnabled = VisualizerPreferences.areCapsEnabled()
             capPaint.color = visualizerPrimaryColor()
+            applyCapAlpha()
         }
     }
 
@@ -990,6 +1008,7 @@ class FelicityVisualizer @JvmOverloads constructor(
         barColors = buildAccentColors()
         rebuildGradient(width, height)
         capPaint.color = visualizerPrimaryColor()
+        applyCapAlpha()
         invalidate()
     }
 
