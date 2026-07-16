@@ -4,15 +4,22 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
-import android.widget.Toast
 import android.provider.Settings
+import android.text.TextUtils
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.graphics.drawable.GradientDrawable
+import android.widget.LinearLayout
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
+import androidx.appcompat.app.AlertDialog
+import androidx.lifecycle.lifecycleScope
 import app.simple.felicity.R
 import app.simple.felicity.databinding.FragmentShiroikumaUiBinding
 import app.simple.felicity.databinding.HeaderPreferencesGenericBinding
@@ -34,7 +41,12 @@ import app.simple.felicity.preferences.AppearancePreferences
 import app.simple.felicity.preferences.AutomationPreferences
 import app.simple.felicity.preferences.MeteorPreferences
 import app.simple.felicity.preferences.ShiroikumaPreferences
+import app.simple.felicity.shiroikuma.PowerAmpArtImporter
+import app.simple.felicity.shiroikuma.PowerAmpRatingsImporter
 import app.simple.felicity.theme.managers.ShiroikumaTheme
+import app.simple.felicity.theme.managers.ThemeManager
+import app.simple.felicity.utils.SkFlash
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 /**
@@ -53,6 +65,20 @@ class ShiroikumaUi : PreferenceFragment() {
 
     private val indentStep: Int
         get() = dp(28)
+
+    /** Document picker for the PowerAmp `.poweramp-backup` file (extension is custom, so mime is open). */
+    private val powerAmpBackupPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            importPowerAmpRatings(uri)
+        }
+    }
+
+    /** Document picker for the PowerAmp album-art export (also a `.poweramp-backup` ZIP). */
+    private val powerAmpArtPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            importPowerAmpArt(uri)
+        }
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         binding = FragmentShiroikumaUiBinding.inflate(inflater, container, false)
@@ -309,6 +335,11 @@ class ShiroikumaUi : PreferenceFragment() {
                      onChecked = { AutomationPreferences.setEnabled(it) })
         addTokenRow(indent = 1)
         addRegenerateTokenRow(indent = 1)
+
+        // ------------------------------------------------ Library
+        addSection(R.string.sk_section_library)
+        addImportPowerAmpRow(indent = 1)
+        addImportPowerAmpArtRow(indent = 1)
     }
 
     // ------------------------------------------------------------------ row builders
@@ -406,7 +437,7 @@ class ShiroikumaUi : PreferenceFragment() {
             val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             clipboard.setPrimaryClip(ClipData.newPlainText(
                     getString(R.string.sk_automation_token), AutomationPreferences.getToken()))
-            Toast.makeText(requireContext(), getString(R.string.sk_automation_token_copied), Toast.LENGTH_SHORT).show()
+            SkFlash.show(requireContext(), R.string.sk_automation_token_copied)
         }
         binding.rowsContainer.addView(row.root)
     }
@@ -420,12 +451,187 @@ class ShiroikumaUi : PreferenceFragment() {
         row.root.setOnClickListener {
             val fresh = AutomationPreferences.regenerateToken()
             tokenValueView?.text = fresh
-            Toast.makeText(requireContext(), getString(R.string.sk_automation_token_regenerated), Toast.LENGTH_SHORT).show()
+            SkFlash.show(requireContext(), R.string.sk_automation_token_regenerated)
+        }
+        binding.rowsContainer.addView(row.root)
+    }
+
+    /** Opens the system document picker for a PowerAmp backup; ratings become favorites. */
+    private fun addImportPowerAmpRow(indent: Int) {
+        val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        row.valueLabel.text = getString(R.string.sk_import_poweramp)
+        row.valueText.text = ""
+        indentRow(row.root, indent)
+        row.root.setOnClickListener {
+            // The .poweramp-backup extension carries no registered mime type, so accept anything.
+            powerAmpBackupPicker.launch(arrayOf("*/*"))
+        }
+        binding.rowsContainer.addView(row.root)
+    }
+
+    /** Opens the system document picker for a PowerAmp album-art export; art gets embedded into files. */
+    private fun addImportPowerAmpArtRow(indent: Int) {
+        val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        row.valueLabel.text = getString(R.string.sk_import_poweramp_art)
+        row.valueText.text = ""
+        indentRow(row.root, indent)
+        row.root.setOnClickListener {
+            // The .poweramp-backup extension carries no registered mime type, so accept anything.
+            powerAmpArtPicker.launch(arrayOf("*/*"))
         }
         binding.rowsContainer.addView(row.root)
     }
 
     // ------------------------------------------------------------------ actions
+
+    /**
+     * Runs the PowerAmp ratings import off the main thread with a live progress
+     * dialog and reports the outcome as a flash: "<rated> rated tracks: <n>
+     * favorited, <m> not found". Import is additive — existing favorites are
+     * never cleared.
+     */
+    private fun importPowerAmpRatings(uri: Uri) {
+        val appContext = requireContext().applicationContext
+        val progress = ImportProgressDialog()
+        lifecycleScope.launch {
+            try {
+                val result = PowerAmpRatingsImporter.import(appContext, uri) { done, total, label ->
+                    progress.update(done, total, label)
+                }
+                progress.dismiss()
+                SkFlash.show(appContext,
+                             getString(R.string.sk_poweramp_result,
+                                       result.rated, result.favorited, result.notFound),
+                             long = true)
+            } catch (e: Exception) {
+                progress.dismiss()
+                SkFlash.show(appContext,
+                             getString(R.string.sk_poweramp_failed, e.message ?: e.javaClass.simpleName),
+                             long = true)
+            }
+        }
+    }
+
+    /**
+     * Runs the PowerAmp album-art import off the main thread with a live progress
+     * dialog and reports the outcome as a flash: "<n> art files: <x> songs updated,
+     * <y> already had art, <z> albums not matched". Only songs without embedded
+     * art are touched.
+     */
+    private fun importPowerAmpArt(uri: Uri) {
+        val appContext = requireContext().applicationContext
+        val progress = ImportProgressDialog()
+        lifecycleScope.launch {
+            try {
+                val result = PowerAmpArtImporter.import(appContext, uri) { done, total, label ->
+                    progress.update(done, total, label)
+                }
+                progress.dismiss()
+                SkFlash.show(appContext,
+                             getString(R.string.sk_poweramp_art_result,
+                                       result.artFiles, result.updated, result.alreadyHadArt,
+                                       result.unmatchedAlbums, result.failed),
+                             long = true)
+            } catch (e: Exception) {
+                progress.dismiss()
+                SkFlash.show(appContext,
+                             getString(R.string.sk_poweramp_art_failed, e.message ?: e.javaClass.simpleName),
+                             long = true)
+            }
+        }
+    }
+
+    /**
+     * Small themed progress card shown while an import coroutine runs — the same
+     * color/shape recipe as [SkFlash]: fork background / primary-text / border
+     * colors (black card, yellow text and border by default), corner radius and
+     * border width from the prefs, app typeface. Two lines: a bold "n / total"
+     * counter and a smaller current-item label underneath.
+     *
+     * Back or an outside tap merely hides the card — the import coroutine keeps
+     * running to completion and still reports its result flash; [update] on a
+     * hidden dialog is harmless.
+     */
+    private inner class ImportProgressDialog {
+
+        private val counterView: TypeFaceTextView
+        private val labelView: TypeFaceTextView
+        private val dialog: AlertDialog
+
+        init {
+            val context = requireContext()
+            val density = resources.displayMetrics.density
+
+            val backgroundColor: Int
+            val textColor: Int
+            val borderColor: Int
+            if (ShiroikumaPreferences.isEnabled()) {
+                backgroundColor = ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.BACKGROUND)
+                textColor = ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.TEXT_PRIMARY)
+                borderColor = ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.BORDER)
+            } else {
+                backgroundColor = ThemeManager.theme.viewGroupTheme.backgroundColor
+                textColor = ThemeManager.theme.textViewTheme.primaryTextColor
+                borderColor = ThemeManager.accent.primaryAccentColor
+            }
+
+            val card = LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                background = GradientDrawable().apply {
+                    setColor(backgroundColor)
+                    cornerRadius = AppearancePreferences.getCornerRadius()
+                    val borderWidth = ShiroikumaPreferences.getBorderWidth()
+                    if (borderWidth > 0F) {
+                        setStroke((borderWidth * density).toInt().coerceAtLeast(1), borderColor)
+                    }
+                }
+                setPadding(dp(28), dp(20), dp(28), dp(20))
+            }
+
+            counterView = TypeFaceTextView(context).apply {
+                text = "…"
+                setTextColor(textColor)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 18F)
+                typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.BOLD, context)
+            }
+
+            labelView = TypeFaceTextView(context).apply {
+                text = ""
+                setTextColor(textColor)
+                alpha = 0.75F
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12F)
+                typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.MEDIUM, context)
+                isSingleLine = true
+                ellipsize = TextUtils.TruncateAt.MIDDLE
+            }
+
+            card.addView(counterView, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            // A fixed label width keeps the card from resizing on every update.
+            card.addView(labelView, LinearLayout.LayoutParams(
+                    dp(240), ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(6) })
+
+            dialog = AlertDialog.Builder(context)
+                .setView(card)
+                .setCancelable(true) // back/outside-tap only hides the card; the import runs on
+                .create()
+            dialog.setCanceledOnTouchOutside(true)
+            dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            dialog.show()
+        }
+
+        /** Called on the main thread by the importers' onProgress callback. */
+        fun update(done: Int, total: Int, label: String) {
+            counterView.text = "$done / $total"
+            if (label.isNotBlank()) {
+                labelView.text = label
+            }
+        }
+
+        fun dismiss() {
+            dialog.dismiss()
+        }
+    }
 
     private fun openColorPicker(@StringRes labelRes: Int, key: String) {
         val picker = SkRgbaColorPicker.newInstance(getString(labelRes), ShiroikumaPreferences.getEffectiveColor(key))
