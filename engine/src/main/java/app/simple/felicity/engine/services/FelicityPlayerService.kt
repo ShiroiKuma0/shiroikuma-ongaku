@@ -14,6 +14,7 @@ import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -22,6 +23,7 @@ import android.provider.Settings
 import android.util.Log
 import android.view.WindowManager
 import androidx.annotation.OptIn
+import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.Format
@@ -43,6 +45,7 @@ import androidx.media3.exoplayer.audio.AudioRendererEventListener
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
+import androidx.media3.session.CacheBitmapLoader
 import androidx.media3.session.CommandButton
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
@@ -51,6 +54,7 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import app.simple.felicity.engine.R
+import app.simple.felicity.engine.artwork.FelicityArtworkBitmapLoader
 import app.simple.felicity.engine.audio.FelicityAudioSink
 import app.simple.felicity.engine.broadcasts.AutomationBroadcasts
 import app.simple.felicity.engine.managers.AudioPipelineManager
@@ -74,8 +78,10 @@ import app.simple.felicity.preferences.PlayerPreferences
 import app.simple.felicity.preferences.ShufflePreferences
 import app.simple.felicity.preferences.UserInterfacePreferences
 import app.simple.felicity.repository.constants.MediaConstants
+import app.simple.felicity.repository.database.instances.AudioDatabase
 import app.simple.felicity.repository.models.Audio
 import app.simple.felicity.repository.repositories.AudioRepository
+import app.simple.felicity.repository.repositories.PlaylistRepository
 import app.simple.felicity.repository.repositories.SongStatRepository
 import app.simple.felicity.repository.utils.AudioUtils.getProperAlbum
 import app.simple.felicity.repository.utils.AudioUtils.getProperArtists
@@ -89,9 +95,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 import kotlin.math.pow
 import kotlin.math.roundToInt
@@ -109,6 +117,13 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
 
     @Inject
     lateinit var songStatRepository: SongStatRepository
+
+    /**
+     * Fork (Android Auto): playlists are one of the top-level folders in the car
+     * browse tree, so the service needs direct access to the playlist tables.
+     */
+    @Inject
+    lateinit var playlistRepository: PlaylistRepository
 
     private var mediaSession: MediaLibrarySession? = null
     private lateinit var player: ExoPlayer
@@ -402,6 +417,9 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
         mediaSession = MediaLibrarySession.Builder(this, player, LibraryCallback())
             .setSessionActivity(sessionActivityIntent!!)
             .setId("ExoPlayerServiceSession")
+            // Fork (Android Auto): resolve felicity-art:// artwork URIs on browse items
+            // (and keep default behavior for everything else, e.g. embedded tag art).
+            .setBitmapLoader(CacheBitmapLoader(FelicityArtworkBitmapLoader(applicationContext, audioRepository, serviceScope)))
             .build()
 
         // Set initial repeat button in the notification
@@ -2108,6 +2126,184 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
         Log.d(TAG, "Stopped periodic state saving")
     }
 
+    // ------------------------------------------------------------------ Android Auto browse tree
+
+    /**
+     * Fork (Android Auto): converts the stored URI string to a playable [Uri].
+     * SAF-scanned songs store a content:// URI; legacy entries store a plain path.
+     * Mirrors the private helper in MediaPlaybackManager so both queue paths
+     * produce identical playback URIs.
+     */
+    private fun String.toPlaybackUri(): Uri {
+        return if (startsWith("content://")) toUri() else File(this).toUri()
+    }
+
+    /**
+     * Fork (Android Auto): the full library, served from the in-memory cache that the
+     * Room flow keeps fresh, with a one-shot database fallback for cold starts where
+     * the first flow emission has not arrived yet (Auto binds the service directly,
+     * long before any app UI runs).
+     */
+    private suspend fun allLibrarySongs(): List<Audio> {
+        return cachedSongList.ifEmpty {
+            runCatching { audioRepository.getAllAudioList() }.getOrElse { emptyList() }
+        }
+    }
+
+    /** Fork (Android Auto): builds a browsable (non-playable) folder node. */
+    private fun browsableFolder(
+            id: String,
+            title: String,
+            subtitle: String? = null,
+            mediaType: Int = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
+            artworkAudioId: Long? = null
+    ): MediaItem {
+        val metadata = MediaMetadata.Builder()
+            .setTitle(title)
+            .setSubtitle(subtitle)
+            .setIsBrowsable(true)
+            .setIsPlayable(false)
+            .setMediaType(mediaType)
+        if (artworkAudioId != null) {
+            metadata.setArtworkUri(FelicityArtworkBitmapLoader.artworkUriFor(artworkAudioId))
+        }
+        return MediaItem.Builder()
+            .setMediaId(id)
+            .setMediaMetadata(metadata.build())
+            .build()
+    }
+
+    /**
+     * Fork (Android Auto): a playable song row shown inside a browse folder. The media
+     * id embeds the parent folder ([SONG_PREFIX]parentId|audioId) so that when the item
+     * is tapped in the car, [LibraryCallback.onSetMediaItems] can rebuild the whole
+     * containing folder as the queue and start at this song.
+     */
+    private fun Audio.toBrowsableSongItem(parentId: String): MediaItem {
+        return MediaItem.Builder()
+            .setMediaId("$SONG_PREFIX$parentId|$id")
+            .setMediaMetadata(
+                    MediaMetadata.Builder()
+                        .setTitle(getProperTitle())
+                        .setArtist(getProperArtists())
+                        .setAlbumTitle(getProperAlbum())
+                        .setDurationMs(duration.takeIf { it > 0 })
+                        .setArtworkUri(FelicityArtworkBitmapLoader.artworkUriFor(id))
+                        .setIsBrowsable(false)
+                        .setIsPlayable(true)
+                        .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+                        .build()
+            )
+            .build()
+    }
+
+    /**
+     * Fork (Android Auto): a fully resolved, immediately playable [MediaItem] with the
+     * same plain-numeric media id the in-app queue uses. Keeping the id identical to
+     * [MediaPlaybackManager]'s items means every existing media-id consumer (song
+     * statistics, widget broadcasts, error notifier) keeps working no matter whether
+     * the queue was built in the app or in the car.
+     */
+    private fun Audio.toPlayableMediaItem(): MediaItem {
+        return MediaItem.Builder()
+            .setMediaId(id.toString())
+            .setUri(uri.toPlaybackUri())
+            .setMediaMetadata(
+                    MediaMetadata.Builder()
+                        .setTitle(getProperTitle())
+                        .setArtist(getProperArtists())
+                        .setAlbumTitle(getProperAlbum())
+                        .setDurationMs(duration.takeIf { it > 0 })
+                        .setArtworkUri(FelicityArtworkBitmapLoader.artworkUriFor(id))
+                        .setIsBrowsable(false)
+                        .setIsPlayable(true)
+                        .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+                        .build()
+            )
+            .build()
+    }
+
+    /** Fork (Android Auto): true when [parentId] identifies a folder whose children are songs. */
+    private fun isSongParent(parentId: String): Boolean {
+        return parentId == NODE_RECENT || parentId == NODE_FAVORITES ||
+                parentId.startsWith(ALBUM_PREFIX) || parentId.startsWith(ARTIST_PREFIX) ||
+                parentId.startsWith(PLAYLIST_PREFIX) || parentId.startsWith(SEARCH_PREFIX)
+    }
+
+    /**
+     * Fork (Android Auto): resolves the ordered song list of a browse folder. Used both
+     * for listing children ([LibraryCallback.onGetChildren]) and for building the play
+     * queue when a song inside the folder is tapped ([LibraryCallback.onSetMediaItems]),
+     * so what the user sees is exactly what gets queued.
+     */
+    private suspend fun songsForBrowseParent(parentId: String): List<Audio> {
+        return runCatching {
+            when {
+                parentId == NODE_RECENT -> {
+                    val recent = runCatching { audioRepository.getRecentAudio().first() }
+                        .getOrElse { emptyList() }
+                    recent.ifEmpty {
+                        // Nothing added in the last 30 days — fall back to the newest songs
+                        // so the folder is never uselessly empty in the car.
+                        allLibrarySongs().sortedByDescending { it.dateAdded }
+                    }.take(RECENT_LIMIT)
+                }
+                parentId == NODE_FAVORITES -> {
+                    runCatching { audioRepository.getFavoriteAudio().first() }
+                        .getOrElse { allLibrarySongs().filter { it.isFavorite } }
+                }
+                parentId.startsWith(ALBUM_PREFIX) -> {
+                    val albumName = Uri.decode(parentId.removePrefix(ALBUM_PREFIX))
+                    allLibrarySongs().filter { it.album == albumName }
+                        .sortedWith(compareBy({ it.track }, { it.getProperTitle().lowercase() }))
+                }
+                parentId.startsWith(ARTIST_PREFIX) -> {
+                    val artistName = Uri.decode(parentId.removePrefix(ARTIST_PREFIX))
+                    allLibrarySongs()
+                        .filter { AudioRepository.artistFieldMatchesName(it.artist, artistName) }
+                        .sortedWith(compareBy({ it.album?.lowercase() ?: "" }, { it.track }))
+                }
+                parentId.startsWith(PLAYLIST_PREFIX) -> {
+                    val playlistId = parentId.removePrefix(PLAYLIST_PREFIX).toLongOrNull()
+                    if (playlistId == null) {
+                        emptyList()
+                    } else {
+                        playlistRepository.getSongsInPlaylistOrdered(playlistId).first()
+                    }
+                }
+                parentId.startsWith(SEARCH_PREFIX) -> {
+                    searchLibrary(Uri.decode(parentId.removePrefix(SEARCH_PREFIX)))
+                }
+                else -> emptyList()
+            }
+        }.getOrElse {
+            Log.e(TAG, "songsForBrowseParent failed for '$parentId'", it)
+            emptyList()
+        }
+    }
+
+    /** Fork (Android Auto): case-insensitive library search over title, artist, and album. */
+    private suspend fun searchLibrary(query: String): List<Audio> {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return emptyList()
+        return allLibrarySongs().filter { audio ->
+            audio.title?.contains(trimmed, ignoreCase = true) == true ||
+                    audio.artist?.contains(trimmed, ignoreCase = true) == true ||
+                    audio.album?.contains(trimmed, ignoreCase = true) == true
+        }.take(SEARCH_LIMIT)
+    }
+
+    /** Fork (Android Auto): applies the browser's page/pageSize window to a full child list. */
+    private fun paginate(items: List<MediaItem>, page: Int, pageSize: Int): ImmutableList<MediaItem> {
+        val safePage = page.coerceAtLeast(0)
+        val startIndex = safePage.toLong() * pageSize.toLong()
+        if (startIndex >= items.size || pageSize <= 0) {
+            return if (safePage == 0) ImmutableList.copyOf(items) else ImmutableList.of()
+        }
+        val endIndex = minOf(startIndex + pageSize, items.size.toLong())
+        return ImmutableList.copyOf(items.subList(startIndex.toInt(), endIndex.toInt()))
+    }
+
     private inner class LibraryCallback : MediaLibrarySession.Callback {
 
         private val toggleRepeatCommand = SessionCommand(COMMAND_TOGGLE_REPEAT, Bundle.EMPTY)
@@ -2192,12 +2388,13 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
             Log.d(TAG, "onGetLibraryRoot called by: ${browser.packageName}")
 
             val rootItem = MediaItem.Builder()
-                .setMediaId("root")
+                .setMediaId(ROOT_ID)
                 .setMediaMetadata(
                         MediaMetadata.Builder()
                             .setIsBrowsable(true)
                             .setIsPlayable(false)
                             .setTitle("白い熊 音楽")
+                            .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
                             .build()
                 )
                 .build()
@@ -2206,7 +2403,10 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
         }
 
         /**
-         * Allow clients to browse content (essential for "Play Music" generally)
+         * Fork (Android Auto): serves the browse tree. The root exposes five top-level
+         * folders (Recently added, Favorites, Albums, Artists, Playlists); the Albums,
+         * Artists, and Playlists folders contain one browsable node per collection; every
+         * other node resolves to playable song rows via [songsForBrowseParent].
          */
         override fun onGetChildren(
                 session: MediaLibrarySession,
@@ -2218,49 +2418,226 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceScope.future {
             Log.d(TAG, "onGetChildren called for parentId: $parentId, page: $page, pageSize: $pageSize")
 
-            when (parentId) {
-                "root" -> {
-                    // Use the cached list that Room keeps fresh via a Flow — no blocking DB call
-                    // needed here, and no risk of an outdated list after a library rescan.
-                    val songs = cachedSongList.ifEmpty {
-                        // Cache hasn't populated yet on the very first call — fetch once as fallback.
-                        audioRepository.getAllAudioList()
-                    }
-
-                    // Convert Audio models to MediaItems
-                    val mediaItems = songs.map { audio ->
-                        MediaItem.Builder()
-                            .setMediaId(audio.id.toString())
-                            .setUri(audio.uri)
-                            .setMediaMetadata(
-                                    MediaMetadata.Builder()
-                                        .setTitle(audio.getProperTitle())
-                                        .setArtist(audio.getProperArtists())
-                                        .setAlbumTitle(audio.getProperAlbum())
-                                        .setIsBrowsable(false) // Songs are leaves, not folders
-                                        .setIsPlayable(true)
-                                        .build()
+            when {
+                parentId == ROOT_ID -> {
+                    val folders = listOf(
+                            browsableFolder(NODE_RECENT, "Recently added"),
+                            browsableFolder(NODE_FAVORITES, "Favorites"),
+                            browsableFolder(NODE_ALBUMS, "Albums", mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_ALBUMS),
+                            browsableFolder(NODE_ARTISTS, "Artists", mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_ARTISTS),
+                            browsableFolder(NODE_PLAYLISTS, "Playlists", mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_PLAYLISTS)
+                    )
+                    LibraryResult.ofItemList(paginate(folders, page, pageSize), params)
+                }
+                parentId == NODE_ALBUMS -> {
+                    val albums = allLibrarySongs()
+                        .filter { !it.album.isNullOrEmpty() }
+                        .groupBy { it.album!! }
+                        .toList()
+                        .sortedBy { (name, _) -> name.lowercase() }
+                        .map { (name, songs) ->
+                            browsableFolder(
+                                    id = ALBUM_PREFIX + Uri.encode(name),
+                                    title = name,
+                                    subtitle = songs.firstOrNull()?.getProperArtists(),
+                                    mediaType = MediaMetadata.MEDIA_TYPE_ALBUM,
+                                    artworkAudioId = songs.firstOrNull()?.id
                             )
-                            .build()
-                    }
-
-                    // Handle pagination
-                    val startIndex = page * pageSize
-                    val endIndex = minOf(startIndex + pageSize, mediaItems.size)
-                    val paginatedItems = if (startIndex < mediaItems.size) {
-                        mediaItems.subList(startIndex, endIndex)
-                    } else {
-                        emptyList()
-                    }
-
-                    Log.d(TAG, "Returning ${paginatedItems.size} items out of ${mediaItems.size} total")
-                    LibraryResult.ofItemList(ImmutableList.copyOf(paginatedItems), params)
+                        }
+                    LibraryResult.ofItemList(paginate(albums, page, pageSize), params)
+                }
+                parentId == NODE_ARTISTS -> {
+                    val artists = runCatching { audioRepository.getAllArtistsWithAggregation().first() }
+                        .getOrElse { emptyList() }
+                        .mapNotNull { artist ->
+                            val name = artist.name ?: return@mapNotNull null
+                            browsableFolder(
+                                    id = ARTIST_PREFIX + Uri.encode(name),
+                                    title = name,
+                                    subtitle = "${artist.trackCount} songs",
+                                    mediaType = MediaMetadata.MEDIA_TYPE_ARTIST
+                            )
+                        }
+                    LibraryResult.ofItemList(paginate(artists, page, pageSize), params)
+                }
+                parentId == NODE_PLAYLISTS -> {
+                    val playlists = runCatching { playlistRepository.getAllPlaylistsWithSongs().first() }
+                        .getOrElse { emptyList() }
+                        .sortedWith(compareByDescending<app.simple.felicity.repository.models.PlaylistWithSongs> { it.playlist.isPinned }
+                                        .thenBy { it.playlist.name.lowercase() })
+                        .map { entry ->
+                            browsableFolder(
+                                    id = PLAYLIST_PREFIX + entry.playlist.id,
+                                    title = entry.playlist.name,
+                                    subtitle = "${entry.songs.size} songs",
+                                    mediaType = MediaMetadata.MEDIA_TYPE_PLAYLIST,
+                                    artworkAudioId = entry.songs.firstOrNull()?.id
+                            )
+                        }
+                    LibraryResult.ofItemList(paginate(playlists, page, pageSize), params)
+                }
+                isSongParent(parentId) -> {
+                    val songs = songsForBrowseParent(parentId).map { it.toBrowsableSongItem(parentId) }
+                    LibraryResult.ofItemList(paginate(songs, page, pageSize), params)
                 }
                 else -> {
-                    // Unknown parent ID
                     Log.w(TAG, "Unknown parent ID: $parentId")
                     LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
                 }
+            }
+        }
+
+        /**
+         * Fork (Android Auto): resolves a single browse node by id — some browsers
+         * (including the Auto host) call getItem() for the node being displayed.
+         */
+        override fun onGetItem(
+                session: MediaLibrarySession,
+                browser: MediaSession.ControllerInfo,
+                mediaId: String
+        ): ListenableFuture<LibraryResult<MediaItem>> = serviceScope.future {
+            when {
+                mediaId == ROOT_ID -> LibraryResult.ofItem(
+                        browsableFolder(ROOT_ID, "白い熊 音楽"), null)
+                mediaId == NODE_RECENT -> LibraryResult.ofItem(browsableFolder(NODE_RECENT, "Recently added"), null)
+                mediaId == NODE_FAVORITES -> LibraryResult.ofItem(browsableFolder(NODE_FAVORITES, "Favorites"), null)
+                mediaId == NODE_ALBUMS -> LibraryResult.ofItem(
+                        browsableFolder(NODE_ALBUMS, "Albums", mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_ALBUMS), null)
+                mediaId == NODE_ARTISTS -> LibraryResult.ofItem(
+                        browsableFolder(NODE_ARTISTS, "Artists", mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_ARTISTS), null)
+                mediaId == NODE_PLAYLISTS -> LibraryResult.ofItem(
+                        browsableFolder(NODE_PLAYLISTS, "Playlists", mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_PLAYLISTS), null)
+                mediaId.startsWith(ALBUM_PREFIX) -> {
+                    val name = Uri.decode(mediaId.removePrefix(ALBUM_PREFIX))
+                    LibraryResult.ofItem(browsableFolder(mediaId, name, mediaType = MediaMetadata.MEDIA_TYPE_ALBUM), null)
+                }
+                mediaId.startsWith(ARTIST_PREFIX) -> {
+                    val name = Uri.decode(mediaId.removePrefix(ARTIST_PREFIX))
+                    LibraryResult.ofItem(browsableFolder(mediaId, name, mediaType = MediaMetadata.MEDIA_TYPE_ARTIST), null)
+                }
+                mediaId.startsWith(PLAYLIST_PREFIX) -> {
+                    val id = mediaId.removePrefix(PLAYLIST_PREFIX).toLongOrNull()
+                    val name = id?.let { runCatching { playlistRepository.getPlaylistByIdFlow(it).first()?.name }.getOrNull() }
+                    LibraryResult.ofItem(browsableFolder(mediaId, name ?: "Playlist", mediaType = MediaMetadata.MEDIA_TYPE_PLAYLIST), null)
+                }
+                mediaId.startsWith(SONG_PREFIX) -> {
+                    val body = mediaId.removePrefix(SONG_PREFIX)
+                    val separator = body.lastIndexOf('|')
+                    val parentId = if (separator > 0) body.substring(0, separator) else ""
+                    val audio = body.substringAfterLast('|').toLongOrNull()?.let { audioRepository.getAudioById(it) }
+                    if (audio != null) {
+                        LibraryResult.ofItem(audio.toBrowsableSongItem(parentId), null)
+                    } else {
+                        LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
+                    }
+                }
+                else -> {
+                    val audio = mediaId.toLongOrNull()?.let { audioRepository.getAudioById(it) }
+                    if (audio != null) {
+                        LibraryResult.ofItem(audio.toPlayableMediaItem(), null)
+                    } else {
+                        LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
+                    }
+                }
+            }
+        }
+
+        /**
+         * Fork (Android Auto): browse-tree search. Notifies the browser how many songs
+         * match; the results themselves are delivered by [onGetSearchResult].
+         */
+        override fun onSearch(
+                session: MediaLibrarySession,
+                browser: MediaSession.ControllerInfo,
+                query: String,
+                params: LibraryParams?
+        ): ListenableFuture<LibraryResult<Void>> = serviceScope.future {
+            val count = searchLibrary(query).size
+            session.notifySearchResultChanged(browser, query, count, params)
+            LibraryResult.ofVoid(params)
+        }
+
+        /**
+         * Fork (Android Auto): returns the actual search hits as playable song rows.
+         * The parent id embeds the query so tapping a hit queues the full result list.
+         */
+        override fun onGetSearchResult(
+                session: MediaLibrarySession,
+                browser: MediaSession.ControllerInfo,
+                query: String,
+                page: Int,
+                pageSize: Int,
+                params: LibraryParams?
+        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceScope.future {
+            val parentId = SEARCH_PREFIX + Uri.encode(query.trim())
+            val items = searchLibrary(query).map { it.toBrowsableSongItem(parentId) }
+            LibraryResult.ofItemList(paginate(items, page, pageSize), params)
+        }
+
+        /**
+         * Fork (Android Auto): a tap on a browse-tree song arrives here as a single item
+         * whose media id carries the containing folder. The queue becomes that folder's
+         * full ordered song list, starting at the tapped song — matching in-app behavior
+         * where tapping a song in a list plays the list.
+         */
+        override fun onSetMediaItems(
+                mediaSession: MediaSession,
+                controller: MediaSession.ControllerInfo,
+                mediaItems: MutableList<MediaItem>,
+                startIndex: Int,
+                startPositionMs: Long
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            val single = mediaItems.singleOrNull()
+            if (single != null && single.mediaId.startsWith(SONG_PREFIX) && single.localConfiguration == null) {
+                return serviceScope.future {
+                    val body = single.mediaId.removePrefix(SONG_PREFIX)
+                    val separator = body.lastIndexOf('|')
+                    val parentId = if (separator > 0) body.substring(0, separator) else ""
+                    val audioId = body.substringAfterLast('|').toLongOrNull()
+
+                    val queue = songsForBrowseParent(parentId)
+                    if (queue.isNotEmpty()) {
+                        val start = queue.indexOfFirst { it.id == audioId }.coerceAtLeast(0)
+                        Log.d(TAG, "onSetMediaItems: queueing '$parentId' (${queue.size} songs) starting at $start")
+                        MediaSession.MediaItemsWithStartPosition(queue.map { it.toPlayableMediaItem() }, start, C.TIME_UNSET)
+                    } else {
+                        val audio = audioId?.let { audioRepository.getAudioById(it) }
+                            ?: throw IllegalStateException("Cannot resolve media id: ${single.mediaId}")
+                        MediaSession.MediaItemsWithStartPosition(listOf(audio.toPlayableMediaItem()), 0, C.TIME_UNSET)
+                    }
+                }
+            }
+            return super.onSetMediaItems(mediaSession, controller, mediaItems, startIndex, startPositionMs)
+        }
+
+        /**
+         * Fork (Android Auto): cold-start playback resumption. When the car (or the
+         * system's media resumption UI) hits play before any queue exists, restore the
+         * queue that was persisted by the periodic state saver — same data the app UI
+         * restores from — and fall back to the recently-added songs when the database
+         * holds no saved queue yet.
+         */
+        override fun onPlaybackResumption(
+                mediaSession: MediaSession,
+                controller: MediaSession.ControllerInfo,
+                isForPlayback: Boolean
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = serviceScope.future {
+            val db = AudioDatabase.getInstance(applicationContext)
+            val state = PlaybackStateManager.fetchPlaybackState(db)
+            val savedQueue = PlaybackStateManager.getAudiosFromQueueIDs(db).orEmpty()
+
+            if (savedQueue.isNotEmpty()) {
+                val index = (state?.index ?: 0).coerceIn(0, savedQueue.size - 1)
+                val seek = state?.position ?: 0L
+                Log.d(TAG, "onPlaybackResumption: restored saved queue (${savedQueue.size} songs, index=$index)")
+                MediaSession.MediaItemsWithStartPosition(savedQueue.map { it.toPlayableMediaItem() }, index, seek)
+            } else {
+                val fallback = songsForBrowseParent(NODE_RECENT)
+                if (fallback.isEmpty()) {
+                    throw IllegalStateException("No saved queue and empty library — nothing to resume")
+                }
+                Log.d(TAG, "onPlaybackResumption: no saved queue, using ${fallback.size} recent songs")
+                MediaSession.MediaItemsWithStartPosition(fallback.map { it.toPlayableMediaItem() }, 0, C.TIME_UNSET)
             }
         }
 
@@ -2309,8 +2686,13 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
                     // Already has a URI, return as-is
                     mediaItem
                 } else {
-                    // Try to resolve by media ID
-                    val mediaId = mediaItem.mediaId
+                    // Try to resolve by media ID. Browse-tree song ids carry the containing
+                    // folder ("song|<parent>|<audioId>") — strip that down to the numeric id.
+                    val mediaId = if (mediaItem.mediaId.startsWith(SONG_PREFIX)) {
+                        mediaItem.mediaId.substringAfterLast('|')
+                    } else {
+                        mediaItem.mediaId
+                    }
                     if (mediaId.isNotEmpty()) {
                         val audioId = mediaId.toLongOrNull()
                         if (audioId != null) {
@@ -2379,5 +2761,49 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
 
         /** Custom session command sent when the user taps the favorite button in the notification. */
         const val COMMAND_TOGGLE_FAVORITE = "app.simple.felicity.TOGGLE_FAVORITE"
+
+        // ---------------------------------------------------------------- Android Auto browse ids
+
+        /** Fork (Android Auto): media id of the browse-tree root. */
+        private const val ROOT_ID = "root"
+
+        /** Fork (Android Auto): top-level folder — songs added in the last 30 days. */
+        private const val NODE_RECENT = "recent"
+
+        /** Fork (Android Auto): top-level folder — favorite songs. */
+        private const val NODE_FAVORITES = "favorites"
+
+        /** Fork (Android Auto): top-level folder — one browsable node per album. */
+        private const val NODE_ALBUMS = "albums"
+
+        /** Fork (Android Auto): top-level folder — one browsable node per artist. */
+        private const val NODE_ARTISTS = "artists"
+
+        /** Fork (Android Auto): top-level folder — one browsable node per playlist. */
+        private const val NODE_PLAYLISTS = "playlists"
+
+        /** Fork (Android Auto): album folder id prefix, followed by the Uri-encoded album name. */
+        private const val ALBUM_PREFIX = "album/"
+
+        /** Fork (Android Auto): artist folder id prefix, followed by the Uri-encoded artist name. */
+        private const val ARTIST_PREFIX = "artist/"
+
+        /** Fork (Android Auto): playlist folder id prefix, followed by the numeric playlist id. */
+        private const val PLAYLIST_PREFIX = "playlist/"
+
+        /** Fork (Android Auto): virtual parent id prefix for search results (encodes the query). */
+        private const val SEARCH_PREFIX = "search/"
+
+        /**
+         * Fork (Android Auto): playable browse-row id prefix. Full format is
+         * `song|<parentId>|<audioId>` so a tapped row can rebuild its folder as the queue.
+         */
+        private const val SONG_PREFIX = "song|"
+
+        /** Fork (Android Auto): cap for the Recently-added folder. */
+        private const val RECENT_LIMIT = 200
+
+        /** Fork (Android Auto): cap for browse-tree search results. */
+        private const val SEARCH_LIMIT = 100
     }
 }
