@@ -43,6 +43,62 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content" />
 
+                <!-- Fork (白い熊 音楽 UI): the utility toolbar lives directly above the
+                     count/lyrics/shuffle/pcm chip row instead of at the very bottom, so the
+                     transport controls end the screen (PowerAmp-style ordering). -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="@dimen/padding_25"
+                    android:orientation="horizontal">
+
+                    <app.simple.felicity.decorations.views.FavoriteButton
+                        android:id="@+id/favorite"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="@dimen/button_size"
+                        android:layout_marginEnd="@dimen/padding_1"
+                        android:src="@drawable/ic_favorite_border"
+                        app:buttonTintType="regular" />
+
+                    <app.simple.felicity.decorations.ripple.DynamicRippleImageButton
+                        android:id="@+id/visualizer_button"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="@dimen/button_size"
+                        android:layout_marginEnd="@dimen/padding_1"
+                        android:src="@drawable/ic_graphic_eq"
+                        android:layout_gravity="center_vertical"
+                        app:buttonTintType="regular" />
+
+                    <app.simple.felicity.decorations.ripple.DynamicRippleImageButton
+                        android:id="@+id/equalizer"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="@dimen/button_size"
+                        android:layout_marginEnd="@dimen/padding_1"
+                        android:src="@drawable/ic_tune"
+                        app:buttonTintType="regular" />
+
+                    <app.simple.felicity.decorations.ripple.DynamicRippleImageButton
+                        android:id="@+id/search"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="@dimen/button_size"
+                        android:layout_marginEnd="@dimen/padding_1"
+                        android:src="@drawable/ic_search"
+                        app:buttonTintType="regular" />
+
+                    <app.simple.felicity.decorations.ripple.DynamicRippleImageButton
+                        android:id="@+id/menu"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="@dimen/button_size"
+                        android:src="@drawable/ic_more_vert"
+                        app:buttonTintType="regular" />
+
+                </LinearLayout>
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -185,7 +241,9 @@
                         android:layout_width="match_parent"
                         android:layout_height="200dp"
                         android:layout_gravity="bottom"
-                        app:wsbBarWidth="7dp"
+                        app:wsbBarWidth="2dp"
+                        app:wsbBarSpacing="2dp"
+                        app:wsbUpsample="3"
                         app:wsbLabelEdgeMargin="@dimen/padding_20"
                         app:wsbLabelGravity="center"
                         app:wsbLabelHighlightMode="both"
@@ -196,6 +254,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginHorizontal="@dimen/padding_10"
+                        android:layout_marginBottom="@dimen/padding_15"
                         android:orientation="horizontal"
                         android:clipChildren="false"
                         android:clipToPadding="false"
@@ -235,59 +294,6 @@
 
         </FrameLayout>
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_margin="@dimen/padding_25"
-            android:orientation="horizontal">
-
-            <app.simple.felicity.decorations.views.FavoriteButton
-                android:id="@+id/favorite"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="@dimen/button_size"
-                android:layout_marginEnd="@dimen/padding_1"
-                android:src="@drawable/ic_favorite_border"
-                app:buttonTintType="regular" />
-
-            <app.simple.felicity.decorations.ripple.DynamicRippleImageButton
-                android:id="@+id/visualizer_button"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="@dimen/button_size"
-                android:layout_marginEnd="@dimen/padding_1"
-                android:src="@drawable/ic_graphic_eq"
-                android:layout_gravity="center_vertical"
-                app:buttonTintType="regular" />
-
-            <app.simple.felicity.decorations.ripple.DynamicRippleImageButton
-                android:id="@+id/equalizer"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="@dimen/button_size"
-                android:layout_marginEnd="@dimen/padding_1"
-                android:src="@drawable/ic_tune"
-                app:buttonTintType="regular" />
-
-            <app.simple.felicity.decorations.ripple.DynamicRippleImageButton
-                android:id="@+id/search"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="@dimen/button_size"
-                android:layout_marginEnd="@dimen/padding_1"
-                android:src="@drawable/ic_search"
-                app:buttonTintType="regular" />
-
-            <app.simple.felicity.decorations.ripple.DynamicRippleImageButton
-                android:id="@+id/menu"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="@dimen/button_size"
-                android:src="@drawable/ic_more_vert"
-                app:buttonTintType="regular" />
-
-        </LinearLayout>
-
     </app.simple.felicity.decorations.padding.NonThemePaddingAwareLinearLayout>
 
     <!-- Fork (白い熊 音楽 UI): PowerAmp-style visualizer — full-screen overlay above all
@@ -296,8 +302,8 @@
         android:id="@+id/visualizer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:alpha="0.55"
+        android:alpha="0.40"
         app:vizMaxRenderHeight="1.0"
-        app:vizParticlesEnabled="true" />
+        app:vizParticlesEnabled="false" />
 
 </app.simple.felicity.decorations.theme.ThemeFrameLayout>

@@ -378,6 +378,12 @@
             Lower values produce a subtler mirror image. Default: 0.4.
         -->
         <attr name="wsbReflectionAlpha" format="float" />
+        <!--
+            Fork (白い熊 音楽 UI): number of visual bars rendered per real amplitude sample.
+            Values above 1 insert linearly interpolated "computed" bars between neighboring
+            real per-second samples, matching the visualizer's dense thin-bar look. Default: 1.
+        -->
+        <attr name="wsbUpsample" format="integer" />
     </declare-styleable>
 
     <!--
