@@ -77,6 +77,28 @@
 
             </LinearLayout>
 
+            <!-- Manual art sources (fork): storage picker + clipboard paste -->
+            <app.simple.felicity.decorations.ripple.DynamicRippleTextView
+                android:id="@+id/button_pick_image"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:padding="@dimen/padding_10"
+                android:text="@string/sk_art_pick_image"
+                android:textSize="15sp"
+                app:appFontStyle="bold"
+                app:textColorStyle="accent" />
+
+            <app.simple.felicity.decorations.ripple.DynamicRippleTextView
+                android:id="@+id/button_paste_image"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="@dimen/padding_10"
+                android:text="@string/sk_art_paste_image"
+                android:textSize="15sp"
+                app:appFontStyle="bold"
+                app:textColorStyle="accent" />
+
             <app.simple.felicity.decorations.typeface.TypeFaceTextView
                 android:id="@+id/search_status"
                 android:layout_width="match_parent"
