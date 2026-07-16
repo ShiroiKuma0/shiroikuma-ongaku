@@ -113,4 +113,23 @@
     <string name="sk_poweramp_art_importing" translatable="false">Importing PowerAmp album art…</string>
     <string name="sk_poweramp_art_result" translatable="false">%1$d art files: %2$d songs updated, %3$d already had art, %4$d albums not matched, %5$d failed</string>
     <string name="sk_poweramp_art_failed" translatable="false">PowerAmp art import failed: %1$s</string>
+    <string name="sk_download_album_art" translatable="false">Download missing album art</string>
+    <string name="sk_album_art_result" translatable="false">%1$d albums missing art: %2$d downloaded &amp; embedded (%3$d files), %4$d not found online, %5$d failed</string>
+    <string name="sk_album_art_failed" translatable="false">Album art download failed: %1$s</string>
+
+    <!-- Interactive "Download album art" picker (song menu + album page menu) -->
+    <string name="sk_download_art" translatable="false">Download album art</string>
+    <string name="sk_art_album_hint" translatable="false">Album</string>
+    <string name="sk_art_artist_hint" translatable="false">Artist</string>
+    <string name="sk_art_search" translatable="false">Search</string>
+    <string name="sk_art_searching" translatable="false">Searching covers…</string>
+    <string name="sk_art_no_results" translatable="false">No covers found</string>
+    <string name="sk_art_candidates" translatable="false">%1$d cover(s) found</string>
+    <string name="sk_art_network_error" translatable="false">Network error: %1$s</string>
+    <string name="sk_art_loading_preview" translatable="false">Loading full cover…</string>
+    <string name="sk_art_preview_failed" translatable="false">Could not load the full cover</string>
+    <string name="sk_art_embed_prompt" translatable="false">Embed into %1$d file(s)?</string>
+    <string name="sk_art_embedding" translatable="false">Embedding…</string>
+    <string name="sk_art_embed_result" translatable="false">Embedded into %1$d file(s)</string>
+    <string name="sk_art_embed_result_failed" translatable="false">Embedded into %1$d file(s), %2$d failed</string>
 </resources>
