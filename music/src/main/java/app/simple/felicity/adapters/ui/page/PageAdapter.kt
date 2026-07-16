@@ -280,15 +280,6 @@ class PageAdapter(
             }
         }
 
-        // Add all songs
-        data.songs.forEachIndexed { index, audio ->
-            items.add(PageItem.SongItem(
-                    audio = audio,
-                    position = index,
-                    allSongs = data.songs
-            ))
-        }
-
         // Show the MusicBrainz profile block right below the header on artist and composer pages.
         val currentArtistInfo = artistInfo
         if (currentArtistInfo != null && (pageType is PageType.ArtistPage || pageType is PageType.ComposerPage)) {
@@ -329,6 +320,18 @@ class PageAdapter(
         if (data.genres.isNotEmpty()) {
             items.add(PageItem.GenresSection(
                     genres = data.genres
+            ))
+        }
+
+        // Add all songs last, below every cumulative/aggregate section. The songs stay a
+        // contiguous block, which the playlist drag-reorder logic relies on (it validates
+        // both ends of a move with isSongItem, so the header and carousels are never
+        // valid drag sources or drop targets regardless of where the block sits).
+        data.songs.forEachIndexed { index, audio ->
+            items.add(PageItem.SongItem(
+                    audio = audio,
+                    position = index,
+                    allSongs = data.songs
             ))
         }
     }
