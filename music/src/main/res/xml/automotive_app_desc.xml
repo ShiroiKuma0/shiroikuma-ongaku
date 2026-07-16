@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fork (Android Auto): declares this app as an Android Auto media app. Referenced by
+     the com.google.android.gms.car.application meta-data entry in AndroidManifest.xml. -->
+<automotiveApp>
+    <uses name="media" />
+</automotiveApp>
