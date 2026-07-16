@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_gravity="bottom"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:padding="@dimen/padding_15">
+
+    <app.simple.felicity.decorations.corners.DynamicCornerLinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:padding="@dimen/padding_15">
+
+        <app.simple.felicity.decorations.typeface.TypeFaceTextView
+            android:id="@+id/art_search_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/sk_download_art"
+            android:textSize="18sp"
+            app:appFontStyle="bold"
+            app:textColorStyle="heading" />
+
+        <!-- Step 1: search fields + candidate grid -->
+        <LinearLayout
+            android:id="@+id/search_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <app.simple.felicity.decorations.corners.DynamicCornerEditText
+                android:id="@+id/album_field"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:hint="@string/sk_art_album_hint"
+                android:imeOptions="actionNext"
+                android:inputType="text"
+                android:padding="@dimen/padding_10"
+                android:singleLine="true"
+                android:textSize="15sp"
+                app:appFontStyle="medium" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <app.simple.felicity.decorations.corners.DynamicCornerEditText
+                    android:id="@+id/artist_field"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="@string/sk_art_artist_hint"
+                    android:imeOptions="actionSearch"
+                    android:inputType="text"
+                    android:padding="@dimen/padding_10"
+                    android:singleLine="true"
+                    android:textSize="15sp"
+                    app:appFontStyle="medium" />
+
+                <app.simple.felicity.decorations.ripple.DynamicRippleTextView
+                    android:id="@+id/button_search"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:padding="@dimen/padding_10"
+                    android:text="@string/sk_art_search"
+                    android:textSize="15sp"
+                    app:appFontStyle="bold"
+                    app:textColorStyle="accent" />
+
+            </LinearLayout>
+
+            <app.simple.felicity.decorations.typeface.TypeFaceTextView
+                android:id="@+id/search_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="@string/sk_art_searching"
+                android:textSize="13sp"
+                app:appFontStyle="medium"
+                app:textColorStyle="secondary" />
+
+            <androidx.core.widget.NestedScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/results_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+            </androidx.core.widget.NestedScrollView>
+
+        </LinearLayout>
+
+        <!-- Step 2: confirmation — large preview + Apply/Cancel -->
+        <LinearLayout
+            android:id="@+id/confirm_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/preview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:adjustViewBounds="true"
+                android:contentDescription="@string/sk_download_art"
+                android:scaleType="fitCenter" />
+
+            <app.simple.felicity.decorations.typeface.TypeFaceTextView
+                android:id="@+id/confirm_detail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textSize="13sp"
+                app:appFontStyle="medium"
+                app:textColorStyle="secondary" />
+
+            <app.simple.felicity.decorations.typeface.TypeFaceTextView
+                android:id="@+id/confirm_prompt"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textSize="15sp"
+                app:appFontStyle="bold"
+                app:textColorStyle="primary" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <Space
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <app.simple.felicity.decorations.ripple.DynamicRippleTextView
+                    android:id="@+id/button_cancel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:padding="@dimen/padding_10"
+                    android:text="@string/sk_cancel"
+                    android:textSize="15sp"
+                    app:appFontStyle="medium"
+                    app:textColorStyle="secondary" />
+
+                <app.simple.felicity.decorations.ripple.DynamicRippleTextView
+                    android:id="@+id/button_apply"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:padding="@dimen/padding_10"
+                    android:text="@string/sk_apply"
+                    android:textSize="15sp"
+                    app:appFontStyle="bold"
+                    app:textColorStyle="accent" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Step 3: embed progress (same two-line pattern as the import progress card) -->
+        <LinearLayout
+            android:id="@+id/progress_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <app.simple.felicity.decorations.typeface.TypeFaceTextView
+                android:id="@+id/progress_counter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:text="@string/sk_art_embedding"
+                android:textSize="18sp"
+                app:appFontStyle="bold"
+                app:textColorStyle="primary" />
+
+            <app.simple.felicity.decorations.typeface.TypeFaceTextView
+                android:id="@+id/progress_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:alpha="0.75"
+                android:ellipsize="middle"
+                android:singleLine="true"
+                android:textSize="12sp"
+                app:appFontStyle="medium"
+                app:textColorStyle="secondary" />
+
+        </LinearLayout>
+
+    </app.simple.felicity.decorations.corners.DynamicCornerLinearLayout>
+
+</FrameLayout>
