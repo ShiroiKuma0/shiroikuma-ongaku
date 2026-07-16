@@ -217,6 +217,7 @@ abstract class BasePlayerFragment : MediaFragment() {
         mediaControls.showSeekButtons = UserInterfacePreferences.isForwardRewindButtons()
         attachEdgeMeteors()
         liftLyricsAboveVisualizer()
+        updatePlaybackDim(animate = false)
 
         // Mirror swipe-down-to-close behavior on the album art pager so that a downward
         // swipe on the cover image dismisses the player, exactly like swiping on any other
@@ -581,6 +582,26 @@ abstract class BasePlayerFragment : MediaFragment() {
         }
     }
 
+    /**
+     * Fork (白い熊 音楽 UI): PowerAmp-style playback dim. While music is playing and the
+     * visualizer overlay is enabled, the entire player content column (album art, text,
+     * chips, seekbar, controls) fades close to black so the visualizer bars own the screen.
+     * The visualizer keeps its subdued resting alpha from the skin layout — PowerAmp's bars
+     * read dark, not bright. Pausing or stopping restores full content brightness. The
+     * lifted lyric line and the meteors live above the visualizer in the host frame, so
+     * they are never dimmed.
+     */
+    private fun updatePlaybackDim(animate: Boolean = true) {
+        val content = (visualizer.parent as? ViewGroup)?.getChildAt(0) ?: return
+        val dimmed = MediaPlaybackManager.isPlaying() && PlayerPreferences.isVisualizerEnabled()
+        val contentAlpha = if (dimmed) PLAYBACK_DIM_CONTENT_ALPHA else 1f
+        if (animate) {
+            content.animate().alpha(contentAlpha).setDuration(PLAYBACK_DIM_DURATION_MS).start()
+        } else {
+            content.alpha = contentAlpha
+        }
+    }
+
     private fun setVisualizerState() {
         if (PlayerPreferences.isVisualizerEnabled() && shouldShowProcessors()) {
             // Wire the visualizer view's twin buffers directly to the audio processor so the
@@ -830,6 +851,9 @@ abstract class BasePlayerFragment : MediaFragment() {
                 updatePlayButtonState(true)
                 // Fork (白い熊 音楽 UI): lift the visualizer's pause-silence latch
                 visualizer.wakeFromSilence()
+                // Fork (白い熊 音楽 UI): PowerAmp-style — darken the player content so the
+                // visualizer stands out while music plays.
+                updatePlaybackDim()
                 // Fork (音楽端灯): show the meteors while music plays.
                 updateEdgeMeteorsState()
                 // Also drain any pending waveform that was queued before the ready event arrived
@@ -844,6 +868,8 @@ abstract class BasePlayerFragment : MediaFragment() {
                 // Fork (白い熊 音楽 UI): the engine stops writing FFT frames on pause,
                 // which would freeze the visualizer at its last spectrum — ease it to zero.
                 visualizer.dropToSilence()
+                // Fork (白い熊 音楽 UI): restore full content brightness on pause/stop.
+                updatePlaybackDim()
                 // Fork (音楽端灯): hide the meteors on pause/stop.
                 updateEdgeMeteorsState()
             }
@@ -874,6 +900,9 @@ abstract class BasePlayerFragment : MediaFragment() {
         when (key) {
             PlayerPreferences.VISUALIZER_ENABLED -> {
                 setVisualizerState()
+                // Fork (白い熊 音楽 UI): the playback dim only applies while the visualizer
+                // overlay is enabled — re-evaluate when the toggle flips.
+                updatePlaybackDim()
             }
             MeteorPreferences.ENABLED, MeteorPreferences.OVERLAY -> {
                 updateEdgeMeteorsState()
@@ -1039,6 +1068,16 @@ abstract class BasePlayerFragment : MediaFragment() {
         private const val LOG_TAG = "BasePlayerFragment"
         private const val KEY_IMMERSIVE_CONTROLS_VISIBLE = "immersive_controls_visible"
         private const val IMMERSIVE_MODE_ON_DELAY = 2500L
+
+        /**
+         * Fork (白い熊 音楽 UI): alpha the player content column fades to while music plays
+         * with the visualizer enabled — dark enough that the visualizer owns the screen,
+         * bright enough that the controls and seekbar stay findable (PowerAmp-style).
+         */
+        private const val PLAYBACK_DIM_CONTENT_ALPHA = 0.3f
+
+        /** Fork (白い熊 音楽 UI): duration of the playback dim/restore fade. */
+        private const val PLAYBACK_DIM_DURATION_MS = 600L
     }
 }
 
