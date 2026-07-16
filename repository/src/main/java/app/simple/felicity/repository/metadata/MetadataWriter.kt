@@ -147,12 +147,15 @@ object MetadataWriter {
      * the tag-write pass and the picture-write pass don't interfere with each
      * other's file position.
      *
+     * Public so the fork's PowerAmp album-art importer can reuse the exact same
+     * artwork-embedding path as the metadata editor.
+     *
      * @param uri             The audio file to update.
      * @param artworkFile     The image file whose bytes will be embedded.
      * @param contentResolver Used to open the audio file for read/write.
      * @return `true` if the artwork was embedded, `false` otherwise.
      */
-    private fun writeArtwork(uri: Uri, artworkFile: File, contentResolver: ContentResolver): Boolean {
+    fun writeArtwork(uri: Uri, artworkFile: File, contentResolver: ContentResolver): Boolean {
         return try {
             val imageBytes = artworkFile.readBytes()
             // Guess the MIME type from the file extension — JPEG is the safe default
