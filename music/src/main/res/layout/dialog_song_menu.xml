@@ -371,6 +371,21 @@
                     app:drawableTintStyle="regular"
                     app:textColorStyle="primary" />
 
+                <!-- Fork: Download album art row — interactive MusicBrainz/CAA cover picker -->
+                <app.simple.felicity.decorations.ripple.DynamicRippleTextView
+                    android:id="@+id/download_album_art"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:padding="@dimen/padding_10"
+                    android:text="@string/sk_download_art"
+                    android:textSize="@dimen/text_size_14"
+                    android:drawablePadding="@dimen/padding_10"
+                    app:appFontStyle="bold"
+                    app:drawableStartCompat="@drawable/ic_image_16dp"
+                    app:drawableTintStyle="regular"
+                    app:textColorStyle="primary" />
+
                 <app.simple.felicity.decorations.theme.ThemeDivider
                     android:layout_width="match_parent"
                     android:layout_height="1px"
