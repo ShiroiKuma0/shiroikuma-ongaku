@@ -32,6 +32,13 @@
         android:extractNativeLibs="false"
         android:theme="@style/Theme.Felicity"
         tools:targetApi="tiramisu">
+
+        <!-- Fork (Android Auto): declare the app as an Android Auto media app so the car
+             launcher lists it and binds FelicityPlayerService's MediaLibraryService. -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+
         <activity
             android:name=".activities.MainActivity"
             android:exported="true">
