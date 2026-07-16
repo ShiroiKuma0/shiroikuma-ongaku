@@ -262,6 +262,14 @@ class WaveformSeekbar @JvmOverloads constructor(
     private var labelHighlightFillColor: Int = Color.TRANSPARENT
     private var labelHighlightStrokeColor: Int = Color.WHITE
 
+    /**
+     * Fork (白い熊 音楽 UI): number of visual bars per real amplitude sample. Values above 1
+     * make [setAmplitudes] insert linearly interpolated bars between neighboring real
+     * per-second samples, so thin bars stay dense like the visualizer's interpolated row.
+     * All progress math is fraction-based, so the upsampled array is transparent to seeking.
+     */
+    private var upsampleFactor: Int = 1
+
     private var barWidthPx: Float
     private var barSpacingPx: Float
     private var barCornerRadiusPx: Float = 0f
@@ -475,6 +483,7 @@ class WaveformSeekbar @JvmOverloads constructor(
                 reflectionTopGapPx = ta.getDimension(R.styleable.WaveformSeekbar_wsbReflectionTopGap, reflectionTopGapPx)
                 reflectionBottomGapPx = ta.getDimension(R.styleable.WaveformSeekbar_wsbReflectionBottomGap, reflectionBottomGapPx)
                 reflectionAlpha = ta.getFloat(R.styleable.WaveformSeekbar_wsbReflectionAlpha, DEFAULT_REFLECTION_ALPHA)
+                upsampleFactor = ta.getInt(R.styleable.WaveformSeekbar_wsbUpsample, 1).coerceAtLeast(1)
             } finally {
                 ta.recycle()
             }
@@ -1095,7 +1104,7 @@ class WaveformSeekbar @JvmOverloads constructor(
      * @param data raw amplitude array, one value per second (any non-negative range)
      */
     fun setAmplitudes(data: FloatArray) {
-        val normalizedData = normalizeAmplitudes(data)
+        val normalizedData = upsampleAmplitudes(normalizeAmplitudes(data))
 
         // If a left-bar-fade transition is currently running, deferring is mandatory.
         // Starting a barAnimator now would race with the fade's onAnimationEnd, which
@@ -1152,6 +1161,24 @@ class WaveformSeekbar @JvmOverloads constructor(
                 }
             })
             start()
+        }
+    }
+
+    /**
+     * Fork (白い熊 音楽 UI): expands [data] by [upsampleFactor], inserting linearly
+     * interpolated "computed" bars between each pair of neighboring real samples —
+     * the same bridging the visualizer uses for its dense thin-bar row. Endpoints are
+     * preserved, so the output size is `(n - 1) * factor + 1`. Returns [data] unchanged
+     * when the factor is 1 or there are fewer than two samples.
+     */
+    private fun upsampleAmplitudes(data: FloatArray): FloatArray {
+        if (upsampleFactor <= 1 || data.size < 2) return data
+        val outSize = (data.size - 1) * upsampleFactor + 1
+        return FloatArray(outSize) { i ->
+            val pos = i.toFloat() / upsampleFactor
+            val j = pos.toInt().coerceAtMost(data.size - 2)
+            val frac = pos - j
+            data[j] + (data[j + 1] - data[j]) * frac
         }
     }
 

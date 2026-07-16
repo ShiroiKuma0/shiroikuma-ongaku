@@ -50,8 +50,10 @@ object VisualizerPreferences {
     }
 
     fun areParticlesEnabled(): Boolean {
+        // Fork (白い熊 音楽 UI): default off — the drifting ash dots clutter the
+        // PowerAmp-style bar wall. The settings toggle still works.
         return SharedPreferences.getSharedPreferences()
-            .getBoolean(PARTICLES_ENABLED, true)
+            .getBoolean(PARTICLES_ENABLED, false)
     }
 
     fun setCapsEnabled(enabled: Boolean) {
@@ -61,8 +63,10 @@ object VisualizerPreferences {
     }
 
     fun areCapsEnabled(): Boolean {
+        // Fork (白い熊 音楽 UI): default off — the peak-hold cap dots that linger above
+        // each bar are unwanted on the PowerAmp-style wall. The settings toggle still works.
         return SharedPreferences.getSharedPreferences()
-            .getBoolean(CAPS_ENABLED, true)
+            .getBoolean(CAPS_ENABLED, false)
     }
 
     fun setBarsEnabled(enabled: Boolean) {

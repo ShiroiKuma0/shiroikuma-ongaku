@@ -196,6 +196,26 @@ class FelicityVisualizer @JvmOverloads constructor(
         alpha = 220
     }
 
+    /**
+     * Whether the peak-hold cap pills above each bar should be drawn.
+     * The draw call is skipped entirely when false, so the flag survives accent changes.
+     *
+     * Fork (白い熊 音楽 UI): the setter also reapplies the cap alpha, because assigning
+     * [Paint.color] resets the paint's alpha to the color's own — without this, every
+     * accent/color update silently resurrected disabled caps.
+     */
+    var capsEnabled: Boolean = true
+        set(value) {
+            field = value
+            applyCapAlpha()
+            invalidate()
+        }
+
+    /** Reapplies the caps-enabled alpha after any [capPaint] color assignment. */
+    private fun applyCapAlpha() {
+        capPaint.alpha = if (capsEnabled) 220 else 0
+    }
+
     /** Reusable rect — avoids per-frame allocation in [onDraw]. */
     private val drawRect = RectF()
 
@@ -245,6 +265,7 @@ class FelicityVisualizer @JvmOverloads constructor(
                 barColors = buildAccentColors()
                 rebuildGradient(width, height)
                 capPaint.color = visualizerPrimaryColor()
+                applyCapAlpha()
                 invalidate()
             }
         }
@@ -387,19 +408,9 @@ class FelicityVisualizer @JvmOverloads constructor(
      */
     fun setCapColor(color: Int) {
         capPaint.color = color
+        applyCapAlpha()
         invalidate()
     }
-
-    /**
-     * Whether the peak-hold cap pills above each bar should be drawn.
-     * Unlike toggling the paint alpha, this flag survives accent color changes
-     * because the draw call is skipped entirely when false.
-     */
-    var capsEnabled: Boolean = true
-        set(value) {
-            field = value
-            invalidate()
-        }
 
     /**
      * Whether the frequency bars themselves should be drawn.
@@ -703,7 +714,7 @@ class FelicityVisualizer @JvmOverloads constructor(
             if (barsEnabled) canvas.drawPath(barPath, barPaint)
 
             // Draw the interpolated peak cap pill at the peak position along the growth axis.
-            if (peak > 0.02f) {
+            if (capsEnabled && peak > 0.02f) {
                 val peakPos = when (direction) {
                     VisualizerDirection.BOTTOM_TO_TOP -> viewBottom - peak * maxBarLength
                     VisualizerDirection.TOP_TO_BOTTOM -> peak * maxBarLength
@@ -987,6 +998,7 @@ class FelicityVisualizer @JvmOverloads constructor(
             capsEnabled = VisualizerPreferences.areCapsEnabled()
             barsEnabled = VisualizerPreferences.areBarsEnabled()
             capPaint.color = visualizerPrimaryColor()
+            applyCapAlpha()
         }
     }
 
@@ -1012,6 +1024,7 @@ class FelicityVisualizer @JvmOverloads constructor(
         barColors = buildAccentColors()
         rebuildGradient(width, height)
         capPaint.color = visualizerPrimaryColor()
+        applyCapAlpha()
         invalidate()
     }
 

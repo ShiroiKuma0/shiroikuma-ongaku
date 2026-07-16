@@ -241,7 +241,9 @@
             android:layout_width="match_parent"
             android:layout_height="100dp"
             android:layout_gravity="center_vertical"
-            app:wsbBarWidth="7dp"
+            app:wsbBarWidth="2dp"
+            app:wsbBarSpacing="2dp"
+            app:wsbUpsample="3"
             app:wsbLabelEdgeMargin="@dimen/padding_20"
             app:wsbLabelGravity="center"
             app:wsbLabelHighlightMode="both"
@@ -296,8 +298,8 @@
         android:id="@+id/visualizer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:alpha="0.55"
+        android:alpha="0.40"
         app:vizMaxRenderHeight="1.0"
-        app:vizParticlesEnabled="true" />
+        app:vizParticlesEnabled="false" />
 
 </FrameLayout>
