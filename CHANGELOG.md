@@ -51,3 +51,16 @@ Everything built on top of stock Felicity, rebased onto each upstream release ta
 ### Packaging
 - App id `shiroikuma.ongaku` — installs side-by-side with official Felicity; namespace/JNI untouched (`app.simple.felicity`).
 - foss flavor, arm64-v8a only; versionName `<upstream-tag>+<N>`, versionCode `<upstream-code>×10000+N`, injected at build time (no per-build commits).
+
+## 0.0.26_alpha+19 (2026-07-16, base 0.0.26_alpha)
+
+### Major features
+- **Android Auto**: media-app declaration + full library browse tree (Recently added / Favorites / Albums / Artists / Playlists, search, cold-start safe); tapping a song queues its folder; resumption restores the saved queue; artwork served to the car UI.
+- **Album-art download — automatic**: "Download missing album art" sweeps albums with no embedded art, resolves them on MusicBrainz (rate-limited) and embeds Cover Art Archive covers into the files' tags, with live progress and an honest tally.
+- **Album-art download — interactive**: "Download album art" in the song menu and album page: editable search, up to 8 cover alternatives with release details, larger-preview confirmation, embed only on Apply (single file or whole album, replaces existing art).
+- **PowerAmp import**: ratings (.poweramp-backup → favorites, path-matched) and album art (embedded into tags via TagLib), both with live themed progress cards.
+
+### UI & behavior
+- Browse pages: cumulative sections (albums/artists/genres carousels) first, songs last — everywhere.
+- All flashes/toasts themed: black card, yellow text and border, app font.
+- Playlist manual drag-reorder honored by Android Auto and automation playback.
