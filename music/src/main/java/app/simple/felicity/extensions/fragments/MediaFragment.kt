@@ -46,6 +46,7 @@ import app.simple.felicity.dialogs.app.AudioInformation.Companion.showAudioInfo
 import app.simple.felicity.dialogs.app.PlaybackInfo.Companion.showPlaybackInfo
 import app.simple.felicity.dialogs.lyrics.Lyrics.Companion.showLyrics
 import app.simple.felicity.dialogs.playlists.AddToPlaylistDialog.Companion.showAddToPlaylistDialog
+import app.simple.felicity.dialogs.shiroikuma.SkAlbumArtSearch
 import app.simple.felicity.dialogs.songs.ShuffleDialog.Companion.showShuffleDialog
 import app.simple.felicity.engine.broadcasts.AutomationBroadcasts
 import app.simple.felicity.engine.managers.MediaPlaybackManager
@@ -658,6 +659,19 @@ open class MediaFragment : ScopedFragment(), MiniPlayerPolicy {
                 binding.editMetadata.setOnClickListener {
                     openFragment(MetadataEditor.newInstance(audio), MetadataEditor.TAG)
                     dismissImmediately()
+                }
+
+                // Fork: interactive cover picker — MusicBrainz search seeded with this
+                // song's artist+album, embeds the chosen cover into this one file
+                // (replacing any existing art).
+                binding.downloadAlbumArt.setOnClickListener {
+                    val sheet = SkAlbumArtSearch.newInstance(
+                            album = audio.album.orEmpty(),
+                            artist = audio.albumArtist?.takeUnless { name -> name.isBlank() }
+                                ?: audio.artist.orEmpty())
+                    sheet.targetSongs = listOf(audio)
+                    sheet.show(childFragmentManager, SkAlbumArtSearch.TAG)
+                    dismiss()
                 }
 
                 // Drop this song into the selection basket (or pull it out) depending on its
