@@ -12,6 +12,8 @@ import app.simple.felicity.repository.models.MusicBrainzArtistInfo
 import app.simple.felicity.repository.models.MusicBrainzArtistSearchResponse
 import app.simple.felicity.repository.models.MusicBrainzRecordingResult
 import app.simple.felicity.repository.models.MusicBrainzRecordingSearchResponse
+import app.simple.felicity.repository.models.MusicBrainzReleaseCandidate
+import app.simple.felicity.repository.models.MusicBrainzReleaseCoverIds
 import app.simple.felicity.repository.models.MusicBrainzReleaseDetail
 import app.simple.felicity.repository.models.MusicBrainzReleaseSearchResponse
 import app.simple.felicity.repository.models.WikidataEntityResponse
@@ -25,6 +27,8 @@ import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.io.File
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -213,6 +217,145 @@ class MusicBrainzRepository @Inject constructor(
                 wikipediaUrl = wikipediaUrl,
                 fetchedAt = System.currentTimeMillis()
         )
+    }
+
+    /**
+     * Fork: resolves the identifiers the Cover Art Archive can serve a front cover
+     * for — the same release search [searchReleaseMbid] runs (one request, top hit),
+     * but additionally returning the release-group MBID for the CAA fallback endpoint.
+     *
+     * Unlike the info fetchers this deliberately does NOT swallow network trouble:
+     * it returns null only when MusicBrainz genuinely has no matching release, and
+     * throws [IOException] on network/HTTP failure so callers can count "not found"
+     * and "failed" separately. One request per call — callers pace themselves to
+     * MusicBrainz's 1 request/second limit.
+     */
+    suspend fun searchReleaseCoverIds(albumName: String, artistName: String): MusicBrainzReleaseCoverIds? {
+        return withContext(Dispatchers.IO) {
+            if (albumName.isBlank()) return@withContext null
+
+            val query = buildString {
+                append("release:\"$albumName\"")
+                if (artistName.isNotBlank()) append(" AND artist:\"$artistName\"")
+            }
+            val url = "https://musicbrainz.org/ws/2/release/".toHttpUrlOrNull()
+                ?.newBuilder()
+                ?.addQueryParameter("query", query)
+                ?.addQueryParameter("limit", "1")
+                ?.addQueryParameter("fmt", "json")
+                ?.build() ?: return@withContext null
+
+            val body = getOrThrow(url.toString())
+            val release = gson.fromJson(body, MusicBrainzReleaseSearchResponse::class.java)
+                .releases?.firstOrNull()
+            release?.id?.let { MusicBrainzReleaseCoverIds(it, release.releaseGroup?.id) }
+        }
+    }
+
+    /**
+     * Fork: like [searchReleaseCoverIds] but returning MULTIPLE candidate releases
+     * (up to [limit]) so the interactive cover picker can show alternatives —
+     * each with its release/release-group MBIDs plus the title, date, country
+     * and first label straight from the search response (no follow-up requests).
+     *
+     * One MusicBrainz request per call — callers pace themselves to the
+     * 1 request/second limit. Throws [IOException] on network/HTTP failure so
+     * the picker can surface trouble instead of silently showing nothing.
+     */
+    suspend fun searchReleaseCandidates(albumName: String, artistName: String, limit: Int = 8): List<MusicBrainzReleaseCandidate> {
+        return withContext(Dispatchers.IO) {
+            if (albumName.isBlank()) return@withContext emptyList()
+
+            val query = buildString {
+                append("release:\"$albumName\"")
+                if (artistName.isNotBlank()) append(" AND artist:\"$artistName\"")
+            }
+            val url = "https://musicbrainz.org/ws/2/release/".toHttpUrlOrNull()
+                ?.newBuilder()
+                ?.addQueryParameter("query", query)
+                ?.addQueryParameter("limit", limit.toString())
+                ?.addQueryParameter("fmt", "json")
+                ?.build() ?: return@withContext emptyList()
+
+            val body = getOrThrow(url.toString())
+            gson.fromJson(body, MusicBrainzReleaseSearchResponse::class.java)
+                .releases.orEmpty()
+                .mapNotNull { release ->
+                    release.id?.let { mbid ->
+                        MusicBrainzReleaseCandidate(
+                                releaseMbid = mbid,
+                                releaseGroupMbid = release.releaseGroup?.id,
+                                title = release.title?.takeIf { it.isNotBlank() },
+                                date = release.date?.takeIf { it.isNotBlank() },
+                                country = release.country?.takeIf { it.isNotBlank() },
+                                label = release.labelInfo
+                                    ?.firstNotNullOfOrNull { it.label?.name?.takeIf { n -> n.isNotBlank() } })
+                    }
+                }
+        }
+    }
+
+    /**
+     * Fork: downloads the small front-cover THUMBNAIL (front-250) for [ids] from
+     * the Cover Art Archive into [target] — the picker-grid companion of
+     * [downloadCoverArt], with the same release → release-group fallback and the
+     * same contract: true = image written, false = no cover (404 everywhere),
+     * [IOException] on network trouble.
+     */
+    suspend fun downloadCoverThumbnail(ids: MusicBrainzReleaseCoverIds, target: File): Boolean {
+        return withContext(Dispatchers.IO) {
+            if (fetchCover("$COVER_ART_ARCHIVE/release/${ids.releaseMbid}/front-250", target)) {
+                return@withContext true
+            }
+            val releaseGroupMbid = ids.releaseGroupMbid ?: return@withContext false
+            fetchCover("$COVER_ART_ARCHIVE/release-group/$releaseGroupMbid/front-250", target)
+        }
+    }
+
+    /**
+     * Fork: downloads the front cover for [ids] from the Cover Art Archive into
+     * [target] — `release/<mbid>/front-500` first, and on 404 the
+     * `release-group/<mbid>/front-500` fallback when a release-group id is known.
+     * Redirects (CAA serves the image off archive.org) are followed by OkHttp.
+     *
+     * Returns true when [target] now holds the image, false when the archive has
+     * no cover (404 on every applicable endpoint); throws [IOException] on
+     * network trouble or unexpected HTTP codes.
+     */
+    suspend fun downloadCoverArt(ids: MusicBrainzReleaseCoverIds, target: File): Boolean {
+        return withContext(Dispatchers.IO) {
+            if (fetchCover("$COVER_ART_ARCHIVE/release/${ids.releaseMbid}/front-500", target)) {
+                return@withContext true
+            }
+            val releaseGroupMbid = ids.releaseGroupMbid ?: return@withContext false
+            fetchCover("$COVER_ART_ARCHIVE/release-group/$releaseGroupMbid/front-500", target)
+        }
+    }
+
+    /** Fork: one CAA GET — true = image written to [target], false = 404, anything else throws. */
+    private fun fetchCover(url: String, target: File): Boolean {
+        val request = Request.Builder().url(url).header("User-Agent", AppConstants.MUSIC_BRAINZ_USER_AGENT).build()
+        client.newCall(request).execute().use { response ->
+            return when {
+                response.isSuccessful -> {
+                    response.body.byteStream().use { input ->
+                        target.outputStream().use { output -> input.copyTo(output) }
+                    }
+                    true
+                }
+                response.code == 404 -> false
+                else -> throw IOException("Cover Art Archive HTTP ${response.code} for $url")
+            }
+        }
+    }
+
+    /** Fork: like [get] but propagates failures as [IOException] instead of returning null. */
+    private fun getOrThrow(url: String): String {
+        val request = Request.Builder().url(url).header("User-Agent", AppConstants.MUSIC_BRAINZ_USER_AGENT).build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw IOException("HTTP ${response.code} for $url")
+            return response.body.string()
+        }
     }
 
     private fun searchReleaseMbid(albumName: String, artistName: String): String? {
@@ -408,5 +551,8 @@ class MusicBrainzRepository @Inject constructor(
 
         /** Separator used to build the composite album cache key from album name and artist name. */
         private const val KEY_SEPARATOR = "|"
+
+        /** Fork: base URL of the Cover Art Archive, MusicBrainz's cover companion service. */
+        private const val COVER_ART_ARCHIVE = "https://coverartarchive.org"
     }
 }
