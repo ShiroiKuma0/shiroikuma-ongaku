@@ -123,7 +123,7 @@ This neutralizes every gate regardless of call site (`MainActivity` paywall swap
 
 ## Versioning (local counter + `-P` injection — no per-build commit)
 
-- **Base tag** = the tracked Felicity release tag = the tag `custom` is rebased onto (`git describe --tags --abbrev=0` on `custom`), e.g. `0.0.26_alpha`. This **keys the counter**.
+- **Base tag** = the tracked Felicity release tag = the tag `custom` is rebased onto (`git describe --tags --abbrev=0 --exclude='*+*'` on `custom` — the exclude skips our own `<name>+<N>` release tags, which publish-version creates on this branch), e.g. `0.0.26_alpha`. This **keys the counter**.
 - **Display name** = the base tag verbatim (no prefix to strip) → `0.0.26_alpha`. Used for the versionName and APK filename.
 - **Base code** = upstream's own versionCode for that tag, read with `git show <tag>:music/build.gradle` (e.g. `0.0.26_alpha` → `26`).
 - **N** = per-build iteration from `~/tmp/.shiroikuma_ongaku_build` (one line: `<base_tag> <N>`). Increment on each **successful** build; **reset to 1 when the base tag changes** (new upstream tag). Consumed only on success.
@@ -160,7 +160,7 @@ EOF
 
 # version: base tag = nearest tag on custom (keys the counter); display name = tag verbatim;
 # base code = that tag's upstream versionCode; N from the local counter (resets when the tag changes)
-base_tag=$(git describe --tags --abbrev=0)
+base_tag=$(git describe --tags --abbrev=0 --exclude='*+*')
 disp_name="$base_tag"                              # 0.0.26_alpha
 base_code=$(git show "$base_tag:music/build.gradle" | grep -oE 'versionCode[[:space:]]+[0-9]+' | grep -oE '[0-9]+$')
 counter="$HOME/tmp/.shiroikuma_ongaku_build"
