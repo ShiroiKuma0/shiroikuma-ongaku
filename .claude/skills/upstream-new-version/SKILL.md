@@ -28,7 +28,7 @@ git fetch upstream --tags
 git fetch origin                 # so origin/master / origin/custom are current for later
 
 # base tag of the custom stack = the nearest release tag custom was rebased onto
-base_tag=$(git describe --tags --abbrev=0 custom)
+base_tag=$(git describe --tags --abbrev=0 --exclude='*+*' custom)
 
 # latest upstream release tag (version-sorted; the "_alpha" suffix sorts fine under sort -V)
 latest_tag=$(git tag -l | grep -E '_alpha$' | sort -V | tail -1)
