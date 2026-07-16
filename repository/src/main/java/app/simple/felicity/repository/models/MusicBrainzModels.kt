@@ -173,12 +173,57 @@ data class MusicBrainzReleaseSearchResponse(
 
 /**
  * A single release entry from the search results. We only need the [id] (MBID)
- * to look up full details in a follow-up request.
+ * to look up full details in a follow-up request. The fork also reads the
+ * [releaseGroup] reference so the Cover Art Archive release-group endpoint can
+ * be used as a fallback when the release itself has no cover, plus [date],
+ * [country] and [labelInfo] so the interactive cover picker can label its
+ * candidate grid without any follow-up detail requests.
  */
 data class MusicBrainzReleaseResult(
         val id: String?,
         val title: String?,
-        val score: Int = 0
+        val score: Int = 0,
+        @SerializedName("release-group")
+        val releaseGroup: MusicBrainzReleaseGroupRef? = null,
+        val date: String? = null,
+        val country: String? = null,
+        @SerializedName("label-info")
+        val labelInfo: List<MusicBrainzLabelInfo>? = null
+)
+
+/**
+ * Fork: one candidate release for the interactive cover-art search — the
+ * identifiers the Cover Art Archive endpoints need plus the display metadata
+ * (title, date, country, label) shown underneath each thumbnail in the picker.
+ */
+data class MusicBrainzReleaseCandidate(
+        val releaseMbid: String,
+        val releaseGroupMbid: String?,
+        val title: String?,
+        val date: String?,
+        val country: String?,
+        val label: String?
+) {
+    /** The identifier pair the Cover Art Archive download functions take. */
+    fun toCoverIds() = MusicBrainzReleaseCoverIds(releaseMbid, releaseGroupMbid)
+}
+
+/**
+ * Fork: the minimal release-group reference embedded in a release search result —
+ * only the MBID is needed (for the Cover Art Archive fallback endpoint).
+ */
+data class MusicBrainzReleaseGroupRef(
+        val id: String?
+)
+
+/**
+ * Fork: the pair of identifiers the Cover Art Archive can serve a front cover
+ * for — the concrete release MBID and, when the search result carried one, the
+ * release-group MBID used as a fallback.
+ */
+data class MusicBrainzReleaseCoverIds(
+        val releaseMbid: String,
+        val releaseGroupMbid: String?
 )
 
 /**
