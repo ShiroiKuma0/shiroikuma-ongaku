@@ -7,7 +7,6 @@ import android.provider.OpenableColumns
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.widget.AppCompatTextView
 import app.simple.felicity.R
@@ -18,6 +17,7 @@ import app.simple.felicity.decorations.typeface.TypeFaceTextView
 import app.simple.felicity.extensions.dialogs.ScopedBottomSheetFragment
 import app.simple.felicity.preferences.AppearancePreferences
 import app.simple.felicity.theme.managers.ThemeManager
+import app.simple.felicity.utils.SkFlash
 import java.io.File
 
 /**
@@ -121,7 +121,7 @@ class SkFontPicker : ScopedBottomSheetFragment() {
 
         val fileName = name
         if (fileName == null || fileName.substringAfterLast('.', "").lowercase() !in arrayOf("ttf", "otf")) {
-            Toast.makeText(requireContext(), R.string.sk_font_invalid, Toast.LENGTH_SHORT).show()
+            SkFlash.show(requireContext(), R.string.sk_font_invalid)
             return
         }
 
@@ -136,7 +136,7 @@ class SkFontPicker : ScopedBottomSheetFragment() {
             TypeFace.evictExternalFont(fileName)
             selectFont(TypeFace.EXTERNAL_PREFIX + fileName)
         } catch (e: Exception) {
-            Toast.makeText(requireContext(), R.string.sk_font_invalid, Toast.LENGTH_SHORT).show()
+            SkFlash.show(requireContext(), R.string.sk_font_invalid)
         }
     }
 

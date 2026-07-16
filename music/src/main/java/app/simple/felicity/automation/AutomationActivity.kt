@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
@@ -18,6 +17,7 @@ import app.simple.felicity.engine.services.FelicityPlayerService
 import app.simple.felicity.preferences.AutomationPreferences
 import app.simple.felicity.repository.database.instances.AudioDatabase
 import app.simple.felicity.repository.repositories.PlaylistRepository
+import app.simple.felicity.utils.SkFlash
 import app.simple.felicity.utils.SongDeleter
 import com.google.common.util.concurrent.FutureCallback
 import com.google.common.util.concurrent.Futures
@@ -154,7 +154,7 @@ class AutomationActivity : ComponentActivity() {
                 withContext(Dispatchers.Main) {
                     if (songs.isNullOrEmpty()) {
                         Log.w(TAG, "PLAY_PLAYLIST: playlist '$name' not found or empty")
-                        Toast.makeText(context, "白い熊 音楽 automation: playlist \"$name\" not found or empty", Toast.LENGTH_SHORT).show()
+                        SkFlash.show(context, "白い熊 音楽 automation: playlist \"$name\" not found or empty")
                     } else {
                         MediaPlaybackManager.setMediaController(controller)
 
@@ -169,7 +169,7 @@ class AutomationActivity : ComponentActivity() {
                             startIndex = if (found >= 0) found else 0
                             if (found < 0) {
                                 Log.w(TAG, "PLAY_PLAYLIST: track '$track' not in '$name', starting at 0")
-                                Toast.makeText(context, "白い熊 音楽 automation: \"$track\" not in \"$name\" — starting at the top", Toast.LENGTH_SHORT).show()
+                                SkFlash.show(context, "白い熊 音楽 automation: \"$track\" not in \"$name\" — starting at the top")
                             }
                         } else {
                             queue = if (shuffle) songs.shuffled() else songs
@@ -297,7 +297,7 @@ class AutomationActivity : ComponentActivity() {
 
     private fun reject(reason: String) {
         Log.w(TAG, "automation $reason")
-        Toast.makeText(applicationContext, "白い熊 音楽 automation $reason", Toast.LENGTH_SHORT).show()
+        SkFlash.show(applicationContext, "白い熊 音楽 automation $reason")
     }
 
     companion object {
