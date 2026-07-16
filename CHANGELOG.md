@@ -67,3 +67,12 @@ Everything built on top of stock Felicity, rebased onto each upstream release ta
 
 ## 0.0.26_alpha+21 (2026-07-16, base 0.0.26_alpha)
 - "Album art download/change" (renamed): the art sheet in the song menu and album page adds manual sources — pick an image from storage or paste from the clipboard (image clip, image URL, uri, or path), transcoded to JPEG and embedded only after the preview confirmation, single song or whole album, replacing existing art.
+
+## 0.0.26_alpha+23 (2026-07-16, base 0.0.26_alpha)
+
+### PowerAmp-style player screen
+- **Playback dim**: while music plays with the visualizer enabled, the whole player content column (album art, text, chips, seekbar, controls) fades to 30 % over 600 ms so the bar wall owns the screen; pause/stop restores full brightness. The lifted lyric line and the edge meteors sit above the visualizer and stay bright. All three player skins.
+- **Subdued bar wall**: visualizer overlay alpha lowered 0.55 → 0.40 — pure-blue bars now composite to a dark PowerAmp-like navy over the black instead of a bright curtain.
+- **Seekbar matches the visualizer**: bars slimmed 7 dp → 2 dp with 2 dp gaps, and a new `wsbUpsample` waveform attribute inserts linearly interpolated "computed" bars between the real per-second samples (3× in the player skins) so the row stays dense and the scroll feel unchanged; still yellow, still fraction-exact for seeking/flinging.
+- **Toolbar reorder**: the favorite/visualizer/equalizer/search/menu toolbar moves from the very bottom to directly above the count/Lyrics/Shuffle/PCM chip row (carousel and faded-waveform skins), so the transport controls end the screen like PowerAmp.
+- **Peak dots removed**: the peak-hold cap pills and the drifting ash particles default to off (their settings toggles still work). Also fixed the bug that made caps immortal: assigning a color to the cap paint resets its alpha to opaque, so every accent/theme/color update silently resurrected disabled caps — the enabled state is now a tracked flag reapplied after every color assignment, and cap drawing is skipped entirely when off.
