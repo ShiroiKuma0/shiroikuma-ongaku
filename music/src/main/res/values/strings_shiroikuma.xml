@@ -118,7 +118,7 @@
     <string name="sk_album_art_failed" translatable="false">Album art download failed: %1$s</string>
 
     <!-- Interactive "Download album art" picker (song menu + album page menu) -->
-    <string name="sk_download_art" translatable="false">Download album art</string>
+    <string name="sk_download_art" translatable="false">Album art download/change</string>
     <string name="sk_art_album_hint" translatable="false">Album</string>
     <string name="sk_art_artist_hint" translatable="false">Artist</string>
     <string name="sk_art_search" translatable="false">Search</string>
@@ -132,4 +132,12 @@
     <string name="sk_art_embedding" translatable="false">Embedding…</string>
     <string name="sk_art_embed_result" translatable="false">Embedded into %1$d file(s)</string>
     <string name="sk_art_embed_result_failed" translatable="false">Embedded into %1$d file(s), %2$d failed</string>
+
+    <!-- Manual art sources in the interactive picker -->
+    <string name="sk_art_pick_image" translatable="false">Choose image from storage…</string>
+    <string name="sk_art_paste_image" translatable="false">Paste image</string>
+    <string name="sk_art_source_storage" translatable="false">Image from storage</string>
+    <string name="sk_art_source_clipboard" translatable="false">Image from clipboard</string>
+    <string name="sk_art_clipboard_no_image" translatable="false">Clipboard has no usable image</string>
+    <string name="sk_art_image_invalid" translatable="false">Could not decode that image</string>
 </resources>
