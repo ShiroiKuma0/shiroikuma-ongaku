@@ -423,6 +423,12 @@
             0.0 is perfectly flat (default); 1.0 gives the strongest rounded, circular look.
         -->
         <attr name="wsbOptics" format="float" />
+        <!--
+            Fork (白い熊 音楽 UI): number of visual bars rendered per real amplitude sample.
+            Values above 1 insert linearly interpolated "computed" bars between neighboring
+            real per-second samples, matching the visualizer's dense thin-bar look. Default: 1.
+        -->
+        <attr name="wsbUpsample" format="integer" />
     </declare-styleable>
 
     <!--
