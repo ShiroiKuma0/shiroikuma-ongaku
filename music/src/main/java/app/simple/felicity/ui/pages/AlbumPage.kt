@@ -13,6 +13,7 @@ import app.simple.felicity.databinding.FragmentPageArtistBinding
 import app.simple.felicity.decorations.views.PopupMenuItem
 import app.simple.felicity.decorations.views.SharedScrollViewPopup
 import app.simple.felicity.dialogs.playlists.AddMultipleToPlaylistDialog.Companion.showAddMultipleToPlaylistDialog
+import app.simple.felicity.dialogs.shiroikuma.SkAlbumArtSearch
 import app.simple.felicity.engine.managers.MediaPlaybackManager
 import app.simple.felicity.extensions.fragments.BasePageFragment
 import app.simple.felicity.repository.constants.BundleConstants
@@ -85,7 +86,9 @@ class AlbumPage : BasePageFragment() {
                             PopupMenuItem(title = R.string.shuffle, icon = R.drawable.ic_shuffle),
                             PopupMenuItem(title = R.string.add_to_queue, icon = R.drawable.ic_add_to_queue),
                             PopupMenuItem(title = R.string.add_to_playlist, icon = R.drawable.ic_add_to_playlist),
-                            PopupMenuItem(title = R.string.send, icon = R.drawable.ic_send)
+                            PopupMenuItem(title = R.string.send, icon = R.drawable.ic_send),
+                            // Fork: interactive cover picker for the whole album.
+                            PopupMenuItem(title = R.string.sk_download_art, icon = R.drawable.ic_image)
                     ),
                     onMenuItemClick = {
                         when (it) {
@@ -94,6 +97,16 @@ class AlbumPage : BasePageFragment() {
                             R.string.add_to_queue -> currentData.songs.forEach { song -> MediaPlaybackManager.addToQueue(song) }
                             R.string.add_to_playlist -> parentFragmentManager.showAddMultipleToPlaylistDialog(currentData.songs)
                             R.string.send -> shareAudioList(currentData.songs)
+                            // Fork: MusicBrainz cover search seeded with this album's artist+album;
+                            // the chosen cover is embedded into EVERY file of the album (replacing
+                            // any existing art).
+                            R.string.sk_download_art -> {
+                                val sheet = SkAlbumArtSearch.newInstance(
+                                        album = album.name.orEmpty(),
+                                        artist = album.artist.orEmpty())
+                                sheet.targetSongs = currentData.songs.toList()
+                                sheet.show(childFragmentManager, SkAlbumArtSearch.TAG)
+                            }
                         }
                     },
                     onDismiss = {}

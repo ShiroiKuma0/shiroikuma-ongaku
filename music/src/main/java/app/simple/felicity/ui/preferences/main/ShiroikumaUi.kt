@@ -41,6 +41,7 @@ import app.simple.felicity.preferences.AppearancePreferences
 import app.simple.felicity.preferences.AutomationPreferences
 import app.simple.felicity.preferences.MeteorPreferences
 import app.simple.felicity.preferences.ShiroikumaPreferences
+import app.simple.felicity.shiroikuma.AlbumArtDownloader
 import app.simple.felicity.shiroikuma.PowerAmpArtImporter
 import app.simple.felicity.shiroikuma.PowerAmpRatingsImporter
 import app.simple.felicity.theme.managers.ShiroikumaTheme
@@ -340,6 +341,7 @@ class ShiroikumaUi : PreferenceFragment() {
         addSection(R.string.sk_section_library)
         addImportPowerAmpRow(indent = 1)
         addImportPowerAmpArtRow(indent = 1)
+        addDownloadAlbumArtRow(indent = 1)
     }
 
     // ------------------------------------------------------------------ row builders
@@ -482,6 +484,18 @@ class ShiroikumaUi : PreferenceFragment() {
         binding.rowsContainer.addView(row.root)
     }
 
+    /** Fully automatic — no picker: scans the library and fills artless albums from the Cover Art Archive. */
+    private fun addDownloadAlbumArtRow(indent: Int) {
+        val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        row.valueLabel.text = getString(R.string.sk_download_album_art)
+        row.valueText.text = ""
+        indentRow(row.root, indent)
+        row.root.setOnClickListener {
+            downloadMissingAlbumArt()
+        }
+        binding.rowsContainer.addView(row.root)
+    }
+
     // ------------------------------------------------------------------ actions
 
     /**
@@ -536,6 +550,36 @@ class ShiroikumaUi : PreferenceFragment() {
                 progress.dismiss()
                 SkFlash.show(appContext,
                              getString(R.string.sk_poweramp_art_failed, e.message ?: e.javaClass.simpleName),
+                             long = true)
+            }
+        }
+    }
+
+    /**
+     * Runs the automatic album-art download off the main thread with a live
+     * progress dialog (one tick per library album — covered albums flick past,
+     * missing ones go through MusicBrainz + the Cover Art Archive) and reports
+     * the outcome as a flash: "<n> albums missing art: <x> downloaded & embedded
+     * (<y> files), <z> not found online, <w> failed".
+     */
+    private fun downloadMissingAlbumArt() {
+        val appContext = requireContext().applicationContext
+        val progress = ImportProgressDialog()
+        lifecycleScope.launch {
+            try {
+                val result = AlbumArtDownloader.download(appContext) { done, total, label ->
+                    progress.update(done, total, label)
+                }
+                progress.dismiss()
+                SkFlash.show(appContext,
+                             getString(R.string.sk_album_art_result,
+                                       result.missingAlbums, result.downloaded, result.filesUpdated,
+                                       result.notFound, result.failed),
+                             long = true)
+            } catch (e: Exception) {
+                progress.dismiss()
+                SkFlash.show(appContext,
+                             getString(R.string.sk_album_art_failed, e.message ?: e.javaClass.simpleName),
                              long = true)
             }
         }
