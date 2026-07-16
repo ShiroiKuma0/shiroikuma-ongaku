@@ -6,11 +6,11 @@
 
 **A black-yellow, beat-lit, automation-ready music player.**
 
-A fork of [Felicity Music Player](https://github.com/Hamza417/Felicity) with **major additions**: a full black-yellow theming engine with its own settings page, a PowerAmp-style full-screen spectrum visualizer, the 音楽端灯 edge-meteor light show driven by a sample-accurate PCM beat tracker, a token-secured automation surface for external workspaces, Android Auto with full library browsing, album-art download (automatic and interactive), PowerAmp ratings/art import, and manual playlist reordering.
+A fork of [Felicity Music Player](https://github.com/Hamza417/Felicity) with **major additions**: a full black-yellow theming engine with its own settings page, a PowerAmp-style full-screen spectrum visualizer, the 音楽端灯 edge-meteor light show driven by a sample-accurate PCM beat tracker, a token-secured automation surface for external workspaces, Android Auto with full library browsing, album-art download/change (automatic, interactive, storage pick, clipboard paste), PowerAmp ratings/art import, and manual playlist reordering.
 
 Installs **side-by-side** with Felicity (app id `shiroikuma.ongaku`).
 
-**📥 Latest release: [`0.0.26_alpha+19`](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases)
+**📥 Latest release: [`0.0.26_alpha+21`](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases)
 
 </div>
 

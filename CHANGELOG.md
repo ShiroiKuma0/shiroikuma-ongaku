@@ -64,3 +64,6 @@ Everything built on top of stock Felicity, rebased onto each upstream release ta
 - Browse pages: cumulative sections (albums/artists/genres carousels) first, songs last — everywhere.
 - All flashes/toasts themed: black card, yellow text and border, app font.
 - Playlist manual drag-reorder honored by Android Auto and automation playback.
+
+## 0.0.26_alpha+21 (2026-07-16, base 0.0.26_alpha)
+- "Album art download/change" (renamed): the art sheet in the song menu and album page adds manual sources — pick an image from storage or paste from the clipboard (image clip, image URL, uri, or path), transcoded to JPEG and embedded only after the preview confirmation, single song or whole album, replacing existing art.
