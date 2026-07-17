@@ -50,6 +50,9 @@ object ShiroikumaPreferences {
     // Player slots
     const val VISUALIZER = "sk_visualizer"
 
+    // Player behavior
+    const val KEEP_SCREEN_ON = "sk_keep_screen_on"
+
     // Sizes
     const val BORDER_WIDTH = "sk_border_width"
     const val TEXT_SCALE = "sk_text_scale"
@@ -84,6 +87,17 @@ object ShiroikumaPreferences {
 
     fun setEnabled(enabled: Boolean) {
         getSharedPreferences().edit { putBoolean(UI_ENABLED, enabled) }
+    }
+
+    // ---------------------------------------------------------------------------------------------------------- //
+
+    /** Whether the screen is kept awake while music is playing and the app is in the foreground. */
+    fun isKeepScreenOnEnabled(): Boolean {
+        return getSharedPreferences().getBoolean(KEEP_SCREEN_ON, true)
+    }
+
+    fun setKeepScreenOnEnabled(enabled: Boolean) {
+        getSharedPreferences().edit { putBoolean(KEEP_SCREEN_ON, enabled) }
     }
 
     // ---------------------------------------------------------------------------------------------------------- //
