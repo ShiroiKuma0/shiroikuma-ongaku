@@ -11,6 +11,7 @@ import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.TextView
 import androidx.core.app.ShareCompat
 import androidx.core.net.toUri
@@ -45,6 +46,7 @@ import app.simple.felicity.interfaces.MiniPlayerPolicy
 import app.simple.felicity.managers.LyricsManager
 import app.simple.felicity.preferences.AudioPreferences
 import app.simple.felicity.preferences.LibraryPreferences
+import app.simple.felicity.preferences.ShiroikumaPreferences
 import app.simple.felicity.preferences.ShufflePreferences
 import app.simple.felicity.preferences.TrialPreferences
 import app.simple.felicity.preferences.UserInterfacePreferences
@@ -216,6 +218,8 @@ class MainActivity : BaseActivity(), MiniPlayerCallbacks {
                     MediaConstants.PLAYBACK_PLAYING -> binding.miniPlayer.setPlaying(true)
                     MediaConstants.PLAYBACK_PAUSED -> binding.miniPlayer.setPlaying(false)
                 }
+                // Fork (白い熊 音楽 UI): keep the screen awake while music plays (settable).
+                updateKeepScreenOn()
             }
         }
 
@@ -599,11 +603,29 @@ class MainActivity : BaseActivity(), MiniPlayerCallbacks {
         }
     }
 
+    /**
+     * Fork (白い熊 音楽 UI): holds the window's KEEP_SCREEN_ON flag while music is playing
+     * (and the preference — default on — allows it), so the display never times out during
+     * playback. The flag only affects this app's foreground window; pausing, stopping, or
+     * disabling the preference releases it and normal screen timeout resumes.
+     */
+    private fun updateKeepScreenOn() {
+        if (ShiroikumaPreferences.isKeepScreenOnEnabled() && MediaPlaybackManager.isPlaying()) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
         super.onSharedPreferenceChanged(sharedPreferences, key)
         when (key) {
             TrialPreferences.HAS_LICENSE_KEY -> {
 
+            }
+            ShiroikumaPreferences.KEEP_SCREEN_ON -> {
+                // Fork (白い熊 音楽 UI): apply the toggle immediately, even mid-playback.
+                updateKeepScreenOn()
             }
             AudioPreferences.IS_USB_DAC -> {
                 // If the user toggled the USB DAC preference, we need to re-check for a DAC
