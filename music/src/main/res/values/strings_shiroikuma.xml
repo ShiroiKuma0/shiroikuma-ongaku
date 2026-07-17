@@ -35,6 +35,7 @@
 
     <string name="sk_section_player" translatable="false">Player</string>
     <string name="sk_color_visualizer" translatable="false">Visualizer color</string>
+    <string name="sk_keep_screen_on" translatable="false">Keep screen on while playing</string>
 
     <string name="sk_section_meteors" translatable="false">音楽端灯 (Edge meteors)</string>
     <string name="sk_meteor_enable" translatable="false">Enable edge meteors</string>
