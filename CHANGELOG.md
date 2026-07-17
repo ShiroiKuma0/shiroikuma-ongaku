@@ -76,3 +76,9 @@ Everything built on top of stock Felicity, rebased onto each upstream release ta
 - **Seekbar matches the visualizer**: bars slimmed 7 dp → 2 dp with 2 dp gaps, and a new `wsbUpsample` waveform attribute inserts linearly interpolated "computed" bars between the real per-second samples (3× in the player skins) so the row stays dense and the scroll feel unchanged; still yellow, still fraction-exact for seeking/flinging.
 - **Toolbar reorder**: the favorite/visualizer/equalizer/search/menu toolbar moves from the very bottom to directly above the count/Lyrics/Shuffle/PCM chip row (carousel and faded-waveform skins), so the transport controls end the screen like PowerAmp.
 - **Peak dots removed**: the peak-hold cap pills and the drifting ash particles default to off (their settings toggles still work). Also fixed the bug that made caps immortal: assigning a color to the cap paint resets its alpha to opaque, so every accent/theme/color update silently resurrected disabled caps — the enabled state is now a tracked flag reapplied after every color assignment, and cap drawing is skipped entirely when off.
+
+## 0.0.26_alpha+24 (2026-07-17, base 0.0.26_alpha)
+
+- **Keep screen on while playing**: new switch in the 白い熊 音楽 UI Player section, on by default — the display never times out while music plays and the app is in the foreground; pause/stop (or the toggle, applied live) releases it.
+- **Android Auto icon fixed**: the launcher icon is now adaptive-only (all legacy raster mipmaps and the separate round icon deleted — dead weight at minSdk 29). Head units picked up the square legacy raster and plated it on a white disc; with only the adaptive icon they circle-mask the black background full-bleed — a pure black-yellow circle, matching the sister forks.
+- The built-in HTTP server's app-icon fallback renders the launcher drawable instead of bitmap-decoding the removed raster.
