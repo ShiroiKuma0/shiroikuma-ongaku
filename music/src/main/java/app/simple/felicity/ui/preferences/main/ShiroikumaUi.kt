@@ -145,6 +145,9 @@ class ShiroikumaUi : PreferenceFragment() {
         // ------------------------------------------------ Player
         addSection(R.string.sk_section_player)
         addColorRow(R.string.sk_color_visualizer, ShiroikumaPreferences.VISUALIZER, indent = 1)
+        addSwitchRow(R.string.sk_keep_screen_on, indent = 1,
+                     isChecked = { ShiroikumaPreferences.isKeepScreenOnEnabled() },
+                     onChecked = { ShiroikumaPreferences.setKeepScreenOnEnabled(it) })
 
         // ------------------------------------------------ 音楽端灯 (edge meteors)
         addSection(R.string.sk_section_meteors)
