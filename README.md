@@ -10,7 +10,7 @@ A fork of [Felicity Music Player](https://github.com/Hamza417/Felicity) with **m
 
 Installs **side-by-side** with Felicity (app id `shiroikuma.ongaku`).
 
-**📥 Latest release: [`0.0.26_alpha+23`](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases)
+**📥 Latest release: [`0.0.26_alpha+24`](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases)
 
 </div>
 
@@ -29,7 +29,7 @@ Comet ribbons orbit the screen perimeter, glowing and beat-locked to the music. 
 Play/pause and track-change broadcasts (with title, artist, favorite state, and a human-readable path), plus a token-secured intent endpoint for external automation: toggle favorite, delete the current track, transport controls, and play-playlist-by-name — optionally starting at a named track — all cold-start-safe.
 
 ## 🎵 Player & library
-Manual drag-reorder of playlist songs (right-edge drag handle, persisted order that playback honors), black-yellow traced placeholder art, bordered chips and miniplayer, and the trial timer removed — permanent full version.
+Manual drag-reorder of playlist songs (right-edge drag handle, persisted order that playback honors), keep-screen-on while playing (settable, on by default), black-yellow traced placeholder art, bordered chips and miniplayer, and the trial timer removed — permanent full version.
 
 ---
 
