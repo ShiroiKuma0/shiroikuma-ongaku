@@ -3,9 +3,8 @@ package app.simple.felicity.server
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.util.Log
-import androidx.core.graphics.scale
+import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
 import app.simple.felicity.R
 import app.simple.felicity.core.constants.ThemeConstants
@@ -191,10 +190,12 @@ class MusicHttpServer(
             iconBytes = try {
                 context.assets.open("server/app_icon.png").use { it.readBytes() }
             } catch (_: Exception) {
-                val src = BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher_round)
+                // Fork: the launcher icon is adaptive-only (no raster mipmaps — Android
+                // Auto only renders it full-bleed without them), so render the drawable
+                // instead of BitmapFactory-decoding a resource that is now XML.
+                val icon = context.packageManager.getApplicationIcon(context.packageName)
                 val out = ByteArrayOutputStream()
-                src.scale(128, 128) /* scale to 128×128 */
-                    .compress(Bitmap.CompressFormat.PNG, 100, out)
+                icon.toBitmap(128, 128).compress(Bitmap.CompressFormat.PNG, 100, out)
                 out.toByteArray()
             }
         }
