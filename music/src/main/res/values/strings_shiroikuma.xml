@@ -141,4 +141,39 @@
     <string name="sk_art_source_clipboard" translatable="false">Image from clipboard</string>
     <string name="sk_art_clipboard_no_image" translatable="false">Clipboard has no usable image</string>
     <string name="sk_art_image_invalid" translatable="false">Could not decode that image</string>
+
+    <!-- Export / Import (Kōjiki flow, kxkb look, ArcaneChat buttons) -->
+    <string name="sk_eim_section" translatable="false">Export / Import</string>
+    <string name="sk_eim_row" translatable="false">Export / Import…</string>
+    <string name="sk_eim_title" translatable="false">Export / Import — 白い熊 音楽</string>
+    <string name="sk_eim_desc" translatable="false">Export or import every setting — theme, meteors, automation, app settings, ratings, playlists — by category.</string>
+    <string name="sk_eim_dir_caption" translatable="false">Export directory (tap to choose)</string>
+    <string name="sk_eim_dir_unset" translatable="false">Not set — tap to choose a directory</string>
+    <string name="sk_eim_warn_nodir" translatable="false">No directory set yet — pick one to enable one-tap export.</string>
+    <string name="sk_eim_warn_none" translatable="false">No export in this directory yet.</string>
+    <string name="sk_eim_last_export" translatable="false">Last export: %1$s</string>
+    <string name="sk_eim_select_all" translatable="false">Select all</string>
+    <string name="sk_eim_cat_ui" translatable="false">白い熊 UI theme</string>
+    <string name="sk_eim_cat_meteors" translatable="false">音楽端灯 (Edge meteors)</string>
+    <string name="sk_eim_cat_automation" translatable="false">Automation</string>
+    <string name="sk_eim_cat_app" translatable="false">App settings</string>
+    <string name="sk_eim_cat_ratings" translatable="false">Ratings (favorites)</string>
+    <string name="sk_eim_cat_playlists" translatable="false">Playlists</string>
+    <string name="sk_eim_export" translatable="false">Export</string>
+    <string name="sk_eim_import" translatable="false">Import</string>
+    <string name="sk_eim_none_selected" translatable="false">No categories selected.</string>
+    <string name="sk_eim_exporting" translatable="false">Exporting…</string>
+    <string name="sk_eim_importing" translatable="false">Importing…</string>
+    <string name="sk_eim_export_done_title" translatable="false">✓ Export finished</string>
+    <string name="sk_eim_export_ok" translatable="false">Exported: %1$s</string>
+    <string name="sk_eim_export_fail" translatable="false">Export failed: %1$s</string>
+    <string name="sk_eim_import_done_title" translatable="false">✓ Import finished</string>
+    <string name="sk_eim_import_done_body" translatable="false">Restored:\n\n%1$s\n\nRestart to apply everything.</string>
+    <string name="sk_eim_import_fail" translatable="false">Import failed: %1$s</string>
+    <string name="sk_eim_import_none" translatable="false">Not a 白い熊 音楽 export file</string>
+    <string name="sk_eim_restart_now" translatable="false">Restart now</string>
+    <string name="sk_eim_restart_later" translatable="false">Later</string>
+    <string name="sk_eim_keys_applied" translatable="false">%1$d keys applied</string>
+    <string name="sk_eim_ratings_result" translatable="false">%1$d favorited, %2$d not found</string>
+    <string name="sk_eim_playlists_result" translatable="false">%1$d created, %2$d merged, %3$d songs added, %4$d not found</string>
 </resources>
