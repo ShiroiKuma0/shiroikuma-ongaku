@@ -4,10 +4,10 @@ import android.content.Context
 import android.net.Uri
 import androidx.annotation.StringRes
 import androidx.documentfile.provider.DocumentFile
-import app.simple.felicity.BuildConfig
 import app.simple.felicity.R
 import app.simple.felicity.manager.SharedPreferences.getSharedPreference
 import app.simple.felicity.preferences.AppearancePreferences
+import app.simple.felicity.preferences.AutomationPreferences
 import app.simple.felicity.repository.database.instances.AudioDatabase
 import app.simple.felicity.repository.models.Playlist
 import app.simple.felicity.repository.models.PlaylistSongCrossRef
@@ -39,7 +39,13 @@ object SkBackup {
 
     const val FORMAT = "shiroikuma-ongaku-export"
     const val VERSION = 1
-    const val EXPORT_PREFIX = "shiroikuma-ongaku-"
+    /**
+     * The family-wide backup filename stem: the app's english dash-separated name, with the
+     * datetime appended and no version. Doubles as the prefix [latestExport] scans for — it
+     * still matches the older `<stem>-<version>-export_<datetime>.zip` names, so exports
+     * written before the rename are not lost from the "last export" probe.
+     */
+    const val EXPORT_PREFIX = "shiroikuma-ongaku"
 
     /** Device-local prefs holding the export-directory URI; deliberately never exported. */
     private const val EXIMPORT_PREFS = "shiroikuma_eximport"
@@ -49,6 +55,28 @@ object SkBackup {
     private val APP_EXCLUDE = setOf(
             "saf_granted_tree_uris", // SAF grants are permission-bound to this install
             "crash_timestamp", "crash_log")
+
+    /**
+     * Keys excluded from EVERY category. The automation shared secret must never travel in
+     * a backup zip (保存復元 contract §2): a zip is copied around and restored on other
+     * installs, and an imported token would silently break the pairing with 自由作業盤,
+     * which keeps its own copy of it.
+     */
+    private val NEVER_EXPORT = setOf(AutomationPreferences.TOKEN)
+
+    /** Progress units for the headless export — real counts, never a percentage. */
+    const val UNIT_CATEGORY = "区分"
+    const val UNIT_SONG = "楽曲"
+    const val UNIT_PLAYLIST = "プレイリスト"
+
+    /**
+     * Progress sink for a long export: [current]/[total] are real counts of [unit], and
+     * [text] is the ready-made numbers-first display line (e.g. `楽曲 1234/8942`). The
+     * sink is called freely — throttling is the caller's job.
+     */
+    fun interface Progress {
+        fun onProgress(current: Long, total: Long, unit: String, text: String)
+    }
 
     /** The selectable categories; [id] doubles as the JSON entry name inside the zip. */
     enum class Cat(val id: String, @field:StringRes val labelRes: Int) {
@@ -76,6 +104,7 @@ object SkBackup {
     }
 
     private fun inCategory(cat: Cat, key: String): Boolean {
+        if (key in NEVER_EXPORT) return false
         return when (cat) {
             Cat.UI -> isUiKey(key)
             Cat.METEORS -> isMeteorKey(key)
@@ -87,16 +116,21 @@ object SkBackup {
 
     // --- export ------------------------------------------------------------------------------
 
+    /** e.g. `shiroikuma-ongaku_2026-07-25_18-58-23.zip` — name, datetime, nothing else. */
     fun exportFileName(): String {
-        return EXPORT_PREFIX + BuildConfig.VERSION_NAME + "-export_" +
+        return EXPORT_PREFIX + "_" +
                 SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.ROOT).format(Date()) + ".zip"
     }
 
     /**
      * Streams the export zip for the given categories to [out]. The caller owns the
      * stream and should delete the target file if this throws midway.
+     *
+     * [progress] is optional and exists so the same core can be driven headlessly by
+     * [app.simple.felicity.automation.StateExportReceiver] — the UI panel and the
+     * receiver are two thin callers of this one function, never two implementations.
      */
-    suspend fun export(context: Context, cats: List<Cat>, out: OutputStream) {
+    suspend fun export(context: Context, cats: List<Cat>, out: OutputStream, progress: Progress? = null) {
         ZipOutputStream(out).use { zip ->
             val catIds = JSONArray()
             cats.forEach { catIds.put(it.id) }
@@ -108,10 +142,14 @@ object SkBackup {
                 .put("categories", catIds)
             writeEntry(zip, "manifest.json", manifest.toString(2))
 
-            for (cat in cats) {
+            val total = cats.size.toLong()
+            for ((index, cat) in cats.withIndex()) {
+                val position = index + 1L
+                progress?.onProgress(position, total, UNIT_CATEGORY,
+                                     "$UNIT_CATEGORY $position/$total — " + context.getString(cat.labelRes))
                 val content = when (cat) {
-                    Cat.RATINGS -> exportRatings(context)
-                    Cat.PLAYLISTS -> exportPlaylists(context)
+                    Cat.RATINGS -> exportRatings(context, progress)
+                    Cat.PLAYLISTS -> exportPlaylists(context, progress)
                     else -> exportPrefs(context, cat)
                 }
                 writeEntry(zip, cat.id + ".json", content)
@@ -144,12 +182,17 @@ object SkBackup {
     }
 
     /** All favorited songs by their real file paths. */
-    private fun exportRatings(context: Context): String {
+    private fun exportRatings(context: Context, progress: Progress? = null): String {
         val dao = AudioDatabase.getInstance(context).audioDao()
             ?: throw IllegalStateException("Music library database is not available")
+        val all = dao.getAllAudioListAll()
+        val total = all.size.toLong()
         val a = JSONArray()
-        dao.getAllAudioListAll().forEach { audio ->
+        var done = 0L
+        all.forEach { audio ->
             if (audio.isFavorite && !audio.path.isNullOrBlank()) a.put(audio.path)
+            done++
+            progress?.onProgress(done, total, UNIT_SONG, "$UNIT_SONG $done/$total")
         }
         return JSONObject().put("favorites", a).toString(2)
     }
@@ -158,11 +201,15 @@ object SkBackup {
      * Every user-created playlist (M3U-scanned ones are skipped — they regenerate from
      * their files) with its metadata and member song paths in manual order.
      */
-    private suspend fun exportPlaylists(context: Context): String {
+    private suspend fun exportPlaylists(context: Context, progress: Progress? = null): String {
         val dao = AudioDatabase.getInstance(context).playlistDao()
         val list = JSONArray()
-        for (playlist in dao.getAllPlaylists().first()) {
-            if (playlist.isM3UPlaylist) continue
+        val own = dao.getAllPlaylists().first().filterNot { it.isM3UPlaylist }
+        val total = own.size.toLong()
+        var done = 0L
+        for (playlist in own) {
+            done++
+            progress?.onProgress(done, total, UNIT_PLAYLIST, "$UNIT_PLAYLIST $done/$total")
             val songs = JSONArray()
             dao.getSongsInPlaylistOrdered(playlist.id).first().forEach { audio ->
                 if (!audio.path.isNullOrBlank()) songs.put(audio.path)
