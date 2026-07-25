@@ -104,6 +104,9 @@
     <string name="sk_automation_token_copied" translatable="false">Token copied to clipboard</string>
     <string name="sk_automation_regenerate" translatable="false">Regenerate token</string>
     <string name="sk_automation_token_regenerated" translatable="false">New token generated</string>
+    <string name="sk_automation_allfiles" translatable="false">All-files access (保存復元 path)</string>
+    <string name="sk_automation_allfiles_on" translatable="false">Granted</string>
+    <string name="sk_automation_allfiles_off" translatable="false">Not granted — tap to allow</string>
 
     <string name="sk_section_library" translatable="false">Library</string>
     <string name="sk_import_poweramp" translatable="false">Import PowerAmp ratings</string>
