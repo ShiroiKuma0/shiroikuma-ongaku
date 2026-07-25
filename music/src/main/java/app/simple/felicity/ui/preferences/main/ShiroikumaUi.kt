@@ -3,27 +3,36 @@ package app.simple.felicity.ui.preferences.main
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.InsetDrawable
+import android.graphics.drawable.RippleDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.text.TextUtils
 import android.util.TypedValue
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.CheckBox
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AlertDialog
+import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.lifecycleScope
 import app.simple.felicity.R
 import app.simple.felicity.databinding.FragmentShiroikumaUiBinding
 import app.simple.felicity.databinding.HeaderPreferencesGenericBinding
 import app.simple.felicity.databinding.ItemSkColorBinding
+import app.simple.felicity.databinding.ItemSkPreviewBinding
 import app.simple.felicity.databinding.ItemSkSectionBinding
 import app.simple.felicity.databinding.ItemSkSliderBinding
 import app.simple.felicity.databinding.ItemSkSubgroupBinding
@@ -44,11 +53,16 @@ import app.simple.felicity.preferences.ShiroikumaPreferences
 import app.simple.felicity.shiroikuma.AlbumArtDownloader
 import app.simple.felicity.shiroikuma.PowerAmpArtImporter
 import app.simple.felicity.shiroikuma.PowerAmpRatingsImporter
+import app.simple.felicity.shiroikuma.SkBackup
 import app.simple.felicity.theme.managers.ShiroikumaTheme
 import app.simple.felicity.theme.managers.ThemeManager
 import app.simple.felicity.utils.SkFlash
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.Locale
+import java.util.zip.ZipFile
 
 /**
  * 白い熊 音楽 UI — the fork's own theming page, following the layout language of
@@ -61,11 +75,39 @@ class ShiroikumaUi : PreferenceFragment() {
     private lateinit var headerBinding: HeaderPreferencesGenericBinding
 
     private val swatches = HashMap<String, View>()
+    private val accentLines = ArrayList<View>()
+    private val previewCards = ArrayList<View>()
     private var fontValueView: TypeFaceTextView? = null
     private var tokenValueView: TypeFaceTextView? = null
 
-    private val indentStep: Int
-        get() = dp(28)
+    // Export/Import (Kōjiki flow): panel + row state
+    private var eximDialog: AlertDialog? = null
+    private var eimFolderTv: TypeFaceTextView? = null
+    private var eimStatusTv: TypeFaceTextView? = null
+    private var eimRowStatusTv: TypeFaceTextView? = null
+    private var pendingExportCats: List<SkBackup.Cat>? = null
+    private var pendingImportCats: List<SkBackup.Cat>? = null
+
+    /** SAF folder picker for the persisted export directory. */
+    private val eimDirPicker = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            onEimDirPicked(uri)
+        }
+    }
+
+    /** Save-as fallback used only while no export directory is configured. */
+    private val eimSaveAs = registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri != null) {
+            writePendingExportTo(uri)
+        }
+    }
+
+    /** Import file picker (.zip export). */
+    private val eimImportPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            onEimFilePicked(uri)
+        }
+    }
 
     /** Document picker for the PowerAmp `.poweramp-backup` file (extension is custom, so mime is open). */
     private val powerAmpBackupPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -97,9 +139,21 @@ class ShiroikumaUi : PreferenceFragment() {
         refreshShape()
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Opening the page queries the export directory for the latest export (Kōjiki flow).
+        refreshEximRowStatus()
+    }
+
     private fun buildRows() {
         swatches.clear()
+        accentLines.clear()
+        previewCards.clear()
         binding.rowsContainer.removeAllViews()
+
+        // ------------------------------------------------ Export / Import (first, Kōjiki flow)
+        addSection(R.string.sk_eim_section)
+        addEximRow(indent = 1)
 
         // ------------------------------------------------ General
         addSection(R.string.sk_section_general)
@@ -112,6 +166,7 @@ class ShiroikumaUi : PreferenceFragment() {
 
         // ------------------------------------------------ Colors
         addSection(R.string.sk_section_colors)
+        addPreviewCard(PreviewMode.COLORS)
 
         addSubgroup(R.string.sk_group_foundation, indent = 1)
         addColorRow(R.string.sk_color_background, ShiroikumaPreferences.BACKGROUND, indent = 2)
@@ -296,6 +351,7 @@ class ShiroikumaUi : PreferenceFragment() {
 
         // ------------------------------------------------ Typography
         addSection(R.string.sk_section_typography)
+        addPreviewCard(PreviewMode.TYPOGRAPHY)
         addFontRow(indent = 1)
         addSliderRow(R.string.sk_text_size, indent = 1,
                      min = 50F, max = 200F, default = 100F,
@@ -310,6 +366,7 @@ class ShiroikumaUi : PreferenceFragment() {
 
         // ------------------------------------------------ Shape & spacing
         addSection(R.string.sk_section_shape)
+        addPreviewCard(PreviewMode.SHAPE)
         addSliderRow(R.string.sk_corner_radius, indent = 1,
                      min = 0F, max = AppearancePreferences.MAX_CORNER_RADIUS, default = AppearancePreferences.DEFAULT_CORNER_RADIUS,
                      current = { AppearancePreferences.getCornerRadius() },
@@ -349,19 +406,73 @@ class ShiroikumaUi : PreferenceFragment() {
 
     // ------------------------------------------------------------------ row builders
 
+    /**
+     * kxkb-style section heading: a 1px accent hairline spacer above the group (omitted
+     * on the first section), then a 20sp bold accent title with a 2.5dp underline exactly
+     * as wide as the text.
+     */
     private fun addSection(@StringRes titleRes: Int) {
+        val first = binding.rowsContainer.childCount == 0
         val row = ItemSkSectionBinding.inflate(layoutInflater, binding.rowsContainer, false)
         row.sectionTitle.text = getString(titleRes)
-        (row.root.layoutParams as ViewGroup.MarginLayoutParams).topMargin = dp(24)
+        row.sectionSpacer.visibility = if (first) View.GONE else View.VISIBLE
+        registerAccentLine(row.sectionSpacer)
+        registerAccentLine(row.sectionUnderline)
+        (row.root.layoutParams as ViewGroup.MarginLayoutParams).topMargin = if (first) dp(4) else dp(20)
         binding.rowsContainer.addView(row.root)
     }
 
+    /** kxkb-style sub-heading: 17sp bold accent title with a thinner text-wide underline. */
     private fun addSubgroup(@StringRes titleRes: Int, indent: Int) {
         val row = ItemSkSubgroupBinding.inflate(layoutInflater, binding.rowsContainer, false)
         row.subgroupTitle.text = getString(titleRes)
-        (row.root.layoutParams as ViewGroup.MarginLayoutParams).topMargin = dp(8)
-        indentRow(row.root, indent)
+        registerAccentLine(row.subgroupUnderline)
+        (row.root.layoutParams as ViewGroup.MarginLayoutParams).topMargin = dp(10)
+        // Sub-heading sits one indent step deeper than its section title (20dp), rows go deeper still.
+        row.root.setPaddingRelative(dp(20 + 18 * indent), row.root.paddingTop, row.root.paddingEnd, row.root.paddingBottom)
         binding.rowsContainer.addView(row.root)
+    }
+
+    /** Colors a heading underline / section spacer with the effective accent and tracks it for refresh. */
+    private fun registerAccentLine(view: View) {
+        view.setBackgroundColor(skAccentColor())
+        accentLines.add(view)
+    }
+
+    /** What an in-section preview card demonstrates — each section shows only what it configures. */
+    private enum class PreviewMode { COLORS, TYPOGRAPHY, SHAPE }
+
+    /**
+     * The live preview card, placed directly under a section heading so changes are
+     * visible right where they are made (no scrolling back to the top of the page).
+     */
+    private fun addPreviewCard(mode: PreviewMode) {
+        val card = ItemSkPreviewBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        when (mode) {
+            PreviewMode.COLORS -> {
+                // Everything visible: text tiers, divider, icon + accent line.
+            }
+            PreviewMode.TYPOGRAPHY -> {
+                // Text tiers only — font, size scale and weight delta are what matter here.
+                card.previewDivider.visibility = View.GONE
+                card.previewIconRow.visibility = View.GONE
+            }
+            PreviewMode.SHAPE -> {
+                // A minimal bordered box — the card surface itself previews radius and border.
+                card.previewHeader.visibility = View.GONE
+                card.previewSecondary.visibility = View.GONE
+                card.previewTertiary.visibility = View.GONE
+                card.previewDivider.visibility = View.GONE
+                card.previewIconRow.visibility = View.GONE
+            }
+        }
+        (card.root.layoutParams as ViewGroup.MarginLayoutParams).apply {
+            topMargin = dp(10)
+            bottomMargin = dp(4)
+            marginStart = dp(20)
+        }
+        previewCards.add(card.root)
+        binding.rowsContainer.addView(card.root)
     }
 
     private fun addColorRow(@StringRes labelRes: Int, key: String, indent: Int) {
@@ -497,6 +608,426 @@ class ShiroikumaUi : PreferenceFragment() {
             downloadMissingAlbumArt()
         }
         binding.rowsContainer.addView(row.root)
+    }
+
+    /**
+     * The Export/Import entry: a row opening the category panel, with a status line
+     * underneath mirroring the latest export found in the configured directory.
+     */
+    private fun addEximRow(indent: Int) {
+        val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        row.valueLabel.text = getString(R.string.sk_eim_row)
+        row.valueText.text = ""
+        indentRow(row.root, indent)
+        row.root.setOnClickListener {
+            showEximDialog()
+        }
+        binding.rowsContainer.addView(row.root)
+
+        val status = TypeFaceTextView(requireContext()).apply {
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13F)
+            typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.MEDIUM, context)
+            setPaddingRelative(dp(38 + 18 * indent), 0, dp(16), dp(4))
+        }
+        eimRowStatusTv = status
+        binding.rowsContainer.addView(status)
+    }
+
+    // ------------------------------------------------------------------ Export / Import (Kōjiki flow)
+
+    /** Updates the on-page status line from a background probe of the export directory. */
+    private fun refreshEximRowStatus() {
+        val app = context?.applicationContext ?: return
+        lifecycleScope.launch {
+            val status = withContext(Dispatchers.IO) { SkBackup.lastExportStatus(app) }
+            val warn = withContext(Dispatchers.IO) { SkBackup.latestExport(app) == null }
+            eimRowStatusTv?.let { view ->
+                view.text = status
+                view.setTextColor(if (warn) EIM_WARN_COLOR else skTextColor())
+                view.alpha = if (warn) 1F else 0.75F
+            }
+        }
+    }
+
+    /**
+     * The Export/Import panel: description, the settable export directory (bordered box,
+     * tap to choose), the latest-export status, select-all + one checkbox per category,
+     * and an ArcaneChat-style pill button row — Cancel alone on the left, Import and
+     * Export grouped on the right.
+     */
+    private fun showEximDialog() {
+        val context = requireContext()
+        val accent = skAccentColor()
+        val textColor = skTextColor()
+        val dim = (textColor and 0x00FFFFFF) or 0xC8000000.toInt()
+
+        val root = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(16), dp(24), dp(4))
+        }
+
+        root.addView(TypeFaceTextView(context).apply {
+            text = getString(R.string.sk_eim_title)
+            setTextColor(accent)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18F)
+            typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.BOLD, context)
+            gravity = Gravity.CENTER
+            setPadding(0, dp(2), 0, dp(8))
+        })
+
+        root.addView(TypeFaceTextView(context).apply {
+            text = getString(R.string.sk_eim_desc)
+            setTextColor(dim)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13F)
+            typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.MEDIUM, context)
+        })
+
+        // Export-directory box: caption + current folder, tap to (re)choose.
+        val dirBox = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            isClickable = true
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            background = eimBorder()
+            setOnClickListener { eimDirPicker.launch(SkBackup.getDirUri(context)) }
+        }
+        dirBox.addView(TypeFaceTextView(context).apply {
+            text = getString(R.string.sk_eim_dir_caption)
+            setTextColor(dim)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12F)
+            typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.MEDIUM, context)
+        })
+        eimFolderTv = TypeFaceTextView(context).apply {
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 15F)
+            typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.BOLD, context)
+        }
+        dirBox.addView(eimFolderTv)
+        root.addView(dirBox, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12) })
+
+        eimStatusTv = TypeFaceTextView(context).apply {
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13F)
+            typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.MEDIUM, context)
+        }
+        root.addView(eimStatusTv, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = dp(8)
+            bottomMargin = dp(10)
+        })
+        refreshEximDialogStatus()
+
+        // Select-all + one checkbox per category, all ticked by default (Kōjiki flow).
+        val catBoxes = ArrayList<CheckBox>()
+        val selectAll = eimCheckbox(getString(R.string.sk_eim_select_all), accent, bold = true)
+        root.addView(selectAll)
+        for (cat in SkBackup.Cat.entries) {
+            val box = eimCheckbox(getString(cat.labelRes), accent, bold = false)
+            box.tag = cat
+            catBoxes.add(box)
+            root.addView(box)
+        }
+        selectAll.setOnCheckedChangeListener { _, checked ->
+            catBoxes.forEach { it.isChecked = checked }
+        }
+
+        val scroll = ScrollView(context).apply { addView(root) }
+
+        val dialog = AlertDialog.Builder(context)
+            .setView(scroll)
+            .setPositiveButton(R.string.sk_eim_export, null)
+            .setNegativeButton(R.string.sk_eim_import, null)
+            .setNeutralButton(android.R.string.cancel, null)
+            .setOnDismissListener {
+                eimFolderTv = null
+                eimStatusTv = null
+                eximDialog = null
+            }
+            .show()
+        styleEximDialog(dialog)
+        eximDialog = dialog
+        // Export/Import must NOT auto-dismiss the panel: failures leave it open, and on
+        // success the whole chain (info dialog -> panel -> UI page) closes via closeEximChain().
+        dialog.getButton(DialogInterface.BUTTON_POSITIVE)?.setOnClickListener {
+            onEimExport(selectedCats(catBoxes))
+        }
+        dialog.getButton(DialogInterface.BUTTON_NEGATIVE)?.setOnClickListener {
+            onEimImport(selectedCats(catBoxes))
+        }
+    }
+
+    private fun eimCheckbox(label: String, accent: Int, bold: Boolean): CheckBox {
+        return CheckBox(requireContext()).apply {
+            text = label
+            isChecked = true
+            setTextColor(accent)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 15F)
+            typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(),
+                                            if (bold) TypeFaceTextView.BOLD else TypeFaceTextView.MEDIUM, context)
+            buttonTintList = ColorStateList.valueOf(accent)
+            setPadding(dp(6), dp(6), 0, dp(6))
+        }
+    }
+
+    /** The bordered inner box, same visual language as the dialog window border. */
+    private fun eimBorder(): GradientDrawable {
+        return GradientDrawable().apply {
+            setColor(skBackgroundColor())
+            cornerRadius = AppearancePreferences.getCornerRadius().coerceAtMost(dp(10).toFloat())
+            setStroke(dp(1).coerceAtLeast(1), skBorderColor())
+        }
+    }
+
+    /**
+     * Fork styling for the panel and its info dialogs: black window with the border-slot
+     * (yellow) frame, and round pill buttons — black fill, accent stroke and text.
+     */
+    private fun styleEximDialog(dialog: AlertDialog) {
+        val context = requireContext()
+        val density = resources.displayMetrics.density
+        val accent = skAccentColor()
+        val border = skBorderColor()
+
+        dialog.window?.setBackgroundDrawable(InsetDrawable(GradientDrawable().apply {
+            setColor(skBackgroundColor())
+            cornerRadius = AppearancePreferences.getCornerRadius()
+            setStroke((2 * density).toInt(), border)
+        }, (16 * density).toInt()))
+
+        for (which in intArrayOf(DialogInterface.BUTTON_POSITIVE, DialogInterface.BUTTON_NEGATIVE, DialogInterface.BUTTON_NEUTRAL)) {
+            val button = dialog.getButton(which) ?: continue
+            val pill = GradientDrawable().apply {
+                setColor(skBackgroundColor())
+                cornerRadius = 50 * density // > half the height -> a pill
+                setStroke((1.5F * density).toInt(), accent)
+            }
+            button.background = RippleDrawable(
+                    ColorStateList.valueOf((accent and 0x00FFFFFF) or 0x33000000), pill, null)
+            button.setTextColor(accent)
+            button.transformationMethod = null // no all-caps
+            button.typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.BOLD, context)
+            button.setPadding(dp(20), dp(6), dp(20), dp(6))
+            (button.layoutParams as? ViewGroup.MarginLayoutParams)?.let { params ->
+                params.marginStart = dp(8)
+                button.layoutParams = params
+            }
+        }
+    }
+
+    private fun selectedCats(boxes: List<CheckBox>): List<SkBackup.Cat> {
+        return boxes.filter { it.isChecked }.map { it.tag as SkBackup.Cat }
+    }
+
+    /** Updates the folder-name and last-export lines inside the open panel. */
+    private fun refreshEximDialogStatus() {
+        val context = context ?: return
+        val folderView = eimFolderTv ?: return
+        val statusView = eimStatusTv ?: return
+        val dir = SkBackup.getExportDir(context)
+        if (dir != null) {
+            folderView.text = dir.name ?: SkBackup.getDirUri(context)?.lastPathSegment ?: ""
+            folderView.setTextColor(skAccentColor())
+        } else {
+            folderView.setText(R.string.sk_eim_dir_unset)
+            folderView.setTextColor(EIM_WARN_COLOR)
+        }
+        val app = context.applicationContext
+        lifecycleScope.launch {
+            val status = withContext(Dispatchers.IO) { SkBackup.lastExportStatus(app) }
+            val warn = withContext(Dispatchers.IO) { SkBackup.latestExport(app) == null }
+            statusView.text = status
+            statusView.setTextColor(if (warn) EIM_WARN_COLOR else skTextColor())
+        }
+    }
+
+    private fun onEimDirPicked(uri: Uri) {
+        val context = context ?: return
+        try {
+            context.contentResolver.takePersistableUriPermission(
+                    uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        } catch (ignored: Exception) {
+        }
+        SkBackup.setDirUri(context, uri)
+        refreshEximDialogStatus()
+        refreshEximRowStatus()
+    }
+
+    private fun onEimExport(cats: List<SkBackup.Cat>) {
+        val context = context ?: return
+        if (cats.isEmpty()) {
+            SkFlash.show(context, R.string.sk_eim_none_selected)
+            return
+        }
+        val app = context.applicationContext
+        if (SkBackup.getExportDir(app) == null) {
+            // No directory configured — fall back to a save-as picker; export runs once the uri is known.
+            pendingExportCats = cats
+            eimSaveAs.launch(SkBackup.exportFileName())
+            return
+        }
+        SkFlash.show(app, R.string.sk_eim_exporting)
+        lifecycleScope.launch {
+            val name = SkBackup.exportFileName()
+            var file: DocumentFile? = null
+            try {
+                withContext(Dispatchers.IO) {
+                    val dir = SkBackup.getExportDir(app) ?: throw IllegalStateException("export directory unavailable")
+                    val created = dir.createFile("application/zip", name)
+                        ?: throw IllegalStateException("could not create $name")
+                    file = created
+                    app.contentResolver.openOutputStream(created.uri)?.use { out ->
+                        SkBackup.export(app, cats, out)
+                    } ?: throw IllegalStateException("no output stream")
+                }
+                showEximExportDone(name)
+            } catch (e: Exception) {
+                withContext(Dispatchers.IO) {
+                    try {
+                        file?.delete() // don't leave a truncated export behind
+                    } catch (ignored: Exception) {
+                    }
+                }
+                SkFlash.show(app, getString(R.string.sk_eim_export_fail, e.message ?: e.javaClass.simpleName), long = true)
+            }
+        }
+    }
+
+    private fun writePendingExportTo(uri: Uri) {
+        val context = context ?: return
+        val cats = pendingExportCats ?: return
+        pendingExportCats = null
+        val app = context.applicationContext
+        SkFlash.show(app, R.string.sk_eim_exporting)
+        lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    app.contentResolver.openOutputStream(uri)?.use { out ->
+                        SkBackup.export(app, cats, out)
+                    } ?: throw IllegalStateException("no output stream")
+                }
+                showEximExportDone(uri.lastPathSegment?.substringAfterLast('/') ?: getString(R.string.sk_eim_section))
+            } catch (e: Exception) {
+                SkFlash.show(app, getString(R.string.sk_eim_export_fail, e.message ?: e.javaClass.simpleName), long = true)
+            }
+        }
+    }
+
+    private fun onEimImport(cats: List<SkBackup.Cat>) {
+        val context = context ?: return
+        if (cats.isEmpty()) {
+            SkFlash.show(context, R.string.sk_eim_none_selected)
+            return
+        }
+        pendingImportCats = cats
+        eimImportPicker.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
+    }
+
+    private fun onEimFilePicked(uri: Uri) {
+        val context = context ?: return
+        val cats = pendingImportCats ?: return
+        pendingImportCats = null
+        val app = context.applicationContext
+        SkFlash.show(app, R.string.sk_eim_importing)
+        lifecycleScope.launch {
+            var summary: String? = null
+            var error: String? = null
+            withContext(Dispatchers.IO) {
+                // Copy to a temp file so the zip is random-access.
+                val tmp = File.createTempFile("sk-eximport", ".zip", app.cacheDir)
+                try {
+                    app.contentResolver.openInputStream(uri)?.use { input ->
+                        tmp.outputStream().use { input.copyTo(it) }
+                    } ?: throw IllegalStateException("no input stream")
+                    ZipFile(tmp).use { zip ->
+                        if (SkBackup.categoriesIn(zip).isEmpty()) {
+                            error = app.getString(R.string.sk_eim_import_none)
+                        } else {
+                            summary = SkBackup.import(app, zip, cats)
+                            if (summary == null) error = app.getString(R.string.sk_eim_import_none)
+                        }
+                    }
+                } catch (e: Exception) {
+                    error = e.message ?: e.javaClass.simpleName
+                } finally {
+                    tmp.delete()
+                }
+            }
+            val result = summary
+            if (result != null) {
+                showEximImportDone(result)
+            } else {
+                SkFlash.show(app, getString(R.string.sk_eim_import_fail, error ?: ""), long = true)
+            }
+        }
+    }
+
+    /** Black-yellow OK dialog after a successful export; OK tears down the whole chain. */
+    private fun showEximExportDone(name: String) {
+        val context = context ?: return
+        val dialog = AlertDialog.Builder(context)
+            .setView(eimInfoBox(getString(R.string.sk_eim_export_done_title), getString(R.string.sk_eim_export_ok, name)))
+            .setCancelable(false)
+            .setPositiveButton(android.R.string.ok) { _, _ -> closeEximChain() }
+            .show()
+        styleEximDialog(dialog)
+    }
+
+    /**
+     * Black-yellow info dialog after a successful import: "Restart now" restarts the app,
+     * "Later" tears down the whole chain (info dialog -> panel -> UI page).
+     */
+    private fun showEximImportDone(summary: String) {
+        val context = context ?: return
+        val dialog = AlertDialog.Builder(context)
+            .setView(eimInfoBox(getString(R.string.sk_eim_import_done_title), getString(R.string.sk_eim_import_done_body, summary)))
+            .setCancelable(false)
+            .setPositiveButton(R.string.sk_eim_restart_now) { _, _ -> restartApp() }
+            .setNegativeButton(R.string.sk_eim_restart_later) { _, _ -> closeEximChain() }
+            .show()
+        styleEximDialog(dialog)
+    }
+
+    /** Title + body in fork colors for the info dialogs (the window frame comes from [styleEximDialog]). */
+    private fun eimInfoBox(title: String, body: String): View {
+        val context = requireContext()
+        val box = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(20), dp(24), dp(4))
+        }
+        box.addView(TypeFaceTextView(context).apply {
+            text = title
+            setTextColor(skAccentColor())
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18F)
+            typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.BOLD, context)
+        })
+        box.addView(TypeFaceTextView(context).apply {
+            text = body
+            setTextColor(skTextColor())
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14F)
+            typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.MEDIUM, context)
+            setPadding(0, dp(10), 0, 0)
+        })
+        return ScrollView(context).apply { addView(box) }
+    }
+
+    /** Closes the info dialog's underlying chain: the Export/Import panel, then the UI page itself. */
+    private fun closeEximChain() {
+        val dialog = eximDialog
+        eximDialog = null
+        if (dialog != null) {
+            try {
+                dialog.dismiss()
+            } catch (ignored: Exception) {
+            }
+        }
+        popBackStack()
+    }
+
+    private fun restartApp() {
+        val app = requireContext().applicationContext
+        val launch = app.packageManager.getLaunchIntentForPackage(app.packageName)
+        if (launch?.component != null) {
+            app.startActivity(Intent.makeRestartActivityTask(launch.component))
+        }
+        Runtime.getRuntime().exit(0)
     }
 
     // ------------------------------------------------------------------ actions
@@ -700,16 +1231,35 @@ class ShiroikumaUi : PreferenceFragment() {
         updateSwatches()
     }
 
-    /** Rebuilds the preview card background so corner radius and border update live. */
+    /** Rebuilds every preview card's background so corner radius and border update live. */
     private fun refreshShape() {
-        LayoutBackground.setBackground(binding.previewCard)
+        previewCards.forEach { LayoutBackground.setBackground(it) }
     }
 
     private fun updateSwatches() {
         swatches.forEach { (key, view) ->
             view.background = swatchDrawable(ShiroikumaPreferences.getEffectiveColor(key))
         }
+        accentLines.forEach { it.setBackgroundColor(skAccentColor()) }
     }
+
+    // ------------------------------------------------------------------ fork colors
+
+    private fun skBackgroundColor(): Int =
+        if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.BACKGROUND)
+        else ThemeManager.theme.viewGroupTheme.backgroundColor
+
+    private fun skAccentColor(): Int =
+        if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.ACCENT)
+        else ThemeManager.accent.primaryAccentColor
+
+    private fun skTextColor(): Int =
+        if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.TEXT_PRIMARY)
+        else ThemeManager.theme.textViewTheme.primaryTextColor
+
+    private fun skBorderColor(): Int =
+        if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.BORDER)
+        else ThemeManager.accent.primaryAccentColor
 
     // ------------------------------------------------------------------ helpers
 
@@ -723,7 +1273,9 @@ class ShiroikumaUi : PreferenceFragment() {
 
     private fun indentRow(view: View, indent: Int) {
         if (indent > 0) {
-            view.setPaddingRelative(view.paddingStart + indent * indentStep, view.paddingTop, view.paddingEnd, view.paddingBottom)
+            // kxkb indent cascade: with the container's 16dp, headings land at 36/54dp and
+            // rows at 72/90dp from the screen edge (18dp per level).
+            view.setPaddingRelative(view.paddingStart + dp(38 + 18 * indent), view.paddingTop, view.paddingEnd, view.paddingBottom)
         }
     }
 
@@ -751,5 +1303,8 @@ class ShiroikumaUi : PreferenceFragment() {
         }
 
         const val TAG = "ShiroikumaUi"
+
+        /** Red used for the "no directory / no export yet" warning lines. */
+        private val EIM_WARN_COLOR = 0xFFFF5252.toInt()
     }
 }
