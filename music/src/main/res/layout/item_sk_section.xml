@@ -1,22 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- kxkb-style section heading: a thin full-width hairline spacer above the group (hidden on the
+     first section), then a big bold accent heading with an underline exactly as wide as the text.
+     The trick: the underline View is match_parent inside a wrap_content column that wraps only the
+     title, so it resolves to the text width. Underline/spacer colors are set in code (accent). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
-    <app.simple.felicity.decorations.typeface.TypeFaceTextView
-        android:id="@+id/section_title"
+    <View
+        android:id="@+id/section_spacer"
+        android:layout_width="match_parent"
+        android:layout_height="1px" />
+
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textSize="20sp"
-        app:appFontStyle="bold"
-        app:textColorStyle="accent" />
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="0dp"
+        android:paddingBottom="2dp">
 
-    <app.simple.felicity.decorations.theme.ThemeDivider
-        android:layout_width="match_parent"
-        android:layout_height="2dp"
-        android:layout_marginTop="2dp"
-        android:layout_marginBottom="4dp" />
+        <app.simple.felicity.decorations.typeface.TypeFaceTextView
+            android:id="@+id/section_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:textSize="20sp"
+            app:appFontStyle="bold"
+            app:textColorStyle="accent" />
+
+        <View
+            android:id="@+id/section_underline"
+            android:layout_width="match_parent"
+            android:layout_height="2.5dp"
+            android:layout_marginTop="2dp" />
+
+    </LinearLayout>
 
 </LinearLayout>
