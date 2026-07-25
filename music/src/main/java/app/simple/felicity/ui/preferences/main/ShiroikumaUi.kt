@@ -12,7 +12,9 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.RippleDrawable
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.provider.Settings
 import android.text.TextUtils
 import android.util.TypedValue
@@ -79,6 +81,7 @@ class ShiroikumaUi : PreferenceFragment() {
     private val previewCards = ArrayList<View>()
     private var fontValueView: TypeFaceTextView? = null
     private var tokenValueView: TypeFaceTextView? = null
+    private var allFilesValueView: TypeFaceTextView? = null
 
     // Export/Import (Kōjiki flow): panel + row state
     private var eximDialog: AlertDialog? = null
@@ -143,6 +146,8 @@ class ShiroikumaUi : PreferenceFragment() {
         super.onResume()
         // Opening the page queries the export directory for the latest export (Kōjiki flow).
         refreshEximRowStatus()
+        // Coming back from the system grant page must show the new state, not the stale one.
+        allFilesValueView?.setText(allFilesAccessLabel())
     }
 
     private fun buildRows() {
@@ -154,6 +159,17 @@ class ShiroikumaUi : PreferenceFragment() {
         // ------------------------------------------------ Export / Import (first, Kōjiki flow)
         addSection(R.string.sk_eim_section)
         addEximRow(indent = 1)
+
+        // Automation lives here rather than in a section of its own: the token, the
+        // All-files grant and the 保存復元 receiver exist to drive exactly the export
+        // above, headlessly, from 自由作業盤.
+        addSubgroup(R.string.sk_section_automation, indent = 1)
+        addSwitchRow(R.string.sk_automation_enable, indent = 2,
+                     isChecked = { AutomationPreferences.isEnabled() },
+                     onChecked = { AutomationPreferences.setEnabled(it) })
+        addTokenRow(indent = 2)
+        addRegenerateTokenRow(indent = 2)
+        addAllFilesAccessRow(indent = 2)
 
         // ------------------------------------------------ General
         addSection(R.string.sk_section_general)
@@ -389,14 +405,6 @@ class ShiroikumaUi : PreferenceFragment() {
                      label = { it.toInt().toString() },
                      onChange = { AppearancePreferences.setListSpacing(it) })
 
-        // ------------------------------------------------ Automation (hand-off.md C)
-        addSection(R.string.sk_section_automation)
-        addSwitchRow(R.string.sk_automation_enable, indent = 1,
-                     isChecked = { AutomationPreferences.isEnabled() },
-                     onChecked = { AutomationPreferences.setEnabled(it) })
-        addTokenRow(indent = 1)
-        addRegenerateTokenRow(indent = 1)
-
         // ------------------------------------------------ Library
         addSection(R.string.sk_section_library)
         addImportPowerAmpRow(indent = 1)
@@ -570,6 +578,52 @@ class ShiroikumaUi : PreferenceFragment() {
             SkFlash.show(requireContext(), R.string.sk_automation_token_regenerated)
         }
         binding.rowsContainer.addView(row.root)
+    }
+
+    /**
+     * All-files access, which the 保存復元 contract needs for its `path` extra: without the
+     * grant a headless export can only write into the configured export directory, so a
+     * 自由作業盤 batch run would not collect our zip alongside the other apps'. Tapping
+     * opens the system grant page; the state re-reads on every return to this page.
+     */
+    private fun addAllFilesAccessRow(indent: Int) {
+        val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        row.valueLabel.text = getString(R.string.sk_automation_allfiles)
+        row.valueText.text = getString(allFilesAccessLabel())
+        allFilesValueView = row.valueText
+        indentRow(row.root, indent)
+        row.root.setOnClickListener {
+            if (hasAllFilesAccess()) {
+                SkFlash.show(requireContext(), R.string.sk_automation_allfiles_on)
+            } else {
+                openAllFilesAccessSettings()
+            }
+        }
+        binding.rowsContainer.addView(row.root)
+    }
+
+    private fun hasAllFilesAccess(): Boolean {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()
+    }
+
+    @StringRes
+    private fun allFilesAccessLabel(): Int {
+        return if (hasAllFilesAccess()) R.string.sk_automation_allfiles_on else R.string.sk_automation_allfiles_off
+    }
+
+    /** The per-app grant page, falling back to the device-wide list where that is missing. */
+    private fun openAllFilesAccessSettings() {
+        val context = requireContext()
+        try {
+            startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                 Uri.parse("package:${context.packageName}")))
+        } catch (e: Exception) {
+            try {
+                startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+            } catch (e2: Exception) {
+                SkFlash.show(context, R.string.sk_automation_allfiles_off, long = true)
+            }
+        }
     }
 
     /** Opens the system document picker for a PowerAmp backup; ratings become favorites. */
