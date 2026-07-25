@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- kxkb-style sub-heading (one level under a section): medium-bold accent title with a thinner
+     underline exactly as wide as the text (wrap_content root). No spacer line — those mark
+     top-level sections only. Underline color is set in code (accent). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="wrap_content"
@@ -9,14 +12,15 @@
         android:id="@+id/subgroup_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textSize="16sp"
+        android:maxLines="1"
+        android:textSize="17sp"
         app:appFontStyle="bold"
-        app:textColorStyle="primary" />
+        app:textColorStyle="accent" />
 
-    <app.simple.felicity.decorations.theme.ThemeDivider
+    <View
+        android:id="@+id/subgroup_underline"
         android:layout_width="match_parent"
-        android:layout_height="2dp"
-        android:layout_marginTop="1dp"
-        android:layout_marginBottom="2dp" />
+        android:layout_height="1.5dp"
+        android:layout_marginTop="2dp" />
 
 </LinearLayout>
