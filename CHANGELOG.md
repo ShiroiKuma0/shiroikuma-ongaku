@@ -82,3 +82,18 @@ Everything built on top of stock Felicity, rebased onto each upstream release ta
 - **Keep screen on while playing**: new switch in the 白い熊 音楽 UI Player section, on by default — the display never times out while music plays and the app is in the foreground; pause/stop (or the toggle, applied live) releases it.
 - **Android Auto icon fixed**: the launcher icon is now adaptive-only (all legacy raster mipmaps and the separate round icon deleted — dead weight at minSdk 29). Head units picked up the square legacy raster and plated it on a white disc; with only the adaptive icon they circle-mask the black background full-bleed — a pure black-yellow circle, matching the sister forks.
 - The built-in HTTP server's app-icon fallback renders the launcher drawable instead of bitmap-decoding the removed raster.
+
+## 0.0.26_alpha+26 (2026-07-25, base 0.0.26_alpha)
+
+### Export / Import of every setting (Kōjiki flow)
+- New first section at the top of the 白い熊 音楽 UI page: an Export/Import row whose status line is refreshed on every page open by querying the configured directory for the newest export ("Last export: <timestamp>", red warnings when no directory or no export yet).
+- Settable export directory via the SAF tree picker, persisted with a durable permission grant in a device-local store that is itself never exported; a save-as picker is the fallback while no directory is set.
+- Six categories, each a checkbox in the panel (with a bold "Select all" master): 白い熊 UI theme (all theme keys plus font, corner radius, list spacing), 音楽端灯 edge meteors, automation, app settings (every remaining preference key, minus device-local SAF grants and crash state), ratings (favorites), and playlists.
+- Export format: a zip named `shiroikuma-ongaku-<version>-export_<timestamp>.zip` holding a manifest plus one type-tagged JSON per category — every SharedPreferences key round-trips with its type, and import is a per-key merge (never a clear), so old exports load into newer builds and vice versa.
+- Ratings and playlists are data categories read from the library database and matched by file path on import (exact + NFC-normalized), strictly additively: favorites are never cleared; playlists merge by name with missing songs appended at the end in manual order, unknown names are created with the exported metadata (description, pinned, shuffle, sort); M3U-scanned playlists are excluded (they regenerate from their files); unmatched paths are counted, never invented.
+- Panel buttons in the ArcaneChat dialog style: round pill outline buttons, Cancel alone on the left, Import and Export grouped on the right; Export/Import never auto-dismiss the panel.
+- Dialog chain: a black-yellow bordered "✓ Export finished" OK dialog — OK closes the info dialog, the panel beneath it, and the UI page itself; "✓ Import finished" shows the per-category restore summary with "Restart now" (relaunches the app) and "Later" (closes the same chain). Failures ("Export failed…", "Import failed…", "No categories selected.") are themed flashes that leave the panel open.
+
+### UI page restyle (kxkb look)
+- Section headings 20 sp bold accent with a 2.5 dp underline exactly as wide as the text; sub-headings 17 sp with a 1.5 dp text-wide underline; 1 px accent hairline spacers between sections (none above the first); 36/54/72/90 dp indent cascade.
+- The page-top preview box is gone — each section that sets an item now carries its own live preview card directly under its heading: the full color card under Colors, the text tiers under Typography, and a minimal bordered box under Shape & spacing (the card surface itself previews corner radius and border). All previews keep updating live.
