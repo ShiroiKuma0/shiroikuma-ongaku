@@ -6,18 +6,21 @@
 
 **A black-yellow, beat-lit, automation-ready music player.**
 
-A fork of [Felicity Music Player](https://github.com/Hamza417/Felicity) with **major additions**: a full black-yellow theming engine with its own settings page, a PowerAmp-style full-screen spectrum visualizer, the 音楽端灯 edge-meteor light show driven by a sample-accurate PCM beat tracker, a token-secured automation surface for external workspaces, Android Auto with full library browsing, album-art download/change (automatic, interactive, storage pick, clipboard paste), PowerAmp ratings/art import, and manual playlist reordering.
+A fork of [Felicity Music Player](https://github.com/Hamza417/Felicity) with **major additions**: a full black-yellow theming engine with its own settings page, category export/import of every setting including ratings and playlists, a PowerAmp-style full-screen spectrum visualizer, the 音楽端灯 edge-meteor light show driven by a sample-accurate PCM beat tracker, a token-secured automation surface for external workspaces, Android Auto with full library browsing, album-art download/change (automatic, interactive, storage pick, clipboard paste), PowerAmp ratings/art import, and manual playlist reordering.
 
 Installs **side-by-side** with Felicity (app id `shiroikuma.ongaku`).
 
-**📥 Latest release: [`0.0.26_alpha+24`](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases)
+**📥 Latest release: [`0.0.26_alpha+26`](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases)
 
 </div>
 
 ---
 
 ## 🖤💛 白い熊 音楽 UI — the black-yellow theming engine
-A dedicated settings page (first row in Settings, or long-press the home-screen cog) controls the whole look: black background, yellow text, yellow borders everywhere by default. Nineteen color slots with two-tier inheritance (change the foundation, everything derives), each edited in a 4-slider RGBA picker with live preview, hex readout, and one-click recent-color boxes. External `.ttf`/`.otf` fonts import via the system picker and every font choice renders in its own glyphs; global text-size and font-weight sliders, corner radius and border width down to 0 — all with a live preview card.
+A dedicated settings page (first row in Settings, or long-press the home-screen cog) controls the whole look: black background, yellow text, yellow borders everywhere by default. Nineteen color slots with two-tier inheritance (change the foundation, everything derives), each edited in a 4-slider RGBA picker with live preview, hex readout, and one-click recent-color boxes. External `.ttf`/`.otf` fonts import via the system picker and every font choice renders in its own glyphs; global text-size and font-weight sliders, corner radius and border width down to 0. Sections carry text-wide underlined headings with in-section live preview cards, so every change shows right where it's made.
+
+## 💾 Export / Import — everything, by category
+The first section of the UI page exports every settable item to a chosen directory (queried on open for the latest export) and imports it back by category: theme, edge meteors, automation, app settings, plus ratings and playlists straight from the library database — path-matched, strictly additive, portable across versions. Round-pill panel, black-yellow result dialogs, one-tap restart after import.
 
 ## 📊 PowerAmp-style visualizer
 The player's spectrum reaches over the whole screen: super-thin blue bars (2 dp), upsampled from 40 real frequency bands with progressive height interpolation, overlaying every player element while lyrics float above. While music plays the whole player screen dims PowerAmp-style so the dark-navy bar wall owns the view; pause restores full brightness and eases the bars to zero instead of freezing them. The waveform seekbar matches the visualizer's geometry — 2 dp yellow bars with interpolated bars between the real per-second samples. Color is settable from the UI page.
