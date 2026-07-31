@@ -10,7 +10,7 @@ A fork of [Felicity Music Player](https://github.com/Hamza417/Felicity) with **m
 
 Installs **side-by-side** with Felicity (app id `shiroikuma.ongaku`).
 
-**📥 Latest release: [`0.0.26_alpha+30`](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases)
+**📥 Latest release: [`0.0.27_alpha+1`](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases)
 
 </div>
 
@@ -23,7 +23,7 @@ A dedicated settings page (first row in Settings, or long-press the home-screen 
 The first section of the UI page exports every settable item to a chosen directory (queried on open for the latest export) and imports it back by category: theme, edge meteors, automation, app settings, plus ratings and playlists straight from the library database — path-matched, strictly additive, portable across versions. Round-pill panel, black-yellow result dialogs, one-tap restart after import.
 
 ## 🗄️ 保存復元 — headless backup on request
-The same export runs without ever opening the app: a token-gated broadcast makes it write itself to a directory of the caller's choosing and reply with the path, byte count and category total, so one 白い熊 自由作業盤 run can back up every sister app in a batch and summarise the lot. A companion action lists the selectable categories so the caller can offer a picker without knowing anything about this app, and progress is reported in real counts — `楽曲 1234/8942`, never a percentage. The automation token itself is kept out of the backup.
+The same export runs without ever opening the app: a token-gated broadcast makes it write itself to a directory of the caller's choosing and reply with the path, byte count and category total, so one 白い熊 自由作業盤 run can back up every sister app in a batch and summarise the lot. A companion action lists the selectable categories — each stating whether it starts ticked, so the caller's picker never has to guess — and progress is reported in real counts (`楽曲 1234/8942`, never a percentage). A running export can be stopped from outside: it unwinds at the next entry boundary, deletes its partial zip so the backup directory is left exactly as it was found, and answers `ERROR:cancelled` for the request it was serving. The automation token itself is kept out of the backup.
 
 ## 📊 PowerAmp-style visualizer
 The player's spectrum reaches over the whole screen: super-thin blue bars (2 dp), upsampled from 40 real frequency bands with progressive height interpolation, overlaying every player element while lyrics float above. While music plays the whole player screen dims PowerAmp-style so the dark-navy bar wall owns the view; pause restores full brightness and eases the bars to zero instead of freezing them. The waveform seekbar matches the visualizer's geometry — 2 dp yellow bars with interpolated bars between the real per-second samples. Color is settable from the UI page.

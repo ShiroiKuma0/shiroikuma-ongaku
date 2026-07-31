@@ -114,3 +114,28 @@ Everything built on top of stock Felicity, rebased onto each upstream release ta
 - **The automation token no longer travels in backups.** The automation category was writing `sk_automation_token` into every export zip in plaintext; it is now excluded on export *and* on import, so a restored zip can no longer clobber the local token either. Backups written by earlier builds contain the secret — delete them and regenerate the token.
 - Backup filenames are now `shiroikuma-ongaku_<yyyy-MM-dd_HH-mm-ss>.zip` — the app name and the datetime, with the version and the `-export` marker dropped. The "last export" probe still recognises the older names, so pre-rename backups keep counting.
 - Automation moved out of its own settings section into a subgroup of Export / Import, directly under the export row: the token, the All-files grant and the receiver all exist to drive that export.
+
+## 0.0.27_alpha+1 (2026-07-31, base 0.0.27_alpha)
+
+First build on upstream Felicity `0.0.27_alpha`; the whole 29-commit customization stack rebased onto it.
+
+### 保存復元 — the app states its own defaults, and the export can be stopped
+- `LIST_CATEGORIES` now answers `id⇥label⇥parent⇥on|off` — the contract's optional fourth field. Whether a backup item starts ticked becomes this app's own statement instead of something the caller's picker has to guess; the third (parent) field stays empty because the category list is flat, but is still sent, since the fourth is positional.
+- Every category here answers `on`: nothing this app exports is large, derived *and* re-creatable (the rule exists for things like downloaded map tiles or a regenerable thumbnail cache). A category added later can declare `off` and both pickers follow it.
+- The in-app Export / Import sheet seeds its checkboxes from the same flag, so the panel and 保存復元's item editor start from one answer rather than two, and an absent `items` extra now means literally the `on` set.
+- **`shiroikuma.ongaku.action.CANCEL_EXPORT`** — a third token-gated action on the same exported receiver, so a running export can be stopped from outside. Extras: `token` (required) and an optional `reply_id` (absent = the export in flight, unambiguous because two at once are forbidden).
+- Cancellation is a `@Volatile` flag the export core polls at every entry boundary — between categories, and inside the ratings and playlist sweeps — never a thread interrupt, so a `write()` in flight always completes and the zip unwinds cleanly.
+- A cancelled run leaves the backup directory **exactly as it found it**: the partial zip is deleted on the way out, on both the SAF and the plain-file path. The original request then answers `ERROR:cancelled` through its own reply channel, guarded by the same `AtomicBoolean` that prevents a double terminal reply — sent even if nobody is still listening, because it is what proves the run ended rather than continuing unseen.
+- The cancel action itself never replies, not even `OK:`. Arriving when nothing is running, after the export already finished, or with a `reply_id` that does not match, it is a silent no-op — safe to send at any time, including a moment too late.
+
+### Upstream 0.0.27_alpha brings
+- **Route-based audio sink** replacing the double-clock architecture: an exclusive playback pipeline that halves the CPU cost of playback, saves battery, and addresses audio-underrun artefacts on some devices.
+- Playback correctness fixes riding on it: pause latency in both AAudio and Oboe, AAudio not resuming, audio buffer pulsing while paused, sinks ignoring the play/paused state, inconsistent playback state, and a nanosecond-level clock.
+- Now Playing gained a toggle to stack the waveform and media controls, a waveform menu, and an option to change the timer position; flex layouts gained margin support, animated stack changes, and a clipping fix.
+- Library lists now sort case-insensitively — title, artist, album, name, composer and path previously used UTF-16 code-unit order, which pushed every lowercase-named entry to the end.
+- Spanish translations added.
+
+### Fork layer re-anchored on the new base
+- Upstream wrapped the seekbar and the media-control row in a new `FlexStackLayout` (`seekbar_container`) in all three player skins. The PowerAmp-style restyle was re-applied onto that structure rather than merged textually: 2 dp seekbar bars with 2 dp gaps and 3× upsampling, the 0.40 visualizer overlay alpha, and the controls-row bottom margin all sit in their new home, and the relocated utility toolbar (favorite / visualizer / equalizer / search / menu, above the chip row) kept its position without leaving a duplicate copy — or duplicate view ids — behind.
+- The edge-meteor attach and the lyric lift now run alongside upstream's new `updateMediaControlOverlap()` in the base player's `onViewCreated`.
+- Verified after the rebase: app id, arm64-only foss ABI filter, the 白い熊 音楽 label, the launcher icon, and all seven forced trial gates.
