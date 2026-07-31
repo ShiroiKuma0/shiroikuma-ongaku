@@ -98,6 +98,8 @@
             <intent-filter>
                 <action android:name="shiroikuma.ongaku.action.EXPORT_STATE" />
                 <action android:name="shiroikuma.ongaku.action.LIST_CATEGORIES" />
+                <action android:name="shiroikuma.ongaku.action.CANCEL_EXPORT" />
+
             </intent-filter>
         </receiver>
 
