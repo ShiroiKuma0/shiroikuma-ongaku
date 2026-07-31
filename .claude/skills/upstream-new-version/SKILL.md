@@ -20,7 +20,7 @@ The entire rebase + build happens on the **local** working tree as a scratchpad.
 
 ## Step 1 — Check upstream for a newer release tag
 
-Felicity tags releases as bare `X.Y.Z_alpha` (e.g. `0.0.26_alpha`) — no `v` prefix. The fork tracks the **latest release tag**, not in-development master (upstream's master usually sits one untagged patch ahead — e.g. code 27 / `0.0.27_alpha` before that tag exists).
+Felicity tags releases as bare `X.Y.Z_alpha` (e.g. `0.0.27_alpha`) — no `v` prefix. The fork tracks the **latest release tag**, not in-development master (upstream's master usually sits one untagged patch ahead — e.g. code 28 / `0.0.28_alpha` before that tag exists).
 
 ```bash
 cd ~/git/shiroikuma-ongaku
