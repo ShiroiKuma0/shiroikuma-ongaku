@@ -769,12 +769,15 @@ class ShiroikumaUi : PreferenceFragment() {
         })
         refreshEximDialogStatus()
 
-        // Select-all + one checkbox per category, all ticked by default (Kōjiki flow).
+        // Select-all + one checkbox per category, each seeded from the category's own
+        // SkBackup.Cat.defaultOn — the same answer LIST_CATEGORIES gives 保存復元's picker,
+        // so the in-app sheet and the automation one start from one statement, not two.
         val catBoxes = ArrayList<CheckBox>()
-        val selectAll = eimCheckbox(getString(R.string.sk_eim_select_all), accent, bold = true)
+        val selectAll = eimCheckbox(getString(R.string.sk_eim_select_all), accent, bold = true,
+                                    checked = SkBackup.Cat.entries.all { it.defaultOn })
         root.addView(selectAll)
         for (cat in SkBackup.Cat.entries) {
-            val box = eimCheckbox(getString(cat.labelRes), accent, bold = false)
+            val box = eimCheckbox(getString(cat.labelRes), accent, bold = false, checked = cat.defaultOn)
             box.tag = cat
             catBoxes.add(box)
             root.addView(box)
@@ -808,10 +811,10 @@ class ShiroikumaUi : PreferenceFragment() {
         }
     }
 
-    private fun eimCheckbox(label: String, accent: Int, bold: Boolean): CheckBox {
+    private fun eimCheckbox(label: String, accent: Int, bold: Boolean, checked: Boolean = true): CheckBox {
         return CheckBox(requireContext()).apply {
             text = label
-            isChecked = true
+            isChecked = checked
             setTextColor(accent)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 15F)
             typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(),
