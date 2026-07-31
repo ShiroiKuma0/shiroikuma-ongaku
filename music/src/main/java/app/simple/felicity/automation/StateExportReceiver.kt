@@ -24,18 +24,22 @@ import java.io.OutputStream
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Fork (保存復元): the state-export automation contract, driven by 白い熊 自由作業盤's
  * 「保存復元」 project — one run backs up every sister app, each app exporting itself
  * headlessly and replying with the written path and size.
  *
- * Two exported, token-gated actions:
+ * Three exported, token-gated actions:
  * - [ACTION_EXPORT_STATE] runs the app's normal category-zip export ([SkBackup.export] —
  *   the very same core the Export/Import panel calls, never a second implementation) with
  *   no Activity and no user interaction, then replies with path|bytes|size|count.
  * - [ACTION_LIST_CATEGORIES] answers instantly with the selectable categories, so the
  *   caller can render a checkbox picker without knowing anything about this app.
+ * - [ACTION_CANCEL_EXPORT] stops a running export at the next entry boundary, deletes the
+ *   partial zip and lets that export answer `ERROR:cancelled` for itself. It is
+ *   fire-and-forget: it never replies, and it is a silent no-op at any other time.
  *
  * **The reply is a fresh broadcast and nothing else.** EMUI will not reliably carry a live
  * Binder into another app's manifest receiver, so no `ResultReceiver`/`PendingIntent`/
@@ -65,6 +69,7 @@ class StateExportReceiver : BroadcastReceiver() {
                 reply(app, intent, result)
             }
             ACTION_EXPORT_STATE -> exportState(app, intent, goAsync(), ordered)
+            ACTION_CANCEL_EXPORT -> cancelExport(intent)
             else -> Log.w(TAG, "ignoring unknown action ${intent.action}")
         }
     }
@@ -72,24 +77,32 @@ class StateExportReceiver : BroadcastReceiver() {
     // ------------------------------------------------------------------ LIST_CATEGORIES
 
     /**
-     * `OK:` followed by one `id<TAB>label` line per category. The ids are exactly the ones
-     * accepted in the `items` extra and are the same stable ids used as the zip entry
-     * names. The list is flat — no category of ours has separately selectable parts — so
-     * the optional third (parent-id) field is omitted throughout.
+     * `OK:` followed by one `id<TAB>label<TAB>parent<TAB>on|off` line per category. The ids
+     * are exactly the ones accepted in the `items` extra and are the same stable ids used as
+     * the zip entry names. The list is flat — no category of ours has separately selectable
+     * parts — so the third (parent-id) field is always empty, but it is still sent, because
+     * the fourth field is positional: [SkBackup.Cat.defaultOn] is this app *stating* whether
+     * an item starts ticked instead of leaving the caller's picker to assume it.
      */
     private fun listCategories(app: Context, intent: Intent): String {
         authorize(intent)?.let { return it }
-        return "OK:" + SkBackup.Cat.entries.joinToString("\n") { "${it.id}\t${app.getString(it.labelRes)}" }
+        return "OK:" + SkBackup.Cat.entries.joinToString("\n") { cat ->
+            val default = if (cat.defaultOn) "on" else "off"
+            "${cat.id}\t${app.getString(cat.labelRes)}\t\t$default"
+        }
     }
 
     // ------------------------------------------------------------------ EXPORT_STATE
 
     private fun exportState(app: Context, intent: Intent, pending: PendingResult, ordered: Boolean) {
         val finished = AtomicBoolean(false)
+        val run = Run(intent.getStringExtra(KEY_REPLY_ID).orEmpty())
 
         /** The single terminal path: reply once, release the broadcast once. */
         fun terminate(result: String) {
             if (!finished.compareAndSet(false, true)) return
+            // Past the point of cancelling: a CANCEL_EXPORT from here on is the silent no-op.
+            running.compareAndSet(run, null)
             try {
                 if (ordered) pending.setResultData(result)
                 reply(app, intent, result)
@@ -116,8 +129,9 @@ class StateExportReceiver : BroadcastReceiver() {
             terminate("ERROR:unknown category in items: $itemsRaw")
             return
         }
-        // Absent/empty = everything; otherwise keep the enum's own (dialog) order.
-        val cats = if (ids.isEmpty()) SkBackup.Cat.entries.toList()
+        // Absent/empty = our default set — exactly the categories we answer LIST_CATEGORIES
+        // with as `on`; otherwise keep the enum's own (dialog) order.
+        val cats = if (ids.isEmpty()) SkBackup.Cat.entries.filter { it.defaultOn }
         else SkBackup.Cat.entries.filter { it.id in ids.toSet() }
 
         // --- destination ------------------------------------------------------------
@@ -142,16 +156,26 @@ class StateExportReceiver : BroadcastReceiver() {
         val name = SkBackup.exportFileName()
         val progress = throttledProgress(app, intent)
 
+        // Cancellable from now on. Two exports at once are forbidden by the contract, so one
+        // slot is enough — and a CANCEL_EXPORT carrying no reply_id is unambiguous.
+        running.getAndSet(run)?.let { Log.w(TAG, "an export for reply[${it.replyId}] was still registered") }
+
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 val written = when {
-                    directDir != null -> writeToFile(app, directDir, name, cats, progress)
-                    safDir != null -> writeToSaf(app, safDir, name, cats, progress)
+                    directDir != null -> writeToFile(app, directDir, name, cats, progress, run)
+                    safDir != null -> writeToSaf(app, safDir, name, cats, progress, run)
                     else -> throw IllegalStateException("no-directory") // guarded above
                 }
                 sendProgress(app, intent, cats.size.toLong(), cats.size.toLong(), SkBackup.UNIT_CATEGORY,
                              "${SkBackup.UNIT_CATEGORY} ${cats.size}/${cats.size} — 完了")
                 terminate("OK:${written.path}|${written.bytes}|${humanSize(written.bytes)}|${cats.size} categories")
+            } catch (e: SkBackup.ExportCancelledException) {
+                // The partial zip is already gone (deleted by the writer's own catch), so the
+                // directory is exactly as the run found it. Still answer: it is what proves
+                // the run ended rather than carrying on unseen.
+                Log.i(TAG, "headless export cancelled")
+                terminate("ERROR:cancelled")
             } catch (e: Exception) {
                 Log.e(TAG, "headless export failed", e)
                 terminate("ERROR:${(e.message ?: e.javaClass.simpleName).lines().first().take(160)}")
@@ -159,34 +183,78 @@ class StateExportReceiver : BroadcastReceiver() {
         }
     }
 
+    // ------------------------------------------------------------------ CANCEL_EXPORT
+
+    /**
+     * Fire-and-forget: this action never replies — not even `OK:` — because the export it
+     * stops answers for itself with `ERROR:cancelled` through the original request's reply
+     * channel, guarded by that request's own [AtomicBoolean]. Arriving when nothing is
+     * running, or after the export already finished, it is a **silent no-op**; that is what
+     * makes it safe to send at any time, including a moment too late.
+     *
+     * It is routed through this exported receiver rather than a service on purpose: the
+     * export runs on a `goAsync()` [PendingResult] here, but even where it did not, a
+     * third-party app cannot reach a correctly non-exported service (保存復元 contract).
+     * There is no foreground service and no wakelock to release on this path.
+     */
+    private fun cancelExport(intent: Intent) {
+        if (authorize(intent) != null) return // same gate as the others, but silent — no reply
+        val run = running.get() ?: return // nothing in flight
+        val wanted = intent.getStringExtra(KEY_REPLY_ID)?.trim()
+        if (!wanted.isNullOrEmpty() && wanted != run.replyId) {
+            Log.i(TAG, "cancel for reply[$wanted] does not match the running export reply[${run.replyId}] — ignored")
+            return
+        }
+        Log.i(TAG, "cancel requested for reply[${run.replyId}]")
+        run.cancel()
+    }
+
+    /**
+     * One running headless export, and its stop switch. The flag is polled by
+     * [SkBackup.export] between entries — never a thread interrupt, so a `write()` already in
+     * flight finishes and the zip unwinds at a clean boundary.
+     */
+    private class Run(val replyId: String) : SkBackup.Cancellation {
+
+        @Volatile
+        private var cancelled = false
+
+        override fun isCancelled() = cancelled
+
+        fun cancel() {
+            cancelled = true
+        }
+    }
+
     /** Where the zip landed and how big it really is — the caller cannot stat the file. */
     private class Written(val path: String, val bytes: Long)
 
     /** Plain-file write, used only while the app actually holds All-Files-Access. */
-    private suspend fun writeToFile(app: Context, dir: File, name: String,
-                                    cats: List<SkBackup.Cat>, progress: SkBackup.Progress): Written {
+    private suspend fun writeToFile(app: Context, dir: File, name: String, cats: List<SkBackup.Cat>,
+                                    progress: SkBackup.Progress, cancelled: SkBackup.Cancellation): Written {
         if (!dir.exists() && !dir.mkdirs()) throw IllegalStateException("cannot create directory ${dir.absolutePath}")
         if (!dir.isDirectory) throw IllegalStateException("not a directory: ${dir.absolutePath}")
         val file = File(dir, name)
         try {
             val counter = CountingOutputStream(FileOutputStream(file))
-            counter.use { SkBackup.export(app, cats, it, progress) }
+            counter.use { SkBackup.export(app, cats, it, progress, cancelled) }
             return Written(file.absolutePath, file.length().takeIf { it > 0L } ?: counter.count)
         } catch (e: Exception) {
+            // Every failure, cancellation included, leaves the directory as it found it.
             file.delete() // never leave a truncated export behind
             throw e
         }
     }
 
     /** SAF write into the directory configured on the Export/Import panel. */
-    private suspend fun writeToSaf(app: Context, dir: DocumentFile, name: String,
-                                   cats: List<SkBackup.Cat>, progress: SkBackup.Progress): Written {
+    private suspend fun writeToSaf(app: Context, dir: DocumentFile, name: String, cats: List<SkBackup.Cat>,
+                                   progress: SkBackup.Progress, cancelled: SkBackup.Cancellation): Written {
         val created = dir.createFile("application/zip", name)
             ?: throw IllegalStateException("could not create $name")
         try {
             val counter = CountingOutputStream(app.contentResolver.openOutputStream(created.uri)
                                                        ?: throw IllegalStateException("no output stream"))
-            counter.use { SkBackup.export(app, cats, it, progress) }
+            counter.use { SkBackup.export(app, cats, it, progress, cancelled) }
             return Written(humanPath(created.uri), created.length().takeIf { it > 0L } ?: counter.count)
         } catch (e: Exception) {
             try {
@@ -327,6 +395,13 @@ class StateExportReceiver : BroadcastReceiver() {
          */
         const val ACTION_EXPORT_STATE = "shiroikuma.ongaku.action.EXPORT_STATE"
         const val ACTION_LIST_CATEGORIES = "shiroikuma.ongaku.action.LIST_CATEGORIES"
+        const val ACTION_CANCEL_EXPORT = "shiroikuma.ongaku.action.CANCEL_EXPORT"
+
+        /**
+         * The headless export in flight, or null — process-wide, because a receiver instance
+         * lives only for its own broadcast and the cancel arrives in a different one.
+         */
+        private val running = AtomicReference<Run?>(null)
 
         private const val KEY_TOKEN = "token"
         private const val KEY_PATH = "path"
