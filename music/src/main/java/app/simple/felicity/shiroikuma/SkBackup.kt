@@ -78,8 +78,17 @@ object SkBackup {
         fun onProgress(current: Long, total: Long, unit: String, text: String)
     }
 
-    /** The selectable categories; [id] doubles as the JSON entry name inside the zip. */
-    enum class Cat(val id: String, @field:StringRes val labelRes: Int) {
+    /**
+     * The selectable categories; [id] doubles as the JSON entry name inside the zip.
+     *
+     * [defaultOn] is this app's own statement of whether the item **starts ticked** in a
+     * picker — our Export/Import panel and 保存復元's item editor both seed from it, so
+     * neither has to guess (保存復元 contract §`LIST_CATEGORIES`, fourth field). It is `true`
+     * for everything here: nothing this app exports is large, derived *and* re-creatable.
+     * A future category that is (a downloaded-media cache, a regenerable thumbnail set)
+     * declares `false` and both pickers follow.
+     */
+    enum class Cat(val id: String, @field:StringRes val labelRes: Int, val defaultOn: Boolean = true) {
         // declaration order is dialog order
         UI("ui_theme", R.string.sk_eim_cat_ui),
         METEORS("meteors", R.string.sk_eim_cat_meteors),
@@ -87,6 +96,21 @@ object SkBackup {
         APP("app_settings", R.string.sk_eim_cat_app),
         RATINGS("ratings", R.string.sk_eim_cat_ratings),
         PLAYLISTS("playlists", R.string.sk_eim_cat_playlists)
+    }
+
+    /**
+     * A caller-owned stop signal, polled by [export] at every entry boundary — never a thread
+     * interrupt, so a `write()` in flight always completes and the zip unwinds cleanly.
+     */
+    fun interface Cancellation {
+        fun isCancelled(): Boolean
+    }
+
+    /** Thrown out of [export] when its [Cancellation] turned true; the caller deletes the partial file. */
+    class ExportCancelledException : Exception("cancelled")
+
+    private fun Cancellation?.stopHere() {
+        if (this?.isCancelled() == true) throw ExportCancelledException()
     }
 
     // --- category membership (preference categories only) -----------------------------------
@@ -129,8 +153,12 @@ object SkBackup {
      * [progress] is optional and exists so the same core can be driven headlessly by
      * [app.simple.felicity.automation.StateExportReceiver] — the UI panel and the
      * receiver are two thin callers of this one function, never two implementations.
+     *
+     * [cancelled] is polled between entries; when it turns true this throws
+     * [ExportCancelledException] and the caller deletes what it had written so far.
      */
-    suspend fun export(context: Context, cats: List<Cat>, out: OutputStream, progress: Progress? = null) {
+    suspend fun export(context: Context, cats: List<Cat>, out: OutputStream,
+                       progress: Progress? = null, cancelled: Cancellation? = null) {
         ZipOutputStream(out).use { zip ->
             val catIds = JSONArray()
             cats.forEach { catIds.put(it.id) }
@@ -144,12 +172,13 @@ object SkBackup {
 
             val total = cats.size.toLong()
             for ((index, cat) in cats.withIndex()) {
+                cancelled.stopHere()
                 val position = index + 1L
                 progress?.onProgress(position, total, UNIT_CATEGORY,
                                      "$UNIT_CATEGORY $position/$total — " + context.getString(cat.labelRes))
                 val content = when (cat) {
-                    Cat.RATINGS -> exportRatings(context, progress)
-                    Cat.PLAYLISTS -> exportPlaylists(context, progress)
+                    Cat.RATINGS -> exportRatings(context, progress, cancelled)
+                    Cat.PLAYLISTS -> exportPlaylists(context, progress, cancelled)
                     else -> exportPrefs(context, cat)
                 }
                 writeEntry(zip, cat.id + ".json", content)
@@ -182,7 +211,8 @@ object SkBackup {
     }
 
     /** All favorited songs by their real file paths. */
-    private fun exportRatings(context: Context, progress: Progress? = null): String {
+    private fun exportRatings(context: Context, progress: Progress? = null,
+                              cancelled: Cancellation? = null): String {
         val dao = AudioDatabase.getInstance(context).audioDao()
             ?: throw IllegalStateException("Music library database is not available")
         val all = dao.getAllAudioListAll()
@@ -190,6 +220,7 @@ object SkBackup {
         val a = JSONArray()
         var done = 0L
         all.forEach { audio ->
+            cancelled.stopHere()
             if (audio.isFavorite && !audio.path.isNullOrBlank()) a.put(audio.path)
             done++
             progress?.onProgress(done, total, UNIT_SONG, "$UNIT_SONG $done/$total")
@@ -201,13 +232,15 @@ object SkBackup {
      * Every user-created playlist (M3U-scanned ones are skipped — they regenerate from
      * their files) with its metadata and member song paths in manual order.
      */
-    private suspend fun exportPlaylists(context: Context, progress: Progress? = null): String {
+    private suspend fun exportPlaylists(context: Context, progress: Progress? = null,
+                                        cancelled: Cancellation? = null): String {
         val dao = AudioDatabase.getInstance(context).playlistDao()
         val list = JSONArray()
         val own = dao.getAllPlaylists().first().filterNot { it.isM3UPlaylist }
         val total = own.size.toLong()
         var done = 0L
         for (playlist in own) {
+            cancelled.stopHere()
             done++
             progress?.onProgress(done, total, UNIT_PLAYLIST, "$UNIT_PLAYLIST $done/$total")
             val songs = JSONArray()
