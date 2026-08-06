@@ -139,3 +139,26 @@ First build on upstream Felicity `0.0.27_alpha`; the whole 29-commit customizati
 - Upstream wrapped the seekbar and the media-control row in a new `FlexStackLayout` (`seekbar_container`) in all three player skins. The PowerAmp-style restyle was re-applied onto that structure rather than merged textually: 2 dp seekbar bars with 2 dp gaps and 3× upsampling, the 0.40 visualizer overlay alpha, and the controls-row bottom margin all sit in their new home, and the relocated utility toolbar (favorite / visualizer / equalizer / search / menu, above the chip row) kept its position without leaving a duplicate copy — or duplicate view ids — behind.
 - The edge-meteor attach and the lyric lift now run alongside upstream's new `updateMediaControlOverlap()` in the base player's `onViewCreated`.
 - Verified after the rebase: app id, arm64-only foss ABI filter, the 白い熊 音楽 label, the launcher icon, and all seven forced trial gates.
+
+## 0.0.28_alpha+002 (2026-08-06, base 0.0.28_alpha)
+
+Upstream sync: the whole 31-commit customization stack rebased onto Felicity `0.0.28_alpha`. No new fork features in this build — it exists to carry the fork onto the new base and to reconcile it where upstream grew into the same ground.
+
+### Upstream 0.0.28_alpha brings
+- **USB DAC detach crash fixed** in the player service — unplugging a DAC mid-playback no longer takes the service down.
+- **Album-art palettes are cached in the database** (new `AlbumArtColors` model, DAO and migration) instead of being recomputed on every load, so theme reloading off album art is markedly faster.
+- **Waveforms move to a DB-first pattern** (new `WaveformData` model and DAO) — computed once per track, reused thereafter.
+- **Visualizer bars can be switched off**, with the toggle and its preference exposed in the visualizer tuning dialog, and peak-hold caps gained their own `capsEnabled` property; a bug that re-enabled caps after every track change is fixed.
+- The waveform/bookmark menu now opens on **long press instead of tap**, so tapping the waveform seeks.
+- **Forward/rewind buttons auto-hide** when the media-control row cannot fit the available width.
+- Vertical slide mode for every pager mode (`FelicitySlider` plus new attributes).
+- Room schema 20 → 22 with real migrations, so an in-place update keeps the existing library database.
+- Missing translations filled in for German, French, Italian, Polish, Russian, Turkish and Chinese.
+
+### Fork layer re-anchored on the new base
+- **Two independent `capsEnabled` implementations merged into one.** Upstream added a public `capsEnabled` property with an invalidating setter for the same feature this fork had built at `0.0.26_alpha+23` — a private tracked flag plus `applyCapAlpha()`. Left side by side they would have been a redeclaration and a JVM signature clash. They are now a single public `var capsEnabled` whose setter does both: upstream's `invalidate()` and the fork's alpha reapplication, which is what keeps disabled caps from being resurrected every time a colour assignment resets the cap paint's alpha. Upstream's new `barsEnabled` sits beside it untouched.
+- **Upstream's new bars toggle wired into the fork's renderer.** Upstream gated its per-band drawing call with `if (barsEnabled)` — but that loop is exactly what the PowerAmp-style commit replaced with the dense upsampled pass, so the gate would have been dropped along with the code it guarded. It now sits on the fork's own bar-drawing call, and the toggle works as upstream intended. Their `capsEnabled` gate had already landed on the interpolated cap draw unaided.
+- Verified after the rebase: app id `shiroikuma.ongaku`, the arm64-only foss ABI filter, the 白い熊 音楽 label, the launcher icon, and all seven forced trial gates.
+
+### Packaging
+- The build counter is now **zero-padded to three digits** in the versionName, the APK filename and the release tag (`0.0.28_alpha+002`), so builds sort in build order everywhere. The versionCode stays a plain integer (`280002`). Earlier tags keep their unpadded names and are never renamed.
