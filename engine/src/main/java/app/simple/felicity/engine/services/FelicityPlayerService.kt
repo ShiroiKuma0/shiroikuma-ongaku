@@ -515,6 +515,11 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
         params.x = 0
         params.y = 0
 
+        // Cap the window alpha at the untrusted-touch limit — see [METEOR_OVERLAY_ALPHA]. Set here
+        // rather than at the addView call site so onConfigurationChanged's updateViewLayout (which
+        // rebuilds params through this function on every fold/unfold) keeps the cap.
+        params.alpha = METEOR_OVERLAY_ALPHA
+
         return params
     }
 
@@ -2735,6 +2740,17 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
          * produces a snapshot, reducing duplicate pipeline updates from 6 to 1.
          */
         private const val SNAPSHOT_DEBOUNCE_MS = 200L
+
+        /**
+         * Fork (音楽端灯): window alpha for the system-wide overlay. Matches Android's
+         * `maximum_obscuring_opacity_for_touch` default: since Android 12 the system BLOCKS a touch
+         * to the app underneath when an untrusted overlay obscures the touch point at a HIGHER
+         * opacity than this. FLAG_NOT_TOUCHABLE does not help — it stops the window RECEIVING
+         * touches, not OBSCURING them — so a full-screen overlay at the default alpha of 1.0 kills
+         * every tap on the screen (白い熊, 2026-08-08). Sitting exactly at the limit is the
+         * brightest this window can be and still let taps through.
+         */
+        private const val METEOR_OVERLAY_ALPHA = 0.8f
 
         /** Custom session command sent when the user taps the repeat button in the notification. */
         const val COMMAND_TOGGLE_REPEAT = "app.simple.felicity.TOGGLE_REPEAT"
