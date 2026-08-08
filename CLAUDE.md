@@ -51,7 +51,7 @@ Multi-module Groovy-DSL Gradle project. App module `:music`; libraries `:theme :
 
 ## Current status
 
-Tracking upstream tag `0.0.28_alpha` (rebased 2026-08-06); 31 commits on `custom`. Current build = `0.0.28_alpha+002` (code `280002`).
+Tracking upstream tag `0.0.28_alpha` (rebased 2026-08-06); 35 commits on `custom`. Current build = `0.0.28_alpha+003` (code `280003`).
 
 ---
 
