@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.util.Log
@@ -100,6 +102,29 @@ class MainActivity : BaseActivity(), MiniPlayerCallbacks {
 
     /** Ensures the DAC launch-pulse only runs once, on the first resume. */
     private var dacPulseDone = false
+
+    /**
+     * Fork (白い熊 音楽 UI): true once the activity has been stopped, i.e. the app really went
+     * away rather than merely being covered by a dialog or a permission prompt. Only a return
+     * from that counts as "launching the app" for the auto-player below.
+     */
+    private var wasBackgrounded = false
+
+    /** Fork (白い熊 音楽 UI): true until the first [onResume], which is a launch just as much. */
+    private var isFirstLaunchResume = true
+
+    /**
+     * Fork (白い熊 音楽 UI): armed while the app is entering the foreground, so a playback start
+     * that lands a beat later — the 自由作業盤 shortcut fires its play op and the launch at the
+     * same moment — still opens the player. Disarmed the moment the player opens, when the app
+     * stops, or once the arm window expires, so playing from the mini player later on never
+     * yanks the user off the page they are on.
+     */
+    private var autoPlayerArmed = false
+
+    private val autoPlayerHandler = Handler(Looper.getMainLooper())
+
+    private val autoPlayerDisarm = Runnable { autoPlayerArmed = false }
 
     override fun onCreate(savedInstanceState: Bundle?) {
 
@@ -215,7 +240,12 @@ class MainActivity : BaseActivity(), MiniPlayerCallbacks {
         lifecycleScope.launch {
             MediaPlaybackManager.playbackStateFlow.collect { state ->
                 when (state) {
-                    MediaConstants.PLAYBACK_PLAYING -> binding.miniPlayer.setPlaying(true)
+                    MediaConstants.PLAYBACK_PLAYING -> {
+                        binding.miniPlayer.setPlaying(true)
+                        // Fork (白い熊 音楽 UI): playback that starts right after the app was
+                        // opened (the 自由作業盤 shortcut) still lands on the player.
+                        openPlayerIfPlaying()
+                    }
                     MediaConstants.PLAYBACK_PAUSED -> binding.miniPlayer.setPlaying(false)
                 }
                 // Fork (白い熊 音楽 UI): keep the screen awake while music plays (settable).
@@ -331,6 +361,54 @@ class MainActivity : BaseActivity(), MiniPlayerCallbacks {
             UserInterfacePreferences.PLAYER_INTERFACE_CAROUSEL -> CarouselPlayer.newInstance()
             else -> DefaultPlayer.newInstance()
         }
+    }
+
+    /**
+     * Fork (白い熊 音楽 UI): arms the auto-player for one foreground entry and tries it
+     * immediately. Called when the app is launched or comes back from the background —
+     * the two moments 白い熊 expects to land on the playing view rather than the library.
+     */
+    private fun armAutoPlayer() {
+        autoPlayerArmed = true
+        autoPlayerHandler.removeCallbacks(autoPlayerDisarm)
+        openPlayerIfPlaying()
+        // Only start the countdown once the queue is actually known: on a cold start the
+        // database restore can take longer than the window itself, and onStateReady() starts
+        // the countdown instead.
+        if (autoPlayerArmed && MediaPlaybackManager.getSongs().isNotEmpty()) {
+            autoPlayerHandler.postDelayed(autoPlayerDisarm, AUTO_PLAYER_ARM_WINDOW_MS)
+        }
+    }
+
+    /**
+     * Fork (白い熊 音楽 UI): opens the player over the home panel when the app is entered while
+     * music is playing — the shortcut that starts a song, or the launcher icon tapped mid-song.
+     * Landing on the library and having to tap the mini player line first was the complaint.
+     *
+     * The player is opened through the very same [ScopedFragment.openFragment] call the mini
+     * player line makes, so the page that appears is identical to the one 白い熊 gets by hand,
+     * back-stack behaviour and all: one press of back returns to the library.
+     *
+     * Deliberately narrow — it only ever covers the home panel, which is the one screen
+     * committed without a back-stack entry. If the user had navigated somewhere (a list, the
+     * equalizer, preferences), that page is theirs and is left alone.
+     */
+    private fun openPlayerIfPlaying() {
+        if (!autoPlayerArmed) return
+        if (!MediaPlaybackManager.isPlaybackActive()) return
+        if (MediaPlaybackManager.getSongs().isEmpty()) return
+        if (supportFragmentManager.backStackEntryCount != 0) return
+
+        val top = supportFragmentManager.fragments.lastOrNull()
+        // Nothing committed yet (cold start, home transaction still pending) — a later
+        // onStateReady() or playback event will try again while the arm is still live.
+        if (top !is ScopedFragment) return
+        // The setup and paywall screens are not something to bury under a player.
+        if (top is Setup || top is TrialExpired) return
+
+        autoPlayerArmed = false
+        autoPlayerHandler.removeCallbacks(autoPlayerDisarm)
+        top.openFragment(openPlayerForCurrentPreference(), BasePlayerFragment.TAG)
     }
 
     fun showHome() {
@@ -601,6 +679,15 @@ class MainActivity : BaseActivity(), MiniPlayerCallbacks {
         if (wantsVisible) {
             binding.miniPlayer.show(animated = true)
         }
+
+        // Fork (白い熊 音楽 UI): the queue is only now known, so this is the first honest
+        // moment to decide whether the launch should land on the player — and the moment the
+        // arm window can start counting.
+        openPlayerIfPlaying()
+        if (autoPlayerArmed) {
+            autoPlayerHandler.removeCallbacks(autoPlayerDisarm)
+            autoPlayerHandler.postDelayed(autoPlayerDisarm, AUTO_PLAYER_ARM_WINDOW_MS)
+        }
     }
 
     /**
@@ -712,11 +799,25 @@ class MainActivity : BaseActivity(), MiniPlayerCallbacks {
                 UsbDacDriver.getInstance(this).checkForExistingDac()
             }
         }
+
+        // Fork (白い熊 音楽 UI): a cold start (isFirstLaunchResume) or a return from the
+        // background is an app launch as far as 白い熊 is concerned — go to the playing view.
+        // A dialog or a permission prompt closing is not: those never stop the activity.
+        if (isFirstLaunchResume || wasBackgrounded) {
+            isFirstLaunchResume = false
+            wasBackgrounded = false
+            armAutoPlayer()
+        }
     }
 
     override fun onStop() {
         super.onStop()
         savePlaybackState()
+        // Fork (白い熊 音楽 UI): the app is away — the next resume counts as a launch, and
+        // no arm from this visit may survive into it.
+        wasBackgrounded = true
+        autoPlayerArmed = false
+        autoPlayerHandler.removeCallbacks(autoPlayerDisarm)
     }
 
     private fun savePlaybackState() {
@@ -768,5 +869,15 @@ class MainActivity : BaseActivity(), MiniPlayerCallbacks {
         } else {
             Log.d("MainActivity", "Received non-search intent: ${intent.action}")
         }
+    }
+
+    companion object {
+        /**
+         * Fork (白い熊 音楽 UI): how long after entering the foreground a playback start still
+         * counts as "part of this launch" and opens the player. Long enough for the shortcut's
+         * play op to reach the service and come back as PLAYING, short enough that pressing
+         * play on the mini player minutes later leaves the current page alone.
+         */
+        private const val AUTO_PLAYER_ARM_WINDOW_MS = 3000L
     }
 }
