@@ -616,6 +616,26 @@ object MediaPlaybackManager {
     }
 
     /**
+     * Fork (白い熊 音楽 UI): `true` while music is actually playing, according to EITHER source
+     * of truth — the live [MediaController] or the last state the service pushed through
+     * [notifyPlaybackState].
+     *
+     * [isPlaying] alone reads the controller mirror, and that mirror is wrong in exactly the
+     * moments the UI is being built: it is null while an activity is being re-created (the
+     * controller is connected asynchronously, well after the first fragment's onViewCreated),
+     * and it lags the service's own `onIsPlayingChanged` by an IPC hop — so a view that asks
+     * "are we playing?" while handling [MediaConstants.PLAYBACK_PLAYING] is told "no" and,
+     * since the state never changes again, never gets a second chance to ask.
+     *
+     * Callers that only *paint* playback state (dim, meteors, icons) should use this;
+     * callers that *drive* playback still want the controller-backed [isPlaying].
+     */
+    fun isPlaybackActive(): Boolean {
+        return mediaController?.isPlaying == true ||
+                lastKnownPlaybackState == MediaConstants.PLAYBACK_PLAYING
+    }
+
+    /**
      * Returns which of the five queue slots (0–4) is currently active.
      */
     fun getActiveQueueId(): Int = activeQueueId
@@ -1022,6 +1042,10 @@ object MediaPlaybackManager {
         mediaController?.seekTo(0, 0L)
         mediaController?.pause()
         currentSongPosition = 0
+        // The end of the queue arrives as STATE_ENDED, which never routes through
+        // notifyPlaybackState() — keep the cached state honest so [isPlaybackActive] does
+        // not keep reporting "playing" after the queue has run out.
+        lastKnownPlaybackState = MediaConstants.PLAYBACK_PAUSED
         scope.launch {
             _playbackStateFlow.emit(MediaConstants.PLAYBACK_PAUSED)
             _songPositionFlow.emit(0)
