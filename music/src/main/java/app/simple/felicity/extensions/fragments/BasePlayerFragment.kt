@@ -502,7 +502,7 @@ abstract class BasePlayerFragment : MediaFragment() {
     private fun updateEdgeMeteorsState() {
         val overlayActive = MeteorPreferences.isOverlayEnabled() &&
                 android.provider.Settings.canDrawOverlays(requireContext())
-        edgeMeteors?.visibility = if (MeteorPreferences.isEnabled() && !overlayActive && MediaPlaybackManager.isPlaying()) {
+        edgeMeteors?.visibility = if (MeteorPreferences.isEnabled() && !overlayActive && MediaPlaybackManager.isPlaybackActive()) {
             View.VISIBLE
         } else {
             View.GONE
@@ -517,14 +517,23 @@ abstract class BasePlayerFragment : MediaFragment() {
      * read dark, not bright. Pausing or stopping restores full content brightness. The
      * lifted lyric line and the meteors live above the visualizer in the host frame, so
      * they are never dimmed.
+     *
+     * [playing] is the state to paint. Callers that already know it (the playback-state
+     * callback) MUST pass it: re-deriving it from the media controller there is what used to
+     * leave the player undimmed after an automation start or an app relaunch — the controller
+     * mirror still said "paused" while the event said "playing". Everyone else gets
+     * [MediaPlaybackManager.isPlaybackActive], which never lies about a live service.
      */
-    private fun updatePlaybackDim(animate: Boolean = true) {
+    private fun updatePlaybackDim(animate: Boolean = true, playing: Boolean = MediaPlaybackManager.isPlaybackActive()) {
         val content = (visualizer.parent as? ViewGroup)?.getChildAt(0) ?: return
-        val dimmed = MediaPlaybackManager.isPlaying() && PlayerPreferences.isVisualizerEnabled()
+        val dimmed = playing && PlayerPreferences.isVisualizerEnabled()
         val contentAlpha = if (dimmed) PLAYBACK_DIM_CONTENT_ALPHA else 1f
         if (animate) {
             content.animate().alpha(contentAlpha).setDuration(PLAYBACK_DIM_DURATION_MS).start()
         } else {
+            // Drop any fade still in flight — one scheduled while the app was in the
+            // background would otherwise overwrite this snap the moment it resumes.
+            content.animate().cancel()
             content.alpha = contentAlpha
         }
     }
@@ -660,6 +669,21 @@ abstract class BasePlayerFragment : MediaFragment() {
         }
     }
 
+    /**
+     * Fork (白い熊 音楽 UI): re-paint the playback-driven overlays every time the player comes
+     * back to the front. Whatever happened while the app was away — an automation shortcut
+     * starting a song, a play from the notification or the widget, the activity being
+     * re-created around a restored back stack — playback state does not change again just
+     * because the user returned, so nothing else would ever correct a stale dim. Snapping
+     * (no fade) means the page is already right in its first frame rather than easing into
+     * it, which is what made the relaunched player look like a different screen.
+     */
+    override fun onResume() {
+        super.onResume()
+        updatePlaybackDim(animate = false)
+        updateEdgeMeteorsState()
+    }
+
     override fun onDestroyView() {
         // Release the direct twin-buffer connection so the audio thread no longer holds
         // a WeakReference to the now-destroyed visualizer view.
@@ -753,8 +777,9 @@ abstract class BasePlayerFragment : MediaFragment() {
                 // Fork (白い熊 音楽 UI): lift the visualizer's pause-silence latch
                 visualizer.wakeFromSilence()
                 // Fork (白い熊 音楽 UI): PowerAmp-style — darken the player content so the
-                // visualizer stands out while music plays.
-                updatePlaybackDim()
+                // visualizer stands out while music plays. The event is the source of truth
+                // here; the controller mirror may not have caught up yet.
+                updatePlaybackDim(playing = true)
                 // Fork (音楽端灯): show the meteors while music plays.
                 updateEdgeMeteorsState()
                 // Also drain any pending waveform that was queued before the ready event arrived
@@ -770,7 +795,7 @@ abstract class BasePlayerFragment : MediaFragment() {
                 // which would freeze the visualizer at its last spectrum — ease it to zero.
                 visualizer.dropToSilence()
                 // Fork (白い熊 音楽 UI): restore full content brightness on pause/stop.
-                updatePlaybackDim()
+                updatePlaybackDim(playing = false)
                 // Fork (音楽端灯): hide the meteors on pause/stop.
                 updateEdgeMeteorsState()
             }
