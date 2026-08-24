@@ -147,11 +147,16 @@ object UserInterfacePreferences {
 
     /**
      * Returns true when the song list should appear before the album, artist,
-     * and genre sections on detail pages. Songs lead by default.
+     * and genre sections on detail pages.
+     *
+     * Fork (白い熊 音楽 UI): default off — the cumulative album/artist/genre
+     * carousels lead a detail page and the individual songs form the final
+     * block, which is what this fork shipped before upstream made the order a
+     * preference. The settings toggle still works.
      */
     fun isSongsFirstInPages(): Boolean {
         return getSharedPreferences()
-            .getBoolean(SONGS_FIRST_IN_PAGES, true)
+            .getBoolean(SONGS_FIRST_IN_PAGES, false)
     }
 
     /**
