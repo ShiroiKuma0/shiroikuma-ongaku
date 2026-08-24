@@ -31,7 +31,7 @@ Claude executes every step itself with the Bash tool. Run commands directly and 
 | Keystore password | in `~/.android-keystores/shiroikuma-ongaku.pw` (mode 600, **out of repo, never committed**) and the vault `~/〇/[666] 私資料/[666][27] 暗号/android-keystores.org` |
 | Output APK dir (build) | `music/build/outputs/apk/foss/release/` |
 | Output APK dir (archive) | `~/tmp/` + on-device `/sdcard/tmp/` |
-| APK filename | `shiroikuma-ongaku_<versionName>_arm64-v8a.apk`, e.g. `shiroikuma-ongaku_0.0.28_alpha+002_arm64-v8a.apk` (no datetime, no git sha) |
+| APK filename | `shiroikuma-ongaku_<versionName>_arm64-v8a.apk`, e.g. `shiroikuma-ongaku_0.0.29_alpha+001_arm64-v8a.apk` (no datetime, no git sha) |
 | Build host | Tuxedo OS |
 | Build JDK | OpenJDK 21 at `/usr/lib/jvm/java-21-openjdk-amd64` (modules pin `jvmTarget = JVM_21`) |
 | Android SDK | `~/android-sdk`, platform `android-36` + build-tools `36.x` |
@@ -53,7 +53,7 @@ Coexistence is decided purely by `applicationId` (`shiroikuma.ongaku` vs officia
 | `master` | Mirrors `Hamza417/Felicity` master. Never carries our changes. | Fast-forward only |
 | `custom` | Carries all commits below. | Rebased onto each upstream release tag |
 
-`origin` = the fork (SSH, push). `upstream` = Hamza417 (HTTPS, fetch only). Felicity release tags are bare `X.Y.Z_alpha` (e.g. `0.0.28_alpha`), no `v` prefix. Upstream's master usually sits one untagged patch **ahead** of the latest release tag (e.g. master at code 29 / `0.0.29_alpha` while the newest tag is `0.0.28_alpha`); `custom` is rebased onto the **latest release tag**, not master head. Checking for and syncing to a newer tag is the **`upstream-new-version`** skill.
+`origin` = the fork (SSH, push). `upstream` = Hamza417 (HTTPS, fetch only). Felicity release tags are bare `X.Y.Z_alpha` (e.g. `0.0.29_alpha`), no `v` prefix. Upstream's master usually sits one untagged patch **ahead** of the latest release tag (e.g. master at code 30 / `0.0.30_alpha` while the newest tag is `0.0.29_alpha`); `custom` is rebased onto the **latest release tag**, not master head. Checking for and syncing to a newer tag is the **`upstream-new-version`** skill.
 
 ## Customization commits on `custom`
 
@@ -68,8 +68,8 @@ Two files. The most rebase-sensitive commit; re-anchor (don't fight the merge) i
 ```diff
 -        applicationId "app.simple.felicity"
 -
--        versionCode 27
--        versionName "0.0.28_alpha"
+-        versionCode 29
+-        versionName "0.0.29_alpha"
 +        applicationId "shiroikuma.ongaku"
 +
 +        // Fork versioning (shiroikuma): the ongaku-build / upstream-new-version skills inject
@@ -123,12 +123,12 @@ This neutralizes every gate regardless of call site (`MainActivity` paywall swap
 
 ## Versioning (local counter + `-P` injection — no per-build commit)
 
-- **Base tag** = the tracked Felicity release tag = the tag `custom` is rebased onto (`git describe --tags --abbrev=0 --exclude='*+*'` on `custom` — the exclude skips our own `<name>+<N>` release tags, which publish-version creates on this branch), e.g. `0.0.28_alpha`. This **keys the counter**.
-- **Display name** = the base tag verbatim (no prefix to strip) → `0.0.28_alpha`. Used for the versionName and APK filename.
-- **Base code** = upstream's own versionCode for that tag, read with `git show <tag>:music/build.gradle` (e.g. `0.0.28_alpha` → `28`).
+- **Base tag** = the tracked Felicity release tag = the tag `custom` is rebased onto (`git describe --tags --abbrev=0 --exclude='*+*'` on `custom` — the exclude skips our own `<name>+<N>` release tags, which publish-version creates on this branch), e.g. `0.0.29_alpha`. This **keys the counter**.
+- **Display name** = the base tag verbatim (no prefix to strip) → `0.0.29_alpha`. Used for the versionName and APK filename.
+- **Base code** = upstream's own versionCode for that tag, read with `git show <tag>:music/build.gradle` (e.g. `0.0.29_alpha` → `29`).
 - **N** = per-build iteration from `~/tmp/.shiroikuma_ongaku_build` (one line: `<base_tag> <N>`). Increment on each **successful** build; **reset to 1 when the base tag changes** (new upstream tag). Consumed only on success.
-- **versionName** = `<base_tag>+<NNN>`, the counter **zero-padded to three digits** → `0.0.28_alpha+001`, `0.0.28_alpha+002`, … (`+` is legal in Android versionName and on ext4/FAT/`adb push`/GitHub assets — leave it unescaped). Padding is the global `after-build` rule (2026-08-01) — it keeps `~/tmp/`, the phone's file manager and the release list sorted in build order. Tags published before it (`0.0.27_alpha+1` and earlier) stay as they are; never retag.
-- **versionCode** = `<base_code> * 10000 + N` → `280002`, `270002`, … Far above the official app's code (`27`), so Android always sees our build as newer, with 9999 builds of headroom per base; rebasing onto a newer tag raises the base so we stay ahead.
+- **versionName** = `<base_tag>+<NNN>`, the counter **zero-padded to three digits** → `0.0.29_alpha+001`, `0.0.29_alpha+002`, … (`+` is legal in Android versionName and on ext4/FAT/`adb push`/GitHub assets — leave it unescaped). Padding is the global `after-build` rule (2026-08-01) — it keeps `~/tmp/`, the phone's file manager and the release list sorted in build order. Tags published before it (`0.0.27_alpha+1` and earlier) stay as they are; never retag.
+- **versionCode** = `<base_code> * 10000 + N` → `290001`, `280002`, … Far above the official app's code (`29`), so Android always sees our build as newer, with 9999 builds of headroom per base; rebasing onto a newer tag raises the base so we stay ahead.
 - Inject at the gradlew call: `-PshiroikumaVersionName="$our_name" -PshiroikumaVersionCode="$our_code"`.
 
 ## Signing
@@ -161,13 +161,13 @@ EOF
 # version: base tag = nearest tag on custom (keys the counter); display name = tag verbatim;
 # base code = that tag's upstream versionCode; N from the local counter (resets when the tag changes)
 base_tag=$(git describe --tags --abbrev=0 --exclude='*+*')
-disp_name="$base_tag"                              # 0.0.28_alpha
+disp_name="$base_tag"                              # 0.0.29_alpha
 base_code=$(git show "$base_tag:music/build.gradle" | grep -oE 'versionCode[[:space:]]+[0-9]+' | grep -oE '[0-9]+$')
 counter="$HOME/tmp/.shiroikuma_ongaku_build"
 stored_name=""; stored_n=0
 [ -f "$counter" ] && read stored_name stored_n < "$counter"
 if [ "$stored_name" = "$base_tag" ]; then N=$((stored_n + 1)); else N=1; fi
-our_name="${disp_name}+$(printf '%03d' "$N")"       # 0.0.28_alpha+002 (counter always 3-digit padded)
+our_name="${disp_name}+$(printf '%03d' "$N")"       # 0.0.29_alpha+001 (counter always 3-digit padded)
 our_code=$(( base_code * 10000 + N ))
 apk_name="shiroikuma-ongaku_${our_name}_arm64-v8a.apk"
 echo "Will produce: $apk_name (versionCode $our_code)"
