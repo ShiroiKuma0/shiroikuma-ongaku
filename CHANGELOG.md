@@ -191,3 +191,28 @@ Upstream sync: the whole 31-commit customization stack rebased onto Felicity `0.
 - `onResume()` on the player re-snaps the dim and the in-app meteors, so a page returning to the front is right in its first frame regardless of what happened while the app was away; the non-animated path cancels any fade still in flight, which would otherwise overwrite that snap the moment it resumed.
 - `handleQueueEnded()` now updates the cached playback state as well — the end of a queue arrives as `STATE_ENDED` and bypassed `notifyPlaybackState()` entirely, which would have left the new helper reporting "playing" after the music had run out.
 - The in-app edge meteors were reading the same lying mirror and are fixed by the same change.
+
+## 0.0.29_alpha+001 (2026-08-24, base 0.0.29_alpha)
+
+### Rebased onto Felicity 0.0.29_alpha
+
+The whole fork stack (40 commits) replays onto upstream's new release tag. What it brings, and what it did to our layer:
+
+- **Audio engine.** Upstream fixed a state-change latency bug in the AAudio and Oboe sinks — pause used to take seconds to actually go quiet while the playback thread worked through a backlog of already-decoded buffers; it now silences the active native route on the spot. Alongside it: static gaps in both sinks, and inconsistent DSP processing when audio runs through a secondary sink. All of it lands in code the fork does not patch, so it arrives intact.
+- **USB DAC teardown.** Detaching a DAC could take the player service down with it. Upstream reordered `onDestroy()` so the player and media session are released *first* — `ExoPlayer.release()` blocks until the sink has removed its own USB listener on the correct thread — and only then detaches the driver. Our 音楽端灯 teardown (dropping the system-wide overlay and its screen-state receiver) keeps its place at the top of that method, above upstream's reordered sequence.
+- **Lyrics.** The plain-lyrics curtain animation no longer starts from the top, so lines stop taking an age to fully appear.
+- Also new upstream: a shuffle button in the playing-queue header, a clear button in the search panel, the fast-scroll button hidden when search results are empty, bookmarks animating again, the dashboard header strip's fading edge fixed, and tapping the widget now opens the app.
+
+### Browse pages — upstream turned our ordering into a setting
+
+- 0.0.29_alpha ships **“Show Songs First”**, a preference in the UI settings that decides whether the song list leads a detail page or trails the album, artist and genre carousels. That is precisely what this fork's own `PageAdapter` commit had hard-coded since `0.0.26_alpha+30`, so the commit is **dropped** in favour of upstream's implementation — one less patch to carry, and the behaviour is now yours to change without a rebuild.
+- Upstream defaults the toggle to songs-first. The fork **defaults it to off**, keeping the order established here — the cumulative sections lead, the individual songs form the final block — so nothing moves under you on update. Flip it in the interface preferences, under the new **Pages** heading, if you want the stock order back.
+
+### Fork patches that met upstream's changes
+
+- **Waveform seekbar.** Upstream added `wsbOptics`, a fish-eye lens strength that bends the waveform around the playhead (default `0.0`, flat, with a slider in the waveform menu). It sits beside our `wsbUpsample` attribute — the interpolated bars that keep the thin 2 dp waveform as dense as the visualizer's row — both attributes kept, neither overriding the other.
+- **Visualizer.** Upstream removed the “disable bars” toggle entirely: the `BARS_ENABLED` preference, its dialog row and layout, and the wiring in the player fragment are gone, though the view's `barsEnabled` property remains. Nothing in the fork depended on that preference, so the removal is taken as-is; our particles-off and caps-off defaults, and the live repaint on a 白い熊 音楽 UI colour change, are untouched.
+
+### Heads-up on an upstream default change
+
+- Upstream flipped **“Skip Hidden Files”** and **“Skip .nomedia”** to **off** by default. The fork does not patch those, so an install that never touched either toggle will now let a library rescan pick up hidden files and `.nomedia` folders it previously ignored. Turn them back on in the library settings if that is not what you want.
