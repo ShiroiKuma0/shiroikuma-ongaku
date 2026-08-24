@@ -12,8 +12,8 @@ Publishes the **newest already-built** ongaku APK as a GitHub release on `Shiroi
 ```bash
 apk=$(ls -t ~/tmp/shiroikuma-ongaku_*.apk 2>/dev/null | head -1)
 [ -z "$apk" ] && { echo "No built APK in ~/tmp — build first (ongaku-build)."; exit 1; }
-base=$(basename "$apk")                       # shiroikuma-ongaku_0.0.28_alpha+002_arm64-v8a.apk
-ver=${base#shiroikuma-ongaku_}; ver=${ver%_arm64-v8a.apk}   # 0.0.28_alpha+002
+base=$(basename "$apk")                       # shiroikuma-ongaku_0.0.29_alpha+001_arm64-v8a.apk
+ver=${base#shiroikuma-ongaku_}; ver=${ver%_arm64-v8a.apk}   # 0.0.29_alpha+001
 echo "APK: $base"; echo "version: $ver"
 ```
 
