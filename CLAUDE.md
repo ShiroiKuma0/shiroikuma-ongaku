@@ -11,7 +11,7 @@
 
 - `origin` = `git@github.com:ShiroiKuma0/shiroikuma-ongaku.git` (SSH, push here).
 - `upstream` = `https://github.com/Hamza417/Felicity.git` (HTTPS, **fetch only**).
-- Upstream tags releases `X.Y.Z_alpha` (no `v`); master usually sits one untagged patch ahead of the newest tag. `custom` tracks the **latest release tag** (currently `0.0.28_alpha`).
+- Upstream tags releases `X.Y.Z_alpha` (no `v`); master usually sits one untagged patch ahead of the newest tag. `custom` tracks the **latest release tag** (currently `0.0.29_alpha`).
 
 ## Skills (`.claude/skills/`)
 
@@ -22,7 +22,7 @@
 ## Build, versioning, signing
 
 - **Flavor:** `foss` (not `play`) → `:music:assembleFossRelease`. **ABI:** `arm64-v8a` only.
-- **versionName** = `<base_tag>+<NNN>` with the counter **zero-padded to three digits** (e.g. `0.0.28_alpha+002`); **versionCode** = `<upstream code>*10000 + N` (e.g. `280002`, plain integer — padding is text only). `N` is a local counter in `~/tmp/.shiroikuma_ongaku_build`, **reset to 1 on each upstream-tag change**, injected via `-PshiroikumaVersionName` / `-PshiroikumaVersionCode` (no per-build commit). Padding is the global `after-build` rule (2026-08-01) so names and tags sort in build order; tags published before it (`0.0.27_alpha+1` and earlier) keep their unpadded form and are never renamed.
+- **versionName** = `<base_tag>+<NNN>` with the counter **zero-padded to three digits** (e.g. `0.0.29_alpha+001`); **versionCode** = `<upstream code>*10000 + N` (e.g. `290001`, plain integer — padding is text only). `N` is a local counter in `~/tmp/.shiroikuma_ongaku_build`, **reset to 1 on each upstream-tag change**, injected via `-PshiroikumaVersionName` / `-PshiroikumaVersionCode` (no per-build commit). Padding is the global `after-build` rule (2026-08-01) so names and tags sort in build order; tags published before it (`0.0.27_alpha+1` and earlier) keep their unpadded form and are never renamed.
 - **APK:** `shiroikuma-ongaku_<versionName>_arm64-v8a.apk` → `~/tmp/` then delivered by `/after-build`.
 - **Signing:** keystore `~/.android-keystores/shiroikuma-ongaku.jks` (alias `ongaku`); password in `~/.android-keystores/shiroikuma-ongaku.pw` (mode 600, **out of repo**) + the vault. `local.properties` is regenerated each build (gitignored) reading that `.pw` — **no secret ever enters git**.
 - **Toolchain:** JDK 21, SDK platform-36 / build-tools 36.x, NDK `28.2.13676358` (installed, matches upstream pin), CMake 3.22.1, AGP 9.1.1 / Kotlin 2.3.21 / KSP 2.3.4, Gradle 9.3.1 wrapper. Invoke `sh ./gradlew` (gradlew is committed mode 644 — never `chmod +x`).
@@ -51,7 +51,7 @@ Multi-module Groovy-DSL Gradle project. App module `:music`; libraries `:theme :
 
 ## Current status
 
-Tracking upstream tag `0.0.28_alpha` (rebased 2026-08-06); 39 commits on `custom`. Current build = `0.0.28_alpha+005` (code `280005`).
+Tracking upstream tag `0.0.29_alpha` (rebased 2026-08-24); 40 commits on `custom`. Current build = `0.0.29_alpha+001` (code `290001`).
 
 ---
 
