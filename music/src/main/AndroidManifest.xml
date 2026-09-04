@@ -14,6 +14,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Fork (保存復元 §2a): the data door's export/import runs in a foreground service typed
+         specialUse, which needs its own permission from API 34 up. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- Fork (音楽端灯): system-wide edge-meteors overlay window while music plays -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Fork (保存復元): All-Files-Access so a 自由作業盤 batch run can point every sister
@@ -22,6 +25,15 @@
     <uses-permission
         android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:ignore="ScopedStorage" />
+
+    <!-- Fork (保存復元 §4): without this, setPackage() on our reply/progress broadcasts fails
+         SILENTLY on Android 11+ — the export runs, writes correctly and is never heard of.
+         自由作業盤 is reachable already (it starts our components, which makes it visible to
+         us); 応用管理 only ever calls the provider, so it has to be named here. -->
+    <queries>
+        <package android:name="shiroikuma.oyokanri" />
+        <package android:name="shiroikuma.jiyusagyoban" />
+    </queries>
 
     <application
         android:name=".application.FelicityApplication"
@@ -89,9 +101,49 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Fork (保存復元 §2a): the data door. 応用管理 backs this app up WITH its data and
+             puts it back on a wiped phone, moving the bytes through a descriptor it opened
+             itself. No android:permission — a custom one would have to be `normal` (any app may
+             hold it) or `signature` (impossible: every app in this family has its own keystore),
+             and neither buys anything AutomationCallers does not already check: exact package
+             name, uid cross-check, pinned signing certificate. `import` lives ONLY here, never
+             on the exported receiver below. -->
+        <provider
+            android:name=".automation.AutomationProvider"
+            android:authorities="${applicationId}.automation"
+            android:exported="true" />
+
+        <!-- Where an export or import actually runs: a binder call returns in milliseconds and
+             this can take minutes, and a backgrounded app writing for minutes is frozen
+             mid-stream on this phone. -->
+        <service
+            android:name=".automation.AutomationDataService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Automation data export/import" />
+        </service>
+
+        <!-- Capability discovery, readable without waking us: 応用管理 builds its list across
+             every installed package with MATCH_UNINSTALLED_PACKAGES | MATCH_DISABLED_COMPONENTS,
+             because a frozen app (白い熊 freezes aggressively) cannot be asked anything. An app
+             without these entries is simply not offered for data backup or restore. -->
+        <meta-data
+            android:name="shiroikuma.automation.contract"
+            android:value="2" />
+        <meta-data
+            android:name="shiroikuma.automation.format"
+            android:value="1" />
+        <meta-data
+            android:name="shiroikuma.automation.min_format"
+            android:value="1" />
+
         <!-- Fork (保存復元): the state-export automation contract — 自由作業盤 fires these to
              back up every sister app in one run. No android:permission (the caller cannot
-             hold one): the automation token is the gate. See StateExportReceiver. -->
+             hold one): in v2 this receiver is the unauthenticated half of the surface, and
+             deliberately so — it only ever writes where it was told to and reports what it
+             did. See StateExportReceiver. -->
         <receiver
             android:name=".automation.StateExportReceiver"
             android:exported="true">

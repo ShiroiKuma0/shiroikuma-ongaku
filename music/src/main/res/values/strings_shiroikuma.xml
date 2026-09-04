@@ -100,6 +100,7 @@
 
     <string name="sk_section_automation" translatable="false">Automation</string>
     <string name="sk_automation_enable" translatable="false">Enable automation intents</string>
+    <string name="sk_automation_require_token" translatable="false">Use authorization token?</string>
     <string name="sk_automation_token" translatable="false">Token</string>
     <string name="sk_automation_token_copied" translatable="false">Token copied to clipboard</string>
     <string name="sk_automation_regenerate" translatable="false">Regenerate token</string>
@@ -158,7 +159,7 @@
     <string name="sk_eim_select_all" translatable="false">Select all</string>
     <string name="sk_eim_cat_ui" translatable="false">白い熊 UI theme</string>
     <string name="sk_eim_cat_meteors" translatable="false">音楽端灯 (Edge meteors)</string>
-    <string name="sk_eim_cat_automation" translatable="false">Automation</string>
+    <string name="sk_eim_cat_automation" translatable="false">Automation (device-local)</string>
     <string name="sk_eim_cat_app" translatable="false">App settings</string>
     <string name="sk_eim_cat_ratings" translatable="false">Ratings (favorites)</string>
     <string name="sk_eim_cat_playlists" translatable="false">Playlists</string>
