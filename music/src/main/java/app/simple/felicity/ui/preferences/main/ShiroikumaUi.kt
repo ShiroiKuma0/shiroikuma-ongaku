@@ -81,6 +81,8 @@ class ShiroikumaUi : PreferenceFragment() {
     private val previewCards = ArrayList<View>()
     private var fontValueView: TypeFaceTextView? = null
     private var tokenValueView: TypeFaceTextView? = null
+    private var tokenRowView: View? = null
+    private var regenerateRowView: View? = null
     private var allFilesValueView: TypeFaceTextView? = null
 
     // Export/Import (Kōjiki flow): panel + row state
@@ -167,8 +169,19 @@ class ShiroikumaUi : PreferenceFragment() {
         addSwitchRow(R.string.sk_automation_enable, indent = 2,
                      isChecked = { AutomationPreferences.isEnabled() },
                      onChecked = { AutomationPreferences.setEnabled(it) })
+        // 保存復元 contract v2 §2: the master switch above ships ON and the token below is
+        // opt-in, because a pasted secret cannot survive a wipe and the case this now serves is
+        // 応用管理 restoring this app AND its data onto a clean phone. The data door checks the
+        // caller's package, uid and signing certificate either way.
+        addSwitchRow(R.string.sk_automation_require_token, indent = 2,
+                     isChecked = { AutomationPreferences.isTokenRequired() },
+                     onChecked = {
+                         AutomationPreferences.setTokenRequired(it)
+                         refreshTokenRowVisibility()
+                     })
         addTokenRow(indent = 2)
         addRegenerateTokenRow(indent = 2)
+        refreshTokenRowVisibility()
         addAllFilesAccessRow(indent = 2)
 
         // ------------------------------------------------ General
@@ -550,12 +563,24 @@ class ShiroikumaUi : PreferenceFragment() {
         binding.rowsContainer.addView(row.root)
     }
 
+    /**
+     * The token and its Regenerate action are shown only while 「Use authorization token?」 is on
+     * (保存復元 contract v2 §2). A secret sitting under an off switch invites 白い熊 to paste it
+     * somewhere it will do nothing.
+     */
+    private fun refreshTokenRowVisibility() {
+        val visibility = if (AutomationPreferences.isTokenRequired()) View.VISIBLE else View.GONE
+        tokenRowView?.visibility = visibility
+        regenerateRowView?.visibility = visibility
+    }
+
     /** Shows the automation token; tapping the row copies it to the clipboard. */
     private fun addTokenRow(indent: Int) {
         val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
         row.valueLabel.text = getString(R.string.sk_automation_token)
         row.valueText.text = AutomationPreferences.getToken()
         tokenValueView = row.valueText
+        tokenRowView = row.root
         indentRow(row.root, indent)
         row.root.setOnClickListener {
             val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -571,6 +596,7 @@ class ShiroikumaUi : PreferenceFragment() {
         val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
         row.valueLabel.text = getString(R.string.sk_automation_regenerate)
         row.valueText.text = ""
+        regenerateRowView = row.root
         indentRow(row.root, indent)
         row.root.setOnClickListener {
             val fresh = AutomationPreferences.regenerateToken()

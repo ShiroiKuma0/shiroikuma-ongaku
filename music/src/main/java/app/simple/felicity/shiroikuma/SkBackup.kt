@@ -57,12 +57,29 @@ object SkBackup {
             "crash_timestamp", "crash_log")
 
     /**
-     * Keys excluded from EVERY category. The automation shared secret must never travel in
-     * a backup zip (保存復元 contract §2): a zip is copied around and restored on other
-     * installs, and an imported token would silently break the pairing with 自由作業盤,
-     * which keeps its own copy of it.
+     * Keys excluded from EVERY category — **the whole automation gate is device-local**
+     * (保存復元 contract §2).
+     *
+     * Most sister apps keep these three in a separate prefs file that is simply never in the
+     * export; ours live in the app's ordinary preferences, so this set is the only thing
+     * keeping them on this phone. All three must stay here:
+     *
+     * - [AutomationPreferences.TOKEN] — a zip is copied around and restored on other installs,
+     *   and an imported token would silently break the pairing with 自由作業盤, which keeps its
+     *   own copy of it.
+     * - [AutomationPreferences.REQUIRE_TOKEN] — restored onto another device it would demand a
+     *   token that device's caller has never been given, failing every batch run there.
+     * - [AutomationPreferences.ENABLED] — restored as `false` it would silently close the app
+     *   off on a phone 白い熊 has just set up, which is precisely the clean-phone case v2 exists
+     *   to serve.
+     *
+     * Consequently [Cat.AUTOMATION] now exports an **empty** object. Its id is kept anyway so a
+     * caller holding a saved `items` list is never answered `ERROR:unknown category in items`.
      */
-    private val NEVER_EXPORT = setOf(AutomationPreferences.TOKEN)
+    private val NEVER_EXPORT = setOf(
+            AutomationPreferences.ENABLED,
+            AutomationPreferences.REQUIRE_TOKEN,
+            AutomationPreferences.TOKEN)
 
     /** Progress units for the headless export — real counts, never a percentage. */
     const val UNIT_CATEGORY = "区分"
@@ -132,7 +149,10 @@ object SkBackup {
         return when (cat) {
             Cat.UI -> isUiKey(key)
             Cat.METEORS -> isMeteorKey(key)
-            Cat.AUTOMATION -> isAutomationKey(key)
+            // Fail closed: every `sk_automation_` key is device-local (see NEVER_EXPORT), and a
+            // key added to AutomationPreferences later must not start travelling just because
+            // nobody remembered to name it there.
+            Cat.AUTOMATION -> false
             Cat.APP -> !isUiKey(key) && !isMeteorKey(key) && !isAutomationKey(key) && key !in APP_EXCLUDE
             else -> false // RATINGS / PLAYLISTS are not prefs-based
         }
