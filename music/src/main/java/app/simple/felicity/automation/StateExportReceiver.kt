@@ -6,11 +6,9 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
-import android.os.SystemClock
 import android.provider.DocumentsContract
 import android.util.Log
 import androidx.documentfile.provider.DocumentFile
-import app.simple.felicity.R
 import app.simple.felicity.manager.SharedPreferences
 import app.simple.felicity.preferences.AutomationPreferences
 import app.simple.felicity.shiroikuma.SkBackup
@@ -23,7 +21,6 @@ import java.io.FileOutputStream
 import java.io.OutputStream
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -267,13 +264,17 @@ class StateExportReceiver : BroadcastReceiver() {
 
     // ------------------------------------------------------------------ gate
 
-    /** Null when the request may proceed, otherwise the `ERROR:` line to reply with. */
-    private fun authorize(intent: Intent): String? {
-        // Reported distinctly on purpose — the two debug completely differently.
-        if (!AutomationPreferences.isEnabled()) return "ERROR:automation disabled"
-        if (!AutomationPreferences.isAuthorized(intent.getStringExtra(KEY_TOKEN))) return "ERROR:bad token"
-        return null
-    }
+    /**
+     * Null when the request may proceed, otherwise the `ERROR:` line to reply with.
+     *
+     * The whole gate lives in [AutomationPreferences.refuse] — one function for every entry
+     * point, so "disabled" and "bad token" cannot drift apart between the receiver, the data
+     * door and the AUTOMATION activity. Since v2 the switch ships ON and the token is opt-in:
+     * **a `token` extra sent to this app while it is not asking for one is ignored, never
+     * refused** (保存復元 contract §2).
+     */
+    private fun authorize(intent: Intent): String? =
+        AutomationPreferences.refuse(intent.getStringExtra(KEY_TOKEN))
 
     // ------------------------------------------------------------------ reply / progress
 
@@ -300,39 +301,21 @@ class StateExportReceiver : BroadcastReceiver() {
     }
 
     /**
-     * A progress sink that drops everything arriving less than [PROGRESS_INTERVAL_MS] after
-     * the last one it let through. Completion is broadcast separately and unthrottled.
+     * The throttled progress sink, from the sender [AutomationDataService] also uses — one
+     * implementation of §3 for both doors, parameterised on the correlation id (here the
+     * request's `reply_id`), because two copies of the same watchdog drift.
      */
-    private fun throttledProgress(app: Context, intent: Intent): SkBackup.Progress {
-        if (intent.getStringExtra(KEY_PROGRESS_ACTION).isNullOrEmpty()) {
-            return SkBackup.Progress { _, _, _, _ -> }
-        }
-        val last = AtomicLong(0L)
-        return SkBackup.Progress { current, total, unit, text ->
-            val now = SystemClock.elapsedRealtime()
-            val previous = last.get()
-            if (now - previous >= PROGRESS_INTERVAL_MS && last.compareAndSet(previous, now)) {
-                sendProgress(app, intent, current, total, unit, text)
-            }
-        }
-    }
+    private fun throttledProgress(app: Context, intent: Intent): SkBackup.Progress =
+        AutomationProgress.sink(app, intent.getStringExtra(KEY_PROGRESS_ACTION),
+                                intent.getStringExtra(KEY_REPLY_PACKAGE),
+                                intent.getStringExtra(KEY_REPLY_ID).orEmpty())
 
-    /** Numbers-first progress, never a percentage: `text` to read, `current`/`total`/`unit` to compute with. */
-    private fun sendProgress(app: Context, intent: Intent, current: Long, total: Long, unit: String, text: String) {
-        val action = intent.getStringExtra(KEY_PROGRESS_ACTION)
-        val pkg = intent.getStringExtra(KEY_REPLY_PACKAGE)
-        if (action.isNullOrEmpty() || pkg.isNullOrEmpty()) return
-        app.sendBroadcast(Intent(action).apply {
-            setPackage(pkg)
-            addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
-            putExtra(KEY_REPLY_ID, intent.getStringExtra(KEY_REPLY_ID).orEmpty())
-            putExtra("app", app.getString(R.string.app_name))
-            putExtra("text", text)
-            putExtra("current", current)
-            putExtra("total", total)
-            putExtra("unit", unit)
-        })
-    }
+    /** The unthrottled one, used for the mandatory final message at completion. */
+    private fun sendProgress(app: Context, intent: Intent, current: Long, total: Long, unit: String, text: String) =
+        AutomationProgress.send(app, intent.getStringExtra(KEY_PROGRESS_ACTION),
+                                intent.getStringExtra(KEY_REPLY_PACKAGE),
+                                intent.getStringExtra(KEY_REPLY_ID).orEmpty(),
+                                current, total, unit, text)
 
     // ------------------------------------------------------------------ helpers
 
@@ -410,8 +393,5 @@ class StateExportReceiver : BroadcastReceiver() {
         private const val KEY_REPLY_ACTION = "reply_action"
         private const val KEY_REPLY_PACKAGE = "reply_package"
         private const val KEY_REPLY_ID = "reply_id"
-
-        /** At most one progress broadcast every half second (contract §3). */
-        private const val PROGRESS_INTERVAL_MS = 500L
     }
 }

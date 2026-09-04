@@ -41,10 +41,11 @@ import javax.inject.Inject
  * a Service or receiver — is the entry point so a cold-process invocation from another
  * app is not blocked by Android's background-start limits.
  *
- * Every request is gated on [AutomationPreferences]: automation must be enabled in
- * Settings → 白い熊 音楽 UI → Automation and the request must carry a `token` extra
- * matching the stored secret. Unauthorized requests are dropped (logged + brief toast)
- * and never touch playback.
+ * Every request is gated on [AutomationPreferences.refuse] — the one function every
+ * automation entry point asks. Since v2 of the 保存復元 contract the master switch ships
+ * **on** and the token is opt-in: a `token` extra is checked only while
+ * 「Use authorization token?」 is on, and one sent while it is off is ignored rather than
+ * refused. Refused requests are dropped (logged + brief toast) and never touch playback.
  *
  * Cold-start safety: every playback op connects a [MediaController] to
  * [FelicityPlayerService] — building the controller transparently starts the service —
@@ -82,14 +83,22 @@ class AutomationActivity : ComponentActivity() {
             return
         }
 
-        // --- authorization gate ---
-        if (!AutomationPreferences.isEnabled()) {
-            reject("disabled (enable it in Settings → 白い熊 音楽 UI → Automation)")
-            return
-        }
-        if (!AutomationPreferences.isAuthorized(intent.getStringExtra(KEY_TOKEN))) {
-            reject("rejected: bad or missing token")
-            return
+        // --- authorization gate (保存復元 contract §2) ---
+        // The same single AutomationPreferences.refuse() every other entry point asks, so this
+        // surface relaxes with them: the master switch ships ON and the token is checked only
+        // when 「Use authorization token?」 is on — one sent while it is off is IGNORED, never
+        // refused. The action string and both rejection lines below are deliberately unchanged:
+        // 自由作業盤's workspace drives 良 / 削除 / playlist through them.
+        when (AutomationPreferences.refuse(intent.getStringExtra(KEY_TOKEN))) {
+            null -> Unit
+            AutomationPreferences.ERROR_DISABLED -> {
+                reject("disabled (enable it in Settings → 白い熊 音楽 UI → Automation)")
+                return
+            }
+            else -> {
+                reject("rejected: bad or missing token")
+                return
+            }
         }
 
         val appContext = applicationContext
