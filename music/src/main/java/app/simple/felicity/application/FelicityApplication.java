@@ -3,6 +3,7 @@ package app.simple.felicity.application;
 import android.app.Application;
 import android.content.SharedPreferences;
 
+import app.simple.felicity.shiroikuma.SkBackup;
 import dagger.hilt.android.HiltAndroidApp;
 
 /**
@@ -17,6 +18,9 @@ public class FelicityApplication extends Application {
     public void onCreate() {
         super.onCreate();
         resetAudioDatabaseForSAFMigration();
+        // Fork (白い熊, 2026-09-10): favourites and playlists a restore could not attach yet
+        // (the library was empty at the time) are attached at the end of every scan.
+        SkBackup.installScanHook(this);
     }
     
     /**
