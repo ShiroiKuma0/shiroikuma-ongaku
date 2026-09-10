@@ -2,6 +2,7 @@ package app.simple.felicity.shiroikuma
 
 import android.content.Context
 import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.annotation.StringRes
 import androidx.documentfile.provider.DocumentFile
 import app.simple.felicity.R
@@ -9,12 +10,24 @@ import app.simple.felicity.manager.SharedPreferences.getSharedPreference
 import app.simple.felicity.preferences.AppearancePreferences
 import app.simple.felicity.preferences.AutomationPreferences
 import app.simple.felicity.repository.database.instances.AudioDatabase
+import app.simple.felicity.repository.loader.AudioDatabaseLoader
+import app.simple.felicity.repository.models.Audio
 import app.simple.felicity.repository.models.Playlist
 import app.simple.felicity.repository.models.PlaylistSongCrossRef
+import android.util.Log
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.OutputStream
 import java.text.Normalizer
 import java.text.SimpleDateFormat
@@ -34,11 +47,27 @@ import java.util.zip.ZipOutputStream
  * unknown/missing keys are left alone — old exports load into new app versions and
  * vice versa. Ratings and playlists are data categories read from / written to the
  * Room library database, matched by file path, strictly additively.
+ *
+ * ## The clean phone (白い熊, 2026-09-10)
+ *
+ * A restore onto a wiped phone runs against an *empty* library — 応用管理 imports straight after
+ * the install, and the scan that fills the database cannot run before the music folder has been
+ * granted again. Nothing here needs the folder: the preferences land as they are, the folder
+ * list itself travels so the app can ask for that grant back (see `SkFolderGrants`), and every
+ * favourite or playlist song that finds no row is **kept waiting** in [pendingDir] rather than
+ * counted as lost. [applyPending] re-runs those leftovers after each library scan and drains what
+ * matched, so the restore completes itself the moment the folder is re-granted and scanned.
  */
 object SkBackup {
 
     const val FORMAT = "shiroikuma-ongaku-export"
-    const val VERSION = 1
+
+    /**
+     * 2 (2026-09-10): favourites and playlist songs are objects `{"doc","path"}` — the SAF
+     * document id first, the filesystem path second. Version 1 wrote bare path strings; both
+     * are read. See [Song] for why the path alone was not enough.
+     */
+    const val VERSION = 2
     /**
      * The family-wide backup filename stem: the app's english dash-separated name, with the
      * datetime appended and no version. Doubles as the prefix [latestExport] scans for — it
@@ -52,9 +81,23 @@ object SkBackup {
     private const val KEY_DIR_URI = "dir_uri"
 
     /** Keys that must not travel between installs (device/session-local state). */
-    private val APP_EXCLUDE = setOf(
-            "saf_granted_tree_uris", // SAF grants are permission-bound to this install
-            "crash_timestamp", "crash_log")
+    private val APP_EXCLUDE = setOf("crash_timestamp", "crash_log")
+
+    /**
+     * The music-folder list (`SAFPreferences`). It **does** travel — it is the record of where the
+     * library lives, which is exactly what a restored copy needs in order to ask for that folder's
+     * grant back — but it is merged as a union on import, never replaced: the phone being restored
+     * onto may already have a folder of its own, and a list is not a setting.
+     */
+    private const val KEY_SAF_TREE_URIS = "saf_granted_tree_uris"
+
+    private const val TAG = "SkBackup"
+
+    /** Where leftovers of a data import wait for the next library scan. */
+    private const val PENDING_DIR = "shiroikuma_pending_restore"
+
+    /** One import or pending pass at a time — a scan finishing mid-import must queue, not race. */
+    private val pendingLock = Mutex()
 
     /**
      * Keys excluded from EVERY category — **the whole automation gate is device-local**
@@ -158,6 +201,110 @@ object SkBackup {
         }
     }
 
+    // --- song identity ------------------------------------------------------------------------
+
+    /**
+     * How a favourite or a playlist member is written down, and found again.
+     *
+     * [doc] is the SAF document id of the scanned file — `primary:〇/[277] 音楽/…/x.mp3` — the
+     * scanner's own key, derived from the path alone, so it is byte-identical on any phone that
+     * holds the same files under the same folder. [path] is upstream's `path` column, which is
+     * **approximate**: it is filled after the scan by matching (title, artist, album) against
+     * MediaStore, so two files with the same tags share one path and a file MediaStore describes
+     * differently has none. On 白い熊's new phone five favourites out of 341 sat unmatched on
+     * path alone while their files were present and scanned (2026-09-10) — hence the document id
+     * first and the path only as a fallback, and a path is also *converted* to a document id
+     * before matching so version-1 archives resolve the same way.
+     */
+    class Song(val doc: String?, val path: String?) {
+
+        /** What to show a person: the path, or the path the document id stands for. */
+        val display: String get() = path ?: doc?.let { pathFromDoc(it) } ?: doc.orEmpty()
+
+        val fileName: String get() = display.substringAfterLast('/')
+
+        fun toJson(): Any = JSONObject().apply {
+            put("doc", doc ?: JSONObject.NULL)
+            put("path", path ?: JSONObject.NULL)
+        }
+
+        companion object {
+            /** A version-2 object or a version-1 bare path; null for anything empty. */
+            fun fromJson(value: Any?): Song? = when (value) {
+                is JSONObject -> Song(value.optString("doc").takeIf { it.isNotBlank() && !value.isNull("doc") },
+                                      value.optString("path").takeIf { it.isNotBlank() && !value.isNull("path") })
+                    .takeIf { it.doc != null || it.path != null }
+                is String -> value.takeIf { it.isNotBlank() }?.let { Song(docFromPath(it), it) }
+                else -> null
+            }
+
+            fun of(audio: Audio): Song? {
+                val doc = docIdOf(audio.uri)
+                val path = audio.path?.takeIf { it.isNotBlank() }
+                return if (doc == null && path == null) null else Song(doc, path)
+            }
+        }
+    }
+
+    /** `content://…/document/primary%3A…` → `primary:…`; null for anything that is not one. */
+    fun docIdOf(uri: String?): String? {
+        if (uri.isNullOrBlank()) return null
+        return runCatching { DocumentsContract.getDocumentId(Uri.parse(uri)) }.getOrNull()
+    }
+
+    /** `/storage/emulated/0/x` → `primary:x`, `/storage/1234-5678/x` → `1234-5678:x`. */
+    fun docFromPath(path: String): String? {
+        val primary = "/storage/emulated/0/"
+        if (path.startsWith(primary)) return "primary:" + path.removePrefix(primary)
+        val m = Regex("^/storage/([^/]+)/(.*)$").find(path) ?: return null
+        return m.groupValues[1] + ":" + m.groupValues[2]
+    }
+
+    /** The inverse of [docFromPath]. */
+    fun pathFromDoc(doc: String): String? {
+        val volume = doc.substringBefore(':', missingDelimiterValue = "")
+        if (volume.isEmpty()) return null
+        val rel = doc.substringAfter(':')
+        return if (volume == "primary") "/storage/emulated/0/$rel" else "/storage/$volume/$rel"
+    }
+
+    private fun nfc(s: String) = Normalizer.normalize(s, Normalizer.Form.NFC)
+
+    /**
+     * The library, keyed every way a [Song] can name a row: document id (exact, NFC), then path
+     * (exact, NFC), then the path re-expressed as a document id. [value] picks what a hit yields —
+     * the row id for favourites, the hash for playlist membership.
+     */
+    class LibraryIndex(audios: List<Audio>, value: (Audio) -> Long) {
+        private val byDoc = HashMap<String, Long>()
+        private val byDocNfc = HashMap<String, Long>()
+        private val byPath = HashMap<String, Long>()
+        private val byPathNfc = HashMap<String, Long>()
+
+        init {
+            audios.forEach { audio ->
+                val v = value(audio)
+                docIdOf(audio.uri)?.let {
+                    byDoc.putIfAbsent(it, v)
+                    byDocNfc.putIfAbsent(nfc(it), v)
+                }
+                audio.path?.takeIf { it.isNotBlank() }?.let {
+                    byPath.putIfAbsent(it, v)
+                    byPathNfc.putIfAbsent(nfc(it), v)
+                }
+            }
+        }
+
+        fun find(song: Song): Long? {
+            song.doc?.let { d -> (byDoc[d] ?: byDocNfc[nfc(d)])?.let { return it } }
+            song.path?.let { p ->
+                (byPath[p] ?: byPathNfc[nfc(p)])?.let { return it }
+                docFromPath(p)?.let { d -> (byDoc[d] ?: byDocNfc[nfc(d)])?.let { return it } }
+            }
+            return null
+        }
+    }
+
     // --- export ------------------------------------------------------------------------------
 
     /** e.g. `shiroikuma-ongaku_2026-07-25_18-58-23.zip` — name, datetime, nothing else. */
@@ -241,7 +388,7 @@ object SkBackup {
         var done = 0L
         all.forEach { audio ->
             cancelled.stopHere()
-            if (audio.isFavorite && !audio.path.isNullOrBlank()) a.put(audio.path)
+            if (audio.isFavorite) Song.of(audio)?.let { a.put(it.toJson()) }
             done++
             progress?.onProgress(done, total, UNIT_SONG, "$UNIT_SONG $done/$total")
         }
@@ -265,7 +412,7 @@ object SkBackup {
             progress?.onProgress(done, total, UNIT_PLAYLIST, "$UNIT_PLAYLIST $done/$total")
             val songs = JSONArray()
             dao.getSongsInPlaylistOrdered(playlist.id).first().forEach { audio ->
-                if (!audio.path.isNullOrBlank()) songs.put(audio.path)
+                Song.of(audio)?.let { songs.put(it.toJson()) }
             }
             list.put(JSONObject()
                          .put("name", playlist.name)
@@ -305,29 +452,48 @@ object SkBackup {
      * zip are skipped. Returns a human-readable per-category summary, or null when the
      * file carried none of the selected categories.
      */
-    suspend fun import(context: Context, zip: ZipFile, cats: List<Cat>): String? {
-        if (zip.getEntry("manifest.json") == null) return null
+    suspend fun import(context: Context, zip: ZipFile, cats: List<Cat>): String? = pendingLock.withLock {
+        if (zip.getEntry("manifest.json") == null) return@withLock null
 
         val summary = StringBuilder()
         var any = false
         for (cat in cats) {
             val data = readEntry(zip, cat.id + ".json") ?: continue
             val line = when (cat) {
-                Cat.RATINGS -> importRatings(context, data)
-                Cat.PLAYLISTS -> importPlaylists(context, data)
+                Cat.RATINGS -> {
+                    val r = importRatings(context, data)
+                    mergePending(context, Cat.RATINGS, r.leftover)
+                    context.getString(R.string.sk_eim_ratings_result, r.favorited, r.notFound) + deferredNote(context, r.notFound)
+                }
+                Cat.PLAYLISTS -> {
+                    val r = importPlaylists(context, data)
+                    mergePending(context, Cat.PLAYLISTS, r.leftover)
+                    context.getString(R.string.sk_eim_playlists_result, r.created, r.merged, r.songsAdded, r.songsMissing) +
+                            deferredNote(context, r.songsMissing)
+                }
                 else -> context.getString(R.string.sk_eim_keys_applied, importPrefs(context, data, cat))
             }
             any = true
             if (summary.isNotEmpty()) summary.append('\n')
             summary.append(context.getString(cat.labelRes)).append(": ").append(line)
         }
-        return if (any) summary.toString() else null
+        if (any) summary.toString() else null
     }
 
-    /** Per-key merge — never clears, so unrelated/device-local keys survive. Returns keys applied. */
+    private fun deferredNote(context: Context, missing: Int): String =
+        if (missing > 0) " — " + context.getString(R.string.sk_eim_deferred, missing) else ""
+
+    /**
+     * Per-key merge — never clears, so unrelated/device-local keys survive. Returns keys applied.
+     *
+     * Written with `commit()`, not `apply()`: 応用管理 force-stops this process the instant it
+     * hears OK, and an asynchronous write has no orderly shutdown left to land in. The write is
+     * on disk before this returns, so it is on disk before the reply goes out.
+     */
     private fun importPrefs(context: Context, json: String, cat: Cat): Int {
         val obj = JSONObject(json)
-        val ed = getSharedPreference(context).edit()
+        val prefs = getSharedPreference(context)
+        val ed = prefs.edit()
         var count = 0
         for (k in obj.keys()) {
             if (!inCategory(cat, k)) continue // don't let one category's file smuggle another's keys
@@ -342,69 +508,70 @@ object SkBackup {
                     val a = e.optJSONArray("v")
                     val set = HashSet<String>()
                     if (a != null) for (i in 0 until a.length()) set.add(a.optString(i))
+                    // The folder list is a union: keep what this phone already has, add what
+                    // the backup remembers. A folder is a record, not a setting to overwrite.
+                    if (k == KEY_SAF_TREE_URIS) prefs.getStringSet(k, null)?.let { set.addAll(it) }
                     ed.putStringSet(k, set)
                 }
                 else -> continue
             }
             count++
         }
-        ed.apply()
+        ed.commit()
         return count
     }
 
+    private class RatingsResult(val favorited: Int, val notFound: Int, val leftover: JSONObject?)
+
+    private class PlaylistsResult(val created: Int, val merged: Int, val songsAdded: Int, val songsMissing: Int,
+                                  val leftover: JSONObject?)
+
     /**
      * Additive favorites restore: every exported path that matches a library song gets
-     * {@code is_favorite = 1}; nothing is ever un-favorited.
+     * {@code is_favorite = 1}; nothing is ever un-favorited. Paths that match nothing come back
+     * as [RatingsResult.leftover] in the export's own shape, ready to be tried again.
      */
-    private suspend fun importRatings(context: Context, json: String): String {
+    private suspend fun importRatings(context: Context, json: String): RatingsResult {
         val dao = AudioDatabase.getInstance(context).audioDao()
             ?: throw IllegalStateException("Music library database is not available")
-        val paths = JSONObject(json).optJSONArray("favorites") ?: JSONArray()
-
-        val exact = HashMap<String, Long>()
-        val nfc = HashMap<String, Long>()
-        dao.getAllAudioListAll().forEach { audio ->
-            val p = audio.path ?: return@forEach
-            exact.putIfAbsent(p, audio.id)
-            nfc.putIfAbsent(Normalizer.normalize(p, Normalizer.Form.NFC), audio.id)
-        }
+        val entries = JSONObject(json).optJSONArray("favorites") ?: JSONArray()
+        val index = LibraryIndex(dao.getAllAudioListAll()) { it.id }
 
         var favorited = 0
         var notFound = 0
-        for (i in 0 until paths.length()) {
-            val p = paths.optString(i)
-            if (p.isNullOrBlank()) continue
-            val id = exact[p] ?: nfc[Normalizer.normalize(p, Normalizer.Form.NFC)]
+        val leftover = JSONArray()
+        for (i in 0 until entries.length()) {
+            val song = Song.fromJson(entries.opt(i)) ?: continue
+            val id = index.find(song)
             if (id != null) {
                 dao.setFavorite(id, true)
                 favorited++
             } else {
                 notFound++
+                leftover.put(song.toJson())
             }
         }
-        return context.getString(R.string.sk_eim_ratings_result, favorited, notFound)
+        return RatingsResult(favorited, notFound,
+                             if (leftover.length() > 0) JSONObject().put("favorites", leftover) else null)
     }
 
     /**
      * Merge-import of playlists: a playlist whose name already exists gets the missing
      * songs appended at its end; unknown names are created with the exported metadata.
-     * Songs are matched by path; misses are counted, never invented.
+     * Songs are matched by path; misses are counted, never invented — and handed back as
+     * [PlaylistsResult.leftover]: the same playlist entries, each carrying only the songs
+     * that found no row, so a later pass appends exactly those and nothing twice.
      */
-    private suspend fun importPlaylists(context: Context, json: String): String {
+    private suspend fun importPlaylists(context: Context, json: String): PlaylistsResult {
         val database = AudioDatabase.getInstance(context)
         val audioDao = database.audioDao()
             ?: throw IllegalStateException("Music library database is not available")
         val dao = database.playlistDao()
 
-        val exact = HashMap<String, Long>() // path -> audio hash
-        val nfc = HashMap<String, Long>()
-        audioDao.getAllAudioListAll().forEach { audio ->
-            val p = audio.path ?: return@forEach
-            exact.putIfAbsent(p, audio.hash)
-            nfc.putIfAbsent(Normalizer.normalize(p, Normalizer.Form.NFC), audio.hash)
-        }
+        val index = LibraryIndex(audioDao.getAllAudioListAll()) { it.hash }
 
         val list = JSONObject(json).optJSONArray("playlists") ?: JSONArray()
+        val leftoverList = JSONArray()
         var created = 0
         var merged = 0
         var songsAdded = 0
@@ -416,11 +583,21 @@ object SkBackup {
 
             val hashes = LinkedHashSet<Long>()
             val songs = item.optJSONArray("songs") ?: JSONArray()
+            val missingSongs = JSONArray()
             for (j in 0 until songs.length()) {
-                val p = songs.optString(j)
-                if (p.isNullOrBlank()) continue
-                val hash = exact[p] ?: nfc[Normalizer.normalize(p, Normalizer.Form.NFC)]
-                if (hash != null) hashes.add(hash) else songsMissing++
+                val song = Song.fromJson(songs.opt(j)) ?: continue
+                val hash = index.find(song)
+                if (hash != null) {
+                    hashes.add(hash)
+                } else {
+                    songsMissing++
+                    missingSongs.put(song.toJson())
+                }
+            }
+            if (missingSongs.length() > 0) {
+                // Same entry, same metadata, only the songs still owed — the pass that finally
+                // finds them merges by this name and appends them at the end.
+                leftoverList.put(JSONObject(item.toString()).put("songs", missingSongs))
             }
 
             val existing = dao.getPlaylistByName(name)
@@ -450,7 +627,273 @@ object SkBackup {
                 songsAdded += toAdd.size
             }
         }
-        return context.getString(R.string.sk_eim_playlists_result, created, merged, songsAdded, songsMissing)
+        return PlaylistsResult(created, merged, songsAdded, songsMissing,
+                               if (leftoverList.length() > 0) JSONObject().put("playlists", leftoverList) else null)
+    }
+
+    // --- deferred data restore (the clean phone) ---------------------------------------------
+
+    /** Wire [applyPending] to the end of every library scan. Called once, from the application. */
+    @JvmStatic
+    fun installScanHook(context: Context) {
+        val app = context.applicationContext
+        AudioDatabaseLoader.onLibraryScanned = { applyPending(app) }
+    }
+
+    /** What is waiting (or, for [applied], what a pass just attached): counts, never paths. */
+    data class Pending(val favorites: Int = 0, val playlists: Int = 0, val songs: Int = 0) {
+        val isEmpty: Boolean get() = favorites == 0 && playlists == 0 && songs == 0
+    }
+
+    private val _pending = MutableStateFlow<Pending?>(null)
+
+    /** The waiting restore, for the activity's status pill; null until [refreshPending] has read the files. */
+    val pending: StateFlow<Pending?> = _pending.asStateFlow()
+
+    private val _applied = MutableSharedFlow<Pending>(extraBufferCapacity = 4)
+
+    /** One event per pass of [applyPending] that attached something — the activity flashes it. */
+    val applied: SharedFlow<Pending> = _applied.asSharedFlow()
+
+    /** Re-read the pending files and publish their counts. Cheap; call from any thread. */
+    fun refreshPending(context: Context) {
+        var favorites = 0
+        var playlists = 0
+        var songs = 0
+        runCatching {
+            pendingFile(context, Cat.RATINGS).takeIf { it.exists() }?.readText()?.let {
+                favorites = JSONObject(it).optJSONArray("favorites")?.length() ?: 0
+            }
+        }
+        runCatching {
+            pendingFile(context, Cat.PLAYLISTS).takeIf { it.exists() }?.readText()?.let {
+                val list = JSONObject(it).optJSONArray("playlists") ?: JSONArray()
+                playlists = list.length()
+                for (i in 0 until list.length()) songs += list.optJSONObject(i)?.optJSONArray("songs")?.length() ?: 0
+            }
+        }
+        _pending.value = Pending(favorites, playlists, songs)
+    }
+
+    private fun pendingDir(context: Context) = File(context.filesDir, PENDING_DIR)
+
+    private fun pendingFile(context: Context, cat: Cat) = File(pendingDir(context), cat.id + ".json")
+
+    /**
+     * Fold an import's leftover into what is already waiting: favourites as a set union,
+     * playlists merged by name with their owed songs appended once. A second restore before the
+     * scan therefore adds to the first instead of replacing it.
+     */
+    private fun mergePending(context: Context, cat: Cat, leftover: JSONObject?) {
+        val file = pendingFile(context, cat)
+        val existing = runCatching { file.takeIf { it.exists() }?.readText()?.let { JSONObject(it) } }.getOrNull()
+        val merged = when {
+            leftover == null -> existing
+            existing == null -> leftover
+            cat == Cat.RATINGS -> {
+                val byKey = LinkedHashMap<String, Song>()
+                listOf(existing, leftover).forEach { o ->
+                    val a = o.optJSONArray("favorites") ?: JSONArray()
+                    for (i in 0 until a.length()) Song.fromJson(a.opt(i))?.let { byKey.putIfAbsent(it.display, it) }
+                }
+                JSONObject().put("favorites", JSONArray(byKey.values.map { it.toJson() }))
+            }
+            else -> {
+                val byName = LinkedHashMap<String, JSONObject>()
+                listOf(existing, leftover).forEach { o ->
+                    val a = o.optJSONArray("playlists") ?: JSONArray()
+                    for (i in 0 until a.length()) {
+                        val item = a.optJSONObject(i) ?: continue
+                        val name = item.optString("name").takeIf { it.isNotBlank() } ?: continue
+                        val prior = byName[name]
+                        if (prior == null) {
+                            byName[name] = JSONObject(item.toString())
+                        } else {
+                            val songs = prior.optJSONArray("songs") ?: JSONArray().also { prior.put("songs", it) }
+                            val have = HashSet<String>().apply {
+                                for (j in 0 until songs.length()) Song.fromJson(songs.opt(j))?.let { add(it.display) }
+                            }
+                            val more = item.optJSONArray("songs") ?: JSONArray()
+                            for (j in 0 until more.length()) {
+                                val song = Song.fromJson(more.opt(j)) ?: continue
+                                if (have.add(song.display)) songs.put(song.toJson())
+                            }
+                        }
+                    }
+                }
+                JSONObject().put("playlists", JSONArray(byName.values.toList()))
+            }
+        }
+        writePending(file, merged)
+        refreshPending(context)
+    }
+
+    private fun writePending(file: File, content: JSONObject?) {
+        if (content == null) {
+            file.delete()
+            return
+        }
+        file.parentFile?.mkdirs()
+        // Written beside and renamed over: a process killed mid-write leaves the previous
+        // pending file whole rather than a truncated one that parses as nothing.
+        val tmp = File(file.parentFile, file.name + ".part")
+        tmp.writeText(content.toString(2))
+        if (!tmp.renameTo(file)) {
+            file.writeText(content.toString(2))
+            tmp.delete()
+        }
+    }
+
+    /**
+     * Try the waiting favourites and playlist songs against the library as it now stands —
+     * called by the scanner once every row has its path (`AudioDatabaseLoader.onLibraryScanned`).
+     * What matches is applied and dropped from the file; what still matches nothing stays for
+     * the next scan. Never re-applies a match: a song favourited by the first pass and
+     * un-favourited by the user since is not in the file any more.
+     */
+    suspend fun applyPending(context: Context) {
+        pendingLock.withLock { applyPendingLocked(context) }
+    }
+
+    private suspend fun applyPendingLocked(context: Context) {
+        var attached = Pending()
+        for (cat in listOf(Cat.RATINGS, Cat.PLAYLISTS)) {
+            val file = pendingFile(context, cat)
+            if (!file.exists()) continue
+            val json = runCatching { file.readText() }.getOrNull() ?: continue
+            try {
+                val leftover = when (cat) {
+                    Cat.RATINGS -> importRatings(context, json).also {
+                        Log.i(TAG, "pending ratings: ${it.favorited} favorited, ${it.notFound} still waiting")
+                        attached = attached.copy(favorites = attached.favorites + it.favorited)
+                    }.leftover
+                    else -> importPlaylists(context, json).also {
+                        Log.i(TAG, "pending playlists: ${it.created} created, ${it.merged} merged, " +
+                                "${it.songsAdded} songs added, ${it.songsMissing} still waiting")
+                        attached = attached.copy(playlists = attached.playlists + it.created + it.merged,
+                                                 songs = attached.songs + it.songsAdded)
+                    }.leftover
+                }
+                writePending(file, leftover)
+            } catch (e: Exception) {
+                Log.e(TAG, "pending ${cat.id} could not be applied; left for the next scan", e)
+            }
+        }
+        refreshPending(context)
+        if (!attached.isEmpty) _applied.tryEmit(attached)
+    }
+
+    // --- the waiting items, for review ----------------------------------------------------------
+
+    /** One waiting entry as the review sheet shows it; [playlist] is null for a favourite. */
+    class PendingItem(val cat: Cat, val playlist: String?, val song: Song, internal val meta: JSONObject?) {
+        /** Stable identity across a rewrite of the file. */
+        val key: String get() = cat.id + "|" + playlist.orEmpty() + "|" + song.display
+    }
+
+    /** Everything waiting, favourites first, then playlist by playlist, in file order. */
+    fun pendingItems(context: Context): List<PendingItem> {
+        val out = ArrayList<PendingItem>()
+        runCatching {
+            pendingFile(context, Cat.RATINGS).takeIf { it.exists() }?.readText()?.let {
+                val a = JSONObject(it).optJSONArray("favorites") ?: JSONArray()
+                for (i in 0 until a.length()) Song.fromJson(a.opt(i))?.let { s -> out.add(PendingItem(Cat.RATINGS, null, s, null)) }
+            }
+        }
+        runCatching {
+            pendingFile(context, Cat.PLAYLISTS).takeIf { it.exists() }?.readText()?.let {
+                val list = JSONObject(it).optJSONArray("playlists") ?: JSONArray()
+                for (i in 0 until list.length()) {
+                    val item = list.optJSONObject(i) ?: continue
+                    val name = item.optString("name").takeIf { n -> n.isNotBlank() } ?: continue
+                    val meta = JSONObject(item.toString()).apply { remove("songs") }
+                    val songs = item.optJSONArray("songs") ?: JSONArray()
+                    for (j in 0 until songs.length()) {
+                        Song.fromJson(songs.opt(j))?.let { s -> out.add(PendingItem(Cat.PLAYLISTS, name, s, meta)) }
+                    }
+                }
+            }
+        }
+        return out
+    }
+
+    /**
+     * Library rows that could be [item]'s song: the same file name anywhere in the library,
+     * compared case-insensitively and NFC-normalised. A person decides; nothing here guesses.
+     */
+    fun suggestions(item: PendingItem, byFileName: Map<String, List<Audio>>): List<Audio> =
+        byFileName[fileKey(item.song.fileName)].orEmpty()
+
+    /** Index the library by file name once, for [suggestions]. */
+    fun indexByFileName(audios: List<Audio>): Map<String, List<Audio>> {
+        val map = HashMap<String, MutableList<Audio>>()
+        audios.forEach { audio ->
+            val name = audio.path?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
+                ?: docIdOf(audio.uri)?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
+                ?: audio.name?.takeIf { it.isNotBlank() }
+                ?: return@forEach
+            map.getOrPut(fileKey(name)) { ArrayList() }.add(audio)
+        }
+        return map
+    }
+
+    private fun fileKey(name: String) = nfc(name).lowercase(Locale.ROOT)
+
+    /** Apply [item] to [audio] — favourite it, or append it to the playlist — and drop it from the file. */
+    suspend fun accept(context: Context, item: PendingItem, audio: Audio) = pendingLock.withLock {
+        val database = AudioDatabase.getInstance(context)
+        when (item.cat) {
+            Cat.RATINGS -> database.audioDao()?.setFavorite(audio.id, true)
+            else -> {
+                val dao = database.playlistDao()
+                val name = item.playlist ?: return@withLock
+                val meta = item.meta ?: JSONObject()
+                val playlistId = dao.getPlaylistByName(name)?.id ?: dao.insertPlaylist(Playlist(
+                        name = name,
+                        description = meta.optString("description").takeIf { it.isNotBlank() && !meta.isNull("description") },
+                        isPinned = meta.optBoolean("pinned", false),
+                        isShuffled = meta.optBoolean("shuffled", false),
+                        sortOrder = meta.optInt("sortOrder", -1),
+                        sortStyle = meta.optInt("sortStyle", 0)))
+                if (!dao.isSongInPlaylist(playlistId, audio.hash)) {
+                    dao.addSongsToPlaylist(listOf(PlaylistSongCrossRef(playlistId = playlistId, audioHash = audio.hash,
+                                                                       position = dao.getMaxPosition(playlistId) + 1)))
+                    dao.touchModified(playlistId, System.currentTimeMillis())
+                }
+            }
+        }
+        removeLocked(context, setOf(item.key))
+    }
+
+    /** Drop [items] from the file without applying them — 白い熊 has said they are gone. */
+    suspend fun discard(context: Context, items: Collection<PendingItem>) = pendingLock.withLock {
+        removeLocked(context, items.map { it.key }.toSet())
+    }
+
+    suspend fun discardAll(context: Context) = pendingLock.withLock {
+        pendingFile(context, Cat.RATINGS).delete()
+        pendingFile(context, Cat.PLAYLISTS).delete()
+        refreshPending(context)
+    }
+
+    private fun removeLocked(context: Context, keys: Set<String>) {
+        val remaining = pendingItems(context).filterNot { it.key in keys }
+        val favorites = JSONArray()
+        remaining.filter { it.cat == Cat.RATINGS }.forEach { favorites.put(it.song.toJson()) }
+        writePending(pendingFile(context, Cat.RATINGS),
+                     if (favorites.length() > 0) JSONObject().put("favorites", favorites) else null)
+
+        val playlists = LinkedHashMap<String, JSONObject>()
+        remaining.filter { it.cat == Cat.PLAYLISTS }.forEach { item ->
+            val name = item.playlist ?: return@forEach
+            val entry = playlists.getOrPut(name) {
+                JSONObject((item.meta ?: JSONObject()).toString()).put("name", name).put("songs", JSONArray())
+            }
+            entry.getJSONArray("songs").put(item.song.toJson())
+        }
+        writePending(pendingFile(context, Cat.PLAYLISTS),
+                     if (playlists.isNotEmpty()) JSONObject().put("playlists", JSONArray(playlists.values.toList())) else null)
+        refreshPending(context)
     }
 
     private fun readEntry(zip: ZipFile, name: String): String? {

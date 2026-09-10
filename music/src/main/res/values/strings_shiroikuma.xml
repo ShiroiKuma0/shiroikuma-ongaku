@@ -180,4 +180,40 @@
     <string name="sk_eim_keys_applied" translatable="false">%1$d keys applied</string>
     <string name="sk_eim_ratings_result" translatable="false">%1$d favorited, %2$d not found</string>
     <string name="sk_eim_playlists_result" translatable="false">%1$d created, %2$d merged, %3$d songs added, %4$d not found</string>
+    <string name="sk_eim_deferred" translatable="false">%1$d kept waiting for the next library scan</string>
+
+    <!-- Folder-grant repair: the music-folder list survives a restore, the permission to read it does not. -->
+    <string name="sk_grant_lost_heading" translatable="false">Access lost — needs granting again (the picker opens there):</string>
+    <string name="sk_grant_title" translatable="false">Music folder access needs granting again</string>
+    <string name="sk_grant_body" translatable="false">This copy of 白い熊 音楽 no longer has permission to read a music folder it used to. Permission belongs to an installation, not to your data, so a restored or reinstalled copy always starts out this way — the folder list, favorites and playlists are intact and nothing can be scanned. Pick the same folder again and the library, favorites and playlists come back exactly as before.</string>
+    <string name="sk_grant_choose" translatable="false">Choose the folder</string>
+    <string name="sk_grant_forget" translatable="false">Forget it</string>
+    <string name="sk_grant_not_now" translatable="false">Not now</string>
+    <string name="sk_grant_regranted" translatable="false">Folder access restored — scanning the library</string>
+
+    <!-- Library status pill above the mini player: the scan, and a restore waiting for it. -->
+    <string name="sk_status_scanning" translatable="false">Scanning the library…</string>
+    <string name="sk_status_scanning_n" translatable="false">Scanning the library — 楽曲 %1$d/%2$d</string>
+    <string name="sk_status_pending" translatable="false">Restore waiting for the scan: %1$d favorites · %2$d playlists (%3$d songs)</string>
+    <string name="sk_status_pending_idle" translatable="false">Restore waiting for a library scan: %1$d favorites · %2$d playlists (%3$d songs)</string>
+    <string name="sk_status_applied" translatable="false">✓ Restored %1$d favorites · %2$d playlists (%3$d songs)</string>
+
+    <!-- The waiting room: every favourite / playlist song a restore could not attach, reviewed one by one. -->
+    <string name="sk_pending_row" translatable="false">Waiting restore…</string>
+    <string name="sk_pending_row_status" translatable="false">%1$d favorites · %2$d playlist songs could not be matched yet — tap to review</string>
+    <string name="sk_pending_title" translatable="false">Waiting restore</string>
+    <string name="sk_pending_body" translatable="false">These favorites and playlist songs came from the backup but matched nothing in the library — by document id or by path. Under each is what the library holds under the same file name: use it, pick one, or discard the entry. Nothing here is guessed for you.</string>
+    <string name="sk_pending_playlist" translatable="false">Playlist 「%1$s」</string>
+    <string name="sk_pending_no_match" translatable="false">No song with this file name in the library.</string>
+    <string name="sk_pending_one_match" translatable="false">In the library: %1$s</string>
+    <string name="sk_pending_many_matches" translatable="false">%1$d songs in the library carry this file name.</string>
+    <string name="sk_pending_use" translatable="false">Use</string>
+    <string name="sk_pending_choose" translatable="false">Choose…</string>
+    <string name="sk_pending_discard" translatable="false">Discard</string>
+    <string name="sk_pending_discard_all" translatable="false">Discard all</string>
+    <string name="sk_pending_use_all" translatable="false">Use all suggestions</string>
+    <string name="sk_pending_retry" translatable="false">Retry now</string>
+    <string name="sk_pending_close" translatable="false">Close</string>
+    <string name="sk_pending_none" translatable="false">Nothing is waiting — everything is restored.</string>
+    <string name="sk_pending_used_n" translatable="false">✓ %1$d suggestions used</string>
 </resources>
