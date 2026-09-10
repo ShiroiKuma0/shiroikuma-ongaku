@@ -46,6 +46,7 @@ import app.simple.felicity.decorations.seekbars.FelicitySeekbar
 import app.simple.felicity.decorations.typeface.TypeFace
 import app.simple.felicity.decorations.typeface.TypeFaceTextView
 import app.simple.felicity.dialogs.shiroikuma.SkFontPicker
+import app.simple.felicity.dialogs.shiroikuma.SkPendingRestoreDialog
 import app.simple.felicity.dialogs.shiroikuma.SkRgbaColorPicker
 import app.simple.felicity.extensions.fragments.PreferenceFragment
 import app.simple.felicity.preferences.AppearancePreferences
@@ -161,6 +162,7 @@ class ShiroikumaUi : PreferenceFragment() {
         // ------------------------------------------------ Export / Import (first, Kōjiki flow)
         addSection(R.string.sk_eim_section)
         addEximRow(indent = 1)
+        addPendingRestoreRow(indent = 1)
 
         // Automation lives here rather than in a section of its own: the token, the
         // All-files grant and the 保存復元 receiver exist to drive exactly the export
@@ -711,6 +713,40 @@ class ShiroikumaUi : PreferenceFragment() {
         }
         eimRowStatusTv = status
         binding.rowsContainer.addView(status)
+    }
+
+    /**
+     * The restore's waiting room, shown only while something is waiting: the counts on the row,
+     * the review sheet (`SkPendingRestoreDialog`) behind it.
+     */
+    private fun addPendingRestoreRow(indent: Int) {
+        val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        row.valueLabel.text = getString(R.string.sk_pending_row)
+        row.valueText.text = ""
+        indentRow(row.root, indent)
+        row.root.setOnClickListener { SkPendingRestoreDialog.show(parentFragmentManager) }
+        row.root.visibility = View.GONE
+        binding.rowsContainer.addView(row.root)
+
+        val status = TypeFaceTextView(requireContext()).apply {
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13F)
+            typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.MEDIUM, context)
+            setTextColor(EIM_WARN_COLOR)
+            setPaddingRelative(dp(38 + 18 * indent), 0, dp(16), dp(4))
+            visibility = View.GONE
+        }
+        binding.rowsContainer.addView(status)
+
+        val app = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            withContext(Dispatchers.IO) { SkBackup.refreshPending(app) }
+            SkBackup.pending.collect { pending ->
+                val waiting = pending != null && !pending.isEmpty
+                row.root.visibility = if (waiting) View.VISIBLE else View.GONE
+                status.visibility = row.root.visibility
+                if (pending != null && waiting) status.text = getString(R.string.sk_pending_row_status, pending.favorites, pending.songs)
+            }
+        }
     }
 
     // ------------------------------------------------------------------ Export / Import (Kōjiki flow)
