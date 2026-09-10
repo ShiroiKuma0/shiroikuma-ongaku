@@ -96,13 +96,14 @@ class AutomationProvider : ContentProvider() {
      * tens of megabytes into an app that would reject them — which it cannot do if the header is
      * buried inside an encrypted archive (応用管理, 2026-09-04).
      *
-     * **`requires_launch_first` is true here, and this app is meant to be one of the exceptions.**
-     * Two of the six categories — ratings and playlists — are stored as *file paths* and are
-     * re-attached at import by matching them against the scanned music library. A freshly
-     * installed, never-launched 白い熊 音楽 has an empty library database, so importing into it
-     * would match nothing and report a cheerful success over silently dropped favourites and
-     * playlists. Launching once lets the library scan run first, which is the only state in which
-     * a restore of those two categories means anything.
+     * **`requires_launch_first` is false.** Two of the six categories — ratings and playlists —
+     * are stored as *file paths* and re-attached by matching them against the scanned music
+     * library, which on a freshly installed 白い熊 音楽 is empty. That used to mean a cheerful
+     * success over silently dropped favourites and playlists (白い熊's clean-phone restore,
+     * 2026-09-10). Now every path that finds no row is kept waiting and attached at the end of
+     * the next library scan (`SkBackup.applyPending`) — and the folder list travels, so the app
+     * itself asks for the folder's grant back at launch and runs that scan. Import into a
+     * never-launched install is therefore the *intended* order: nothing merges against defaults.
      */
     private fun describe(ctx: Context): String {
         val pkg = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
@@ -114,7 +115,7 @@ class AutomationProvider : ContentProvider() {
             .put("version_name", pkg.versionName.orEmpty())
             .put("format", FORMAT)
             .put("min_format_readable", MIN_FORMAT_READABLE)
-            .put("requires_launch_first", true)
+            .put("requires_launch_first", false)
             .put("contains", contains)
         return "OK:$header"
     }

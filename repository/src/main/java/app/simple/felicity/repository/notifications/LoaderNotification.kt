@@ -7,6 +7,7 @@ import android.content.Context
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import app.simple.felicity.repository.R
+import app.simple.felicity.repository.loader.LibraryScanState
 import app.simple.felicity.repository.notifications.LoaderNotification.Companion.NOTIFICATION_UPDATE_INTERVAL
 
 /**
@@ -103,6 +104,7 @@ class LoaderNotification(private val context: Context) {
             generation += 1
             active = true
             val token = generation
+            LibraryScanState.begin() // Fork: the in-app status pill mirrors this notification
             notificationManager.notify(SCAN_NOTIFICATION_ID, buildIndeterminate())
             token
         }
@@ -121,6 +123,7 @@ class LoaderNotification(private val context: Context) {
         synchronized(lock) {
             if (generation == this.generation) {
                 totalFiles = total
+                LibraryScanState.total(total)
             }
         }
     }
@@ -145,6 +148,7 @@ class LoaderNotification(private val context: Context) {
             // producer can never resurrect the notification after the scan's
             // final cancel — the "notification never goes away" bug.
             if (!active || generation != this.generation) return
+            LibraryScanState.progress(scanned) // Fork: the pill is cheap, so it is not rate-limited
             if (!force && now - lastUpdateElapsedMs < MIN_UPDATE_INTERVAL_MS) return
 
             lastUpdateElapsedMs = now
@@ -186,6 +190,7 @@ class LoaderNotification(private val context: Context) {
         synchronized(lock) {
             if (generation == this.generation) {
                 active = false
+                LibraryScanState.end()
                 notificationManager.cancel(SCAN_NOTIFICATION_ID)
             }
         }
@@ -199,6 +204,7 @@ class LoaderNotification(private val context: Context) {
     fun dismissForce() {
         synchronized(lock) {
             active = false
+            LibraryScanState.end()
             notificationManager.cancel(SCAN_NOTIFICATION_ID)
         }
     }

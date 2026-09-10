@@ -91,6 +91,26 @@
 
     </LinearLayout>
 
+    <!--
+        Fork (白い熊, 2026-09-10): the library status pill — the running scan (楽曲 n/m) and a
+        restore that is waiting for it. Sits just above the mini player and follows it like the
+        action bar does; styled in MainActivity from the fork palette. Gone when there is nothing
+        to say.
+    -->
+    <TextView
+        android:id="@+id/sk_library_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginHorizontal="24dp"
+        android:gravity="center"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
+        android:textSize="13sp"
+        android:visibility="gone"
+        tools:text="Scanning the library — 楽曲 1234/8942"
+        tools:visibility="visible" />
+
     <app.simple.felicity.decorations.miniplayer.MiniPlayer
         android:id="@+id/mini_player"
         android:layout_width="match_parent"
