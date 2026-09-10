@@ -17,6 +17,7 @@ import app.simple.felicity.databinding.FragmentSetupBinding
 import app.simple.felicity.decorations.utils.PermissionUtils.isPostNotificationsPermissionGranted
 import app.simple.felicity.decorations.utils.PermissionUtils.isReadMediaAudioPermissionGranted
 import app.simple.felicity.decorations.utils.PermissionUtils.isSAFAccessGranted
+import app.simple.felicity.decorations.utils.SkFolderGrants
 import app.simple.felicity.extensions.fragments.MediaFragment
 import app.simple.felicity.preferences.SAFPreferences
 import app.simple.felicity.repository.services.AudioDatabaseService
@@ -86,7 +87,10 @@ class Setup : MediaFragment() {
 
         binding.grantManageAllFiles.setOnClickListener {
             runCatching {
-                safFolderPickerLauncher.launch(null)
+                // Fork: after a restore the list already names the folder this install cannot
+                // read — open the picker there, so re-granting is a confirmation, not a search.
+                val lost = SkFolderGrants.missing(requireContext()).firstOrNull()
+                safFolderPickerLauncher.launch(lost?.let { SkFolderGrants.initialUriFor(it) })
             }.onFailure {
                 Log.e(TAG, "Failed to launch SAF folder picker", it)
                 showWarning("Failed to launch folder picker:" + it.message)
@@ -172,7 +176,7 @@ class Setup : MediaFragment() {
 
         Log.d(TAG, "Persisted URI permissions: $uris")
 
-        binding.folders.text = if (uris.isEmpty()) {
+        val granted = if (uris.isEmpty()) {
             getString(R.string.no_folders_granted)
         } else {
             buildString {
@@ -184,6 +188,21 @@ class Setup : MediaFragment() {
                     append("• ")
                     append(DocumentFile.fromTreeUri(requireContext(), uri)?.name ?: "Unknown")
                 }
+            }
+        }
+
+        // Fork (白い熊, 2026-09-10): the folders the list remembers but this installation cannot
+        // read — a restored or reinstalled copy always starts out this way. Named here so the
+        // screen says which folder to pick, and the button above opens the picker there.
+        val lost = SkFolderGrants.missing(requireContext())
+        binding.folders.text = if (lost.isEmpty()) {
+            granted
+        } else {
+            buildString {
+                append(granted)
+                append("\n\n")
+                append(getString(R.string.sk_grant_lost_heading))
+                lost.forEach { append("\n• ").append(SkFolderGrants.displayPathOf(it)) }
             }
         }
     }

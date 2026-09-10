@@ -7,6 +7,7 @@ import android.content.Context
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import app.simple.felicity.repository.R
+import app.simple.felicity.repository.loader.LibraryScanState
 
 /**
  * Manages the "Scanning Library" notification that pops up while Felicity
@@ -139,6 +140,7 @@ class LoaderNotification(private val context: Context) {
             generation += 1
             active = true
             val token = generation
+            LibraryScanState.begin() // Fork: the in-app status pill mirrors this notification
             notificationManager.notify(SCAN_NOTIFICATION_ID, build())
             token
         }
@@ -172,6 +174,7 @@ class LoaderNotification(private val context: Context) {
             if (generation == this.generation) {
                 totalFiles = total
                 scannedFiles = 0
+                LibraryScanState.total(total)
             }
         }
     }
@@ -207,6 +210,7 @@ class LoaderNotification(private val context: Context) {
             // final cancel.
             if (!active || generation != this.generation) return
             scannedFiles = scanned
+            LibraryScanState.progress(scanned) // Fork: the pill is cheap, so it is not rate-limited
             if (phase != Phase.READING) return
             postRateLimitedLocked(force)
         }
@@ -241,6 +245,7 @@ class LoaderNotification(private val context: Context) {
         synchronized(lock) {
             if (generation == this.generation) {
                 active = false
+                LibraryScanState.end()
                 notificationManager.cancel(SCAN_NOTIFICATION_ID)
                 return true
             }
@@ -256,6 +261,7 @@ class LoaderNotification(private val context: Context) {
     fun dismissForce() {
         synchronized(lock) {
             active = false
+            LibraryScanState.end()
             notificationManager.cancel(SCAN_NOTIFICATION_ID)
         }
     }
