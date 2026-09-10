@@ -3,13 +3,16 @@ package app.simple.felicity.activities
 import android.app.SearchManager
 import android.content.Intent
 import android.content.SharedPreferences
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.util.Log
+import android.util.TypedValue
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
@@ -17,6 +20,8 @@ import android.view.WindowManager
 import android.widget.TextView
 import androidx.core.app.ShareCompat
 import androidx.core.net.toUri
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.lifecycleScope
@@ -30,12 +35,16 @@ import app.simple.felicity.databinding.DialogSelectionMenuBinding
 import app.simple.felicity.decorations.miniplayer.MiniPlayer
 import app.simple.felicity.decorations.miniplayer.MiniPlayerItem
 import app.simple.felicity.decorations.popups.SimpleDialog
+import app.simple.felicity.decorations.typeface.TypeFace
+import app.simple.felicity.decorations.typeface.TypeFaceTextView
 import app.simple.felicity.decorations.utils.PermissionUtils.isPostNotificationsPermissionGranted
 import app.simple.felicity.decorations.utils.PermissionUtils.isReadMediaAudioPermissionGranted
 import app.simple.felicity.decorations.utils.PermissionUtils.isSAFAccessGranted
 import app.simple.felicity.dialogs.app.VolumeKnob
 import app.simple.felicity.dialogs.app.VolumeKnob.Companion.showVolumeKnob
 import app.simple.felicity.dialogs.playlists.AddMultipleToPlaylistDialog.Companion.showAddMultipleToPlaylistDialog
+import app.simple.felicity.dialogs.shiroikuma.SkFolderGrantDialog
+import app.simple.felicity.dialogs.shiroikuma.SkPendingRestoreDialog
 import app.simple.felicity.engine.managers.MediaPlaybackManager
 import app.simple.felicity.engine.managers.PlaybackStateManager
 import app.simple.felicity.engine.usb.UsbDacDriver
@@ -46,6 +55,7 @@ import app.simple.felicity.extensions.fragments.ScopedFragment
 import app.simple.felicity.glide.util.AudioCoverUtils.loadArtIntoBitmap
 import app.simple.felicity.interfaces.MiniPlayerPolicy
 import app.simple.felicity.managers.LyricsManager
+import app.simple.felicity.preferences.AppearancePreferences
 import app.simple.felicity.preferences.AudioPreferences
 import app.simple.felicity.preferences.LibraryPreferences
 import app.simple.felicity.preferences.ShiroikumaPreferences
@@ -54,6 +64,7 @@ import app.simple.felicity.preferences.TrialPreferences
 import app.simple.felicity.preferences.UserInterfacePreferences
 import app.simple.felicity.repository.constants.MediaConstants
 import app.simple.felicity.repository.database.instances.AudioDatabase
+import app.simple.felicity.repository.loader.LibraryScanState
 import app.simple.felicity.repository.managers.SelectionManager
 import app.simple.felicity.repository.models.Audio
 import app.simple.felicity.repository.repositories.AudioRepository
@@ -64,6 +75,8 @@ import app.simple.felicity.repository.utils.AudioUtils.getProperTitle
 import app.simple.felicity.shared.utils.ConditionUtils.isNotNull
 import app.simple.felicity.shared.utils.ConditionUtils.isNull
 import app.simple.felicity.shared.utils.UnitUtils.dpToPx
+import app.simple.felicity.shiroikuma.SkBackup
+import app.simple.felicity.theme.managers.ThemeManager
 import app.simple.felicity.ui.home.ArtFlowHome
 import app.simple.felicity.ui.home.Dashboard
 import app.simple.felicity.ui.home.SimpleHome
@@ -75,8 +88,10 @@ import app.simple.felicity.ui.panels.Selections
 import app.simple.felicity.ui.player.CarouselPlayer
 import app.simple.felicity.ui.player.DefaultPlayer
 import app.simple.felicity.ui.player.PlayerFaded
+import app.simple.felicity.utils.SkFlash
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -267,7 +282,27 @@ class MainActivity : BaseActivity(), MiniPlayerCallbacks {
         // move as one unit — no manual syncing needed anywhere else.
         binding.root.viewTreeObserver.addOnPreDrawListener {
             binding.miniPlayerActionBar.translationY = binding.miniPlayer.translationY
+            positionLibraryStatus()
             true
+        }
+
+        // Fork (白い熊, 2026-09-10): the library status pill — "scanning — 楽曲 n/m" and a
+        // restore waiting for that scan. A restored copy used to open on an empty home screen and
+        // sit silent for the minutes a full scan takes, indistinguishable from a broken one.
+        styleLibraryStatus()
+        binding.skLibraryStatus.setOnClickListener {
+            // The pill is also the door to the waiting room — tap to see and settle the items.
+            if (SkBackup.pending.value?.isEmpty == false) SkPendingRestoreDialog.show(supportFragmentManager)
+        }
+        lifecycleScope.launch(Dispatchers.IO) { SkBackup.refreshPending(applicationContext) }
+        lifecycleScope.launch {
+            combine(LibraryScanState.state, SkBackup.pending) { scan, pending -> scan to pending }
+                .collect { (scan, pending) -> updateLibraryStatus(scan, pending) }
+        }
+        lifecycleScope.launch {
+            SkBackup.applied.collect { done ->
+                SkFlash.show(this@MainActivity, getString(R.string.sk_status_applied, done.favorites, done.playlists, done.songs), long = true)
+            }
         }
 
         // Reposition the action bar whenever the mini player's layout changes —
@@ -345,6 +380,10 @@ class MainActivity : BaseActivity(), MiniPlayerCallbacks {
             else -> {
                 // All permissions granted and trial is still active, go directly to home
                 showHome()
+                // Fork (白い熊, 2026-09-10): a folder in the list this install cannot read — the
+                // shape of every restore and reinstall — is asked for back here, at launch,
+                // rather than discovered as a library with nothing in it.
+                SkFolderGrantDialog.showIfNeeded(supportFragmentManager, this)
             }
         }
     }
@@ -434,6 +473,105 @@ class MainActivity : BaseActivity(), MiniPlayerCallbacks {
                     .commit()
             }
         }
+    }
+
+    // ------------------------------------------------------------ fork: library status pill
+
+    private fun styleLibraryStatus() {
+        val enabled = ShiroikumaPreferences.isEnabled()
+        val background = if (enabled) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.BACKGROUND)
+        else ThemeManager.theme.viewGroupTheme.backgroundColor
+        val accent = if (enabled) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.ACCENT)
+        else ThemeManager.accent.primaryAccentColor
+        val border = if (enabled) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.BORDER)
+        else ThemeManager.accent.primaryAccentColor
+        val density = resources.displayMetrics.density
+        binding.skLibraryStatus.background = GradientDrawable().apply {
+            setColor(background)
+            cornerRadius = 50 * density // a pill, like the fork's dialog buttons
+            setStroke((1.5F * density).toInt(), border)
+        }
+        binding.skLibraryStatus.setTextColor(accent)
+        binding.skLibraryStatus.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13F)
+        binding.skLibraryStatus.typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.BOLD, this)
+    }
+
+    /** When the current scan began (elapsedRealtime), or 0 while none is running. */
+    private var libraryScanStartedAt = 0L
+
+    private val libraryStatusRecheck = Runnable {
+        updateLibraryStatus(LibraryScanState.state.value, SkBackup.pending.value)
+    }
+
+    /**
+     * Two lines at most: the scan, then what is waiting for it. Gone when there is nothing to say.
+     *
+     * A scan with nothing waiting on it is shown only once it has run for [LIBRARY_STATUS_GRACE_MS]:
+     * the refresh-on-resume scan of an unchanged library finishes in well under that, and a pill
+     * that blinked on every return to the app would teach 白い熊 to ignore it.
+     */
+    private fun updateLibraryStatus(scan: LibraryScanState.Scan, pending: SkBackup.Pending?) {
+        val view = binding.skLibraryStatus
+        view.removeCallbacks(libraryStatusRecheck)
+        val waiting = pending?.takeIf { !it.isEmpty }
+        if (scan.running) {
+            if (libraryScanStartedAt == 0L) libraryScanStartedAt = SystemClock.elapsedRealtime()
+        } else {
+            libraryScanStartedAt = 0L
+        }
+        val ranFor = if (scan.running) SystemClock.elapsedRealtime() - libraryScanStartedAt else 0L
+        val showScan = scan.running && (waiting != null || ranFor >= LIBRARY_STATUS_GRACE_MS)
+        if (scan.running && !showScan) {
+            view.postDelayed(libraryStatusRecheck, LIBRARY_STATUS_GRACE_MS - ranFor)
+        }
+        val text = buildString {
+            if (showScan) {
+                append(if (scan.total > 0) getString(R.string.sk_status_scanning_n, scan.scanned, scan.total)
+                       else getString(R.string.sk_status_scanning))
+            }
+            if (waiting != null) {
+                if (isNotEmpty()) append('\n')
+                append(getString(if (scan.running) R.string.sk_status_pending else R.string.sk_status_pending_idle,
+                                 waiting.favorites, waiting.playlists, waiting.songs))
+            }
+        }
+        if (text.isEmpty()) {
+            if (view.isVisible) {
+                view.animate().alpha(0f).setDuration(160).withEndAction { view.visibility = View.GONE }.start()
+            }
+            return
+        }
+        view.text = text
+        if (!view.isVisible) {
+            view.alpha = 0f
+            view.visibility = View.VISIBLE
+            view.animate().alpha(1f).setDuration(200).start()
+        }
+    }
+
+    /**
+     * Above the mini player while it is shown, above the navigation bar once it has slid away —
+     * the pill follows the player's translation but never leaves the screen with it.
+     */
+    private fun positionLibraryStatus() {
+        val view = binding.skLibraryStatus
+        if (!view.isVisible) return
+        val player = binding.miniPlayer
+        val lp = player.layoutParams as? ViewGroup.MarginLayoutParams
+        val playerSpace = player.height + (lp?.bottomMargin ?: 0)
+        val gap = dpToPx(6f).toInt()
+        val actionBar = if (binding.miniPlayerActionBar.isVisible) binding.miniPlayerActionBar.height else 0
+        val margin = playerSpace + actionBar + gap
+        val vlp = view.layoutParams as? ViewGroup.MarginLayoutParams
+        if (vlp != null && vlp.bottomMargin != margin) {
+            vlp.bottomMargin = margin
+            view.layoutParams = vlp
+        }
+        // When the player is fully hidden its translation equals its whole space; cap ours so the
+        // pill stops just above the navigation bar instead of following the player off-screen.
+        val navInset = ViewCompat.getRootWindowInsets(binding.root)?.getInsets(WindowInsetsCompat.Type.navigationBars())?.bottom ?: 0
+        val furthest = (playerSpace - navInset).coerceAtLeast(0).toFloat()
+        view.translationY = player.translationY.coerceIn(0f, furthest)
     }
 
     /**
@@ -872,6 +1010,9 @@ class MainActivity : BaseActivity(), MiniPlayerCallbacks {
     }
 
     companion object {
+        /** How long a scan with nothing waiting on it runs before the status pill admits it. */
+        private const val LIBRARY_STATUS_GRACE_MS = 1500L
+
         /**
          * Fork (白い熊 音楽 UI): how long after entering the foreground a playback start still
          * counts as "part of this launch" and opens the player. Long enough for the shortcut's

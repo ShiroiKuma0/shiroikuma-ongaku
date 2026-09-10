@@ -56,6 +56,17 @@ class AudioDatabaseLoader @Inject constructor(private val context: Context) {
         private const val BATCH_SIZE = 50
 
         /**
+         * Fork (白い熊, 2026-09-10): called at the end of every successful scan, once each row has
+         * its filesystem path — the first moment a restore's deferred favourites and playlists can
+         * be attached to real rows (`SkBackup.applyPending` in `:music`, which this module cannot
+         * see). Installed by the application at startup; null is a no-op. Failures are logged and
+         * never fail the scan.
+         */
+        @Volatile
+        @JvmStatic
+        var onLibraryScanned: (suspend () -> Unit)? = null
+
+        /**
          * A lightweight snapshot of a file's identity in the database index.
          * We use size and last-modified time as a quick "has this file changed?" check —
          * no need to re-read the full metadata if these two numbers still match.
@@ -320,6 +331,18 @@ class AudioDatabaseLoader @Inject constructor(private val context: Context) {
             resolveAndUpdatePaths(dao)
 
             Log.d(TAG, "Audio file processing complete in ${(System.currentTimeMillis() - startTime) / 1000} seconds.")
+
+            // Fork: the library is whole and every row has a path — attach whatever a restore
+            // left waiting for exactly this moment.
+            onLibraryScanned?.let { hook ->
+                try {
+                    hook()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e(TAG, "onLibraryScanned hook failed", e)
+                }
+            }
         } catch (e: CancellationException) {
             Log.d(TAG, "Audio file processing canceled")
             // Only bubble the cancellation up if the *caller's* coroutine was canceled.

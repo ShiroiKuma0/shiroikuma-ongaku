@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.content.Context
 import androidx.core.app.NotificationCompat
 import app.simple.felicity.repository.R
+import app.simple.felicity.repository.loader.LibraryScanState
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -80,6 +81,7 @@ class LoaderNotification(private val context: Context) {
         totalFiles = 0
         val generation = currentGeneration.incrementAndGet()
         isNotificationActive.set(true)
+        LibraryScanState.begin() // Fork: the in-app status pill mirrors this notification
         postIndeterminate()
         return generation
     }
@@ -94,6 +96,7 @@ class LoaderNotification(private val context: Context) {
      */
     fun setTotal(total: Int) {
         totalFiles = total
+        LibraryScanState.total(total)
     }
 
     /**
@@ -110,6 +113,7 @@ class LoaderNotification(private val context: Context) {
      */
     fun updateProgress(scanned: Int) {
         if (!isNotificationActive.get()) return
+        LibraryScanState.progress(scanned)
 
         val total = totalFiles
         val isIndeterminate = total <= 0
@@ -144,6 +148,7 @@ class LoaderNotification(private val context: Context) {
     fun dismiss(generation: Int) {
         if (generation == currentGeneration.get()) {
             isNotificationActive.set(false)
+            LibraryScanState.end()
             notificationManager.cancel(SCAN_NOTIFICATION_ID)
         }
     }
@@ -155,6 +160,7 @@ class LoaderNotification(private val context: Context) {
      */
     fun dismissForce() {
         isNotificationActive.set(false)
+        LibraryScanState.end()
         notificationManager.cancel(SCAN_NOTIFICATION_ID)
     }
 
