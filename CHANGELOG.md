@@ -249,3 +249,36 @@ The whole fork stack (40 commits) replays onto upstream's new release tag. What 
 
 - **One progress sender for both doors.** The export receiver's throttled reporter and the data door's are now the same object, parameterised on the correlation id, which it sets in both the `reply_id` and `job_id` extras so one reader serves both. Two copies of the same watchdog drift, and the one that drifts is always the one nobody is looking at. Real counts, never a percentage; the mandatory final message is sent on both paths.
 - The settings page gains the 「Use authorization token?」 row inside the existing Export/Import section — not a section of its own, because this is a backup feature — and the token and Regenerate rows are hidden unless it is on: a secret sitting under an off switch invites pasting it somewhere it will do nothing.
+
+## 0.0.29_alpha+005 (2026-09-10, base 0.0.29_alpha)
+
+The first restore onto a wiped phone through 白い熊 応用管理 came back with an app that opened on the Setup screen and showed nothing: the settings had arrived, but the music folder's grant had not — it belongs to an installation, not to its data — and the favourites and playlists had been matched against a library that was still empty, and reported as restored. This release makes that restore finish itself. (+003 and +004 were the two intermediate builds; +005 is what ships.)
+
+### The music folder's grant is asked for back
+
+- **The folder list travels.** `saf_granted_tree_uris` is no longer excluded from the export; on import it is merged as a **union** with whatever the phone already has, because a list of folders is a record, not a setting to overwrite.
+- **The SAF check answers from reality.** `isSAFAccessGranted()` used to read the folder list alone, which after a restore said 「音楽」 while nothing could be read, and sent the app straight to an empty home screen. It now requires that a recorded folder is actually held by this installation (`SkFolderGrants`, in the decorations module so the permission check can reach it).
+- **The Setup screen names what is missing.** Under the granted-folders list: 「Access lost — needs granting again (the picker opens there): • 〇/[277] 音楽」, and the folder button opens the system picker *at* that folder, so re-granting is a confirmation rather than a search. Re-picking the same folder yields a **byte-identical** tree URI — document ids are path-based — so every row that pointed at it works again with nothing rewritten (the model 書籍閲覧 proved on the same phone the day before).
+- **A launch-time gate for every later launch** (`SkFolderGrantDialog`): whenever the list names a folder this install cannot read, a black-yellow dialog names it, with 「Choose the folder」 (picker opens there, then the scan starts), 「Forget it」 (the folder leaves the list) and 「Not now」 (asked again next launch — a folder declined today may be wanted back tomorrow, and the cost is one glance). A re-grant of a *parent* folder counts as covering the old one.
+- When 応用管理 restores the URI grant itself (its permissions stage carries SAF grants when it has the privilege), none of this is needed and none of it appears; it is the fallback for when the grant does not come across.
+
+### The data restore is deferred, never dropped
+
+- **Every favourite or playlist song that finds no library row is kept waiting** in `files/shiroikuma_pending_restore/` and tried again at the end of every library scan (`AudioDatabaseLoader.onLibraryScanned` → `SkBackup.applyPending`). What matches drains out of the file; what still matches nothing stays for the next scan. A song favourited by the first pass and un-favourited by hand afterwards is not in the file any more, so it is never re-favourited behind your back. A second restore before the scan merges into the first — favourites as a set, playlists by name with their owed songs appended once.
+- **Import into a never-launched install is now the intended order.** The provider header's `requires_launch_first` is `false`: nothing merges against first-run defaults, and the scan that fills the library cannot run before the folder has been granted anyway. The import summary says 「N kept waiting for the next library scan」.
+- **Preference writes in the import path use `commit()`** rather than `apply()`, so they are on disk before the reply that triggers 応用管理's force-stop — the same fence 書類管理 added the week before.
+
+### Songs are identified by document id, path second — archive format 2
+
+- Upstream's `path` column is **approximate**: it is filled after the scan by matching each row's (title, artist, album) against MediaStore, so two files with the same tags share one path and a file MediaStore describes differently has none. On the new phone five of 341 favourites sat unmatched after a full scan with their files present and scanned.
+- The scanner's real key is the **SAF document id** (`primary:〇/[277] 音楽/…/x.mp3`), derived from the path alone and identical wherever the same files sit under the same folder. Favourites and playlist songs are now written as `{"doc": …, "path": …}` objects (`manifest.json` version 2, `min_format_readable` still 1); format-1 archives still read, and a bare path is converted to a document id before matching. Matching order: document id, path, path-as-document-id — each exact and NFC-normalised.
+
+### The app says what it is doing
+
+- **A library status pill above the mini player** (`LibraryScanState`, fed by the same calls that drive the shade notification): 「Scanning the library — 楽曲 1234/8942」 while a scan runs, 「Restore waiting for the scan: 341 favorites · 2 playlists (38 songs)」 while data waits (「…waiting for a library scan」 when no scan is running yet), and a 「✓ Restored 341 favorites · 2 playlists (38 songs)」 flash when a pass attaches something. It follows the mini player and stops above the navigation bar once the player has slid away. A scan with nothing waiting on it earns the pill only after 1.5 s, so the refresh-on-resume scan of an unchanged library never blinks it. A restored copy used to open on an empty home screen and sit silent for the minutes a full scan takes, indistinguishable from a broken one.
+- **The waiting room** (`SkPendingRestoreDialog`), opened from the pill or from the new 「Waiting restore…」 row under Export / Import on the UI page (visible only while something waits): every unmatched favourite and playlist song with its file name and folder, beside what the library holds under the same file name — one hit → 「Use」, several → 「Choose…」, none → just 「Discard」 — plus 「Retry now」 (the automatic pass), 「Use all suggestions」 (every one-hit entry at once), 「Discard all」 and 「Close」. Nothing there is guessed on your behalf.
+
+### Smaller things in the same layer
+
+- `SkDialogChrome` carries the fork's dialog look (bordered window, pill buttons, app typeface) for the dialogs outside the UI page.
+- The headless export progress feed is unchanged and worth knowing about: it lets through at most one progress broadcast every 500 ms plus the unthrottled final 完了, so a sub-second export shows only 区分 1/6 and 6/6 in 応用管理's log while all six categories are written.
