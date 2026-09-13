@@ -20,7 +20,7 @@ The entire rebase + build happens on the **local** working tree as a scratchpad.
 
 ## Step 1 — Check upstream for a newer release tag
 
-Felicity tags releases as bare `X.Y.Z_alpha` (e.g. `0.0.29_alpha`) — no `v` prefix. The fork tracks the **latest release tag**, not in-development master (upstream's master usually sits one untagged patch ahead — e.g. code 30 / `0.0.30_alpha` before that tag exists).
+Felicity tags releases as bare `X.Y.Z_alpha` (e.g. `0.0.30_alpha`) — no `v` prefix. The fork tracks the **latest release tag**, not in-development master (upstream's master usually sits one untagged patch ahead — e.g. code 31 / `0.0.31_alpha` before that tag exists).
 
 ```bash
 cd ~/git/shiroikuma-ongaku
@@ -118,7 +118,7 @@ Don't push through a significant rebase just to "get it building" — a silently
 
 ## Step 4 — Build the new APK (apply the ongaku-build pipeline)
 
-Build directly with Bash per **ongaku-build**'s pipeline. The version counter **resets to N=1** automatically because the base tag changed → versionName `<new tag>+001` (e.g. a new `0.0.30_alpha` tag → `0.0.30_alpha+001`; the counter is always zero-padded to three digits). No submodules to init.
+Build directly with Bash per **ongaku-build**'s pipeline. The version counter **resets to N=1** automatically because the base tag changed → versionName `<new tag>+001` (e.g. a new `0.0.31_alpha` tag → `0.0.31_alpha+001`; the counter is always zero-padded to three digits). No submodules to init.
 
 - If the build **fails on the rebase result** (a compile error in code our commits touch), treat it like a significant conflict: diagnose, and if it stems from the rebase, replan with 白い熊 rather than patching blindly.
 - Toolchain reminders: JDK 21, SDK platform-36, NDK `28.2.13676358` (installed). `sh ./gradlew --stop` if a stale daemon picked the wrong JVM.
@@ -143,6 +143,8 @@ Then **update the docs to the new base**: the version/tag examples in `ongaku-bu
 - **Commit 1** (`Customize for shiroikuma side-by-side install`): `music/build.gradle` `defaultConfig` (applicationId + `-P` version block — conflicts on upstream's literal version bump every release → keep ours) and the `foss` `abiFilters` narrowing; plus `non_translatable_string.xml` `app_name` → `白い熊 音楽`. Leave `namespace`, the `play` flavor, and upstream's `versionNameSuffix` lines untouched.
 - **Force-full-version commit**: `preferences/.../TrialPreferences.kt` — the forced returns on the query methods. Conflicts only if upstream edits those methods; keep ours (a missed one re-introduces the paywall → `INSTALL`-succeeds-but-`TrialExpired`-screen).
 - **Icon commit**: the `drawable/ic_launcher_ongaku_foreground.xml` + `mipmap-anydpi-v26/*` + regenerated rasters. Conflicts only if upstream reworks its launcher icon.
+- **Scanner status pill** (`Clean-phone restore …` commit): `repository/.../notifications/LoaderNotification.kt` carries six one-line `LibraryScanState.begin/total/progress/end` hooks inside `begin()`, `setTotal()`, `updateProgress()`, `dismiss()`, `dismissForce()`. Upstream restructured this class in `0.0.30_alpha` (generation tokens + `synchronized(lock)`, rate-limited updates, `invalidate()`); when it conflicts again, take upstream's structure verbatim and re-insert the hooks (progress goes *before* the rate-limit return; `invalidate()` gets no `end()` — it is always followed by a fresh `begin()`).
+- **`onPlaybackResumption` in `FelicityPlayerService.kt`** (Android Auto commit): we override the **3-arg** media3 overload (`…, isForPlayback: Boolean`); upstream's `0.0.30_alpha` ForegroundServiceDidNotStartInTimeException fix overrides the deprecated **2-arg** one. media3 calls only the 3-arg overload (its default delegates to the 2-arg), so upstream's override is unreachable in our fork — anything upstream adds there must be folded into ours (its `MediaPlaybackManager.setSongs(…, isRestore = true)` + `setActiveQueueId` sync already is). If upstream migrates to the 3-arg signature, the two will collide textually: merge the bodies, keep our `toPlayableMediaItem()` items and the recent-songs fallback.
 - **General rule:** if a conflict feels non-trivial, re-derive the affected commit from `ongaku-build` rather than fighting the merge; take the "significant → plan with 白い熊" path.
 
 ---
