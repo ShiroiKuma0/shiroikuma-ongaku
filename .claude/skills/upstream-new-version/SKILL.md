@@ -20,7 +20,7 @@ The entire rebase + build happens on the **local** working tree as a scratchpad.
 
 ## Step 1 — Check upstream for a newer release tag
 
-Felicity tags releases as bare `X.Y.Z_alpha` (e.g. `0.0.30_alpha`) — no `v` prefix. The fork tracks the **latest release tag**, not in-development master (upstream's master usually sits one untagged patch ahead — e.g. code 31 / `0.0.31_alpha` before that tag exists).
+Felicity tags releases as bare `X.Y.Z_alpha` (e.g. `0.0.31_alpha`) — no `v` prefix. The fork tracks the **latest release tag**, not in-development master (upstream's master usually sits one untagged patch ahead — currently code 32 / `0.0.32_alpha` before that tag exists). A commit rebased onto while still untagged can pick up a release tag later, which silently moves the tracked tag without a rebase — always re-read it with `git describe` rather than trusting the docs.
 
 ```bash
 cd ~/git/shiroikuma-ongaku
@@ -118,7 +118,9 @@ Don't push through a significant rebase just to "get it building" — a silently
 
 ## Step 4 — Build the new APK (apply the ongaku-build pipeline)
 
-Build directly with Bash per **ongaku-build**'s pipeline. The version counter **resets to N=1** automatically because the base tag changed → versionName `<new tag>+001` (e.g. a new `0.0.31_alpha` tag → `0.0.31_alpha+001`; the counter is always zero-padded to three digits). No submodules to init.
+Build directly with Bash per **ongaku-build**'s pipeline. The version counter **resets to N=1** automatically because the base tag changed → versionName `<new tag>+001` (e.g. a new `0.0.32_alpha` tag → `0.0.32_alpha+001`; the counter is always zero-padded to three digits). No submodules to init.
+
+**Then update the fork docs to the tag just landed on**, in the same session: `CLAUDE.md`'s "Current status" (tag, rebase date, commit count, current build) and the `custom` row, plus any now-stale example in `ongaku-build`. Leave `CHANGELOG.md` and the README release line alone — `publish-version` owns those. (白い熊, 2026-10-20.)
 
 - If the build **fails on the rebase result** (a compile error in code our commits touch), treat it like a significant conflict: diagnose, and if it stems from the rebase, replan with 白い熊 rather than patching blindly.
 - Toolchain reminders: JDK 21, SDK platform-36, NDK `28.2.13676358` (installed). `sh ./gradlew --stop` if a stale daemon picked the wrong JVM.
