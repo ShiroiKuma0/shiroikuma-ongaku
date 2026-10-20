@@ -305,3 +305,55 @@ The whole fork stack (46 commits) replays onto upstream's new release tag; the b
 - **Cold-start playback resumption.** Upstream's crash fix overrides media3's deprecated two-argument `onPlaybackResumption`; the fork's Android Auto layer has overridden the three-argument one since `0.0.26_alpha+19`, and media3 calls only that overload (its default delegates to the two-argument one). Upstream's override is therefore unreachable in this build and the crash was already covered here — the fork's override has been returning the saved queue, or the recently-added songs when there is none, all along. Its one genuine addition, mirroring the restored queue and active queue id into `MediaPlaybackManager` so the in-app queue matches what media3 is about to play, is folded into the fork's override for both paths. The car UI keeps the fork's richer items (artwork, duration).
 - **Favourite flips.** The automation layer re-emits `TRACK_CHANGED` when the current song's favourite state flips, so 自由作業盤 self-corrects; that broadcast now sits inside upstream's corrected block, after the now-playing instance has been updated.
 - The two perennial conflicts — upstream's literal version lines in `music/build.gradle` and the fork README — resolved as every sync.
+
+## 0.0.32_alpha+001 (2026-10-20, base 0.0.32_alpha)
+
+### Shuffle draws from the whole library again
+
+The reason for this build. With thousands of songs in the library, pressing **Shuffle** on the Songs page kept playing from the same pool of roughly a hundred tracks — a different order each time, but the same songs and the same artists.
+
+Upstream's `smartShuffle` grouped every song by artist, sorted those groups by descending size, dealt them round-robin into as many buckets as the most prolific artist had songs, shuffled each bucket, and then concatenated the buckets **in a fixed order**. Bucket 0 therefore always supplied the opening stretch of the queue, and its membership was decided by a stable sort rather than by chance — so the same small set of artists opened every single shuffle.
+
+It is replaced by a plain uniform Fisher–Yates shuffle followed by one bounded forward pass that swaps a song with the nearest later song by a different artist whenever two neighbours share one, preserving upstream's intent that the same artist should not play back-to-back. The repair pass looks ahead at most 32 positions; when an artist genuinely dominates the rest of the queue the repeat is accepted rather than scanned for endlessly.
+
+Measured over 12 shuffles of a 3000-song library, the old algorithm drew its first 100 songs from a pool of 434 with 42.7 % mean pairwise overlap and 22 songs present every time. The new one matches the true-random baseline exactly — 1010 distinct songs, 3.2 % overlap, none always present — while holding adjacent same-artist repeats at zero, where a bare shuffle leaves about 62. On the phone, fifteen consecutive shuffles of a 1515-track library produced fifteen different songs by fifteen different artists.
+
+The redundant second shuffle inside `MediaPlaybackManager.setSongs()` is dropped at the same time. The shuffle button shuffles the list itself so that it works even with the shuffle preference off, and the manager then reshuffled the already-random queue — a second full pass over the library for no benefit. A `preShuffled` flag now tells the manager to take the caller's order as given, and the queue position is no longer forced to 0 on that path.
+
+### Rebased onto Felicity 0.0.31_alpha and 0.0.32_alpha
+
+Two upstream releases land in this build: `0.0.31_alpha` was tracked from 2026-10-02 but never published from this fork, so its changes ship here for the first time. The stack is 51 commits; the build counter restarts at `+001` (versionCode `320001`).
+
+**From 0.0.31_alpha (57 upstream commits)**
+
+- **Queue management dialog**, and a shuffle button on the **Folders Hierarchy** panel.
+- **Search got substantially better**: untagged files are matched by filename and path rather than being invisible, exact title matches rank first (#136), and more search filters were added.
+- **Volume dialog revamped** with dot indicators.
+- **Miniplayer**: a slider to resize it in landscape (#23), and a fix for its scaling leaking into portrait.
+- Artists and albums are **sorted before being added to the queue** (#158).
+- **Waveform**: yaw rotation applied to the bookmark dots, and the optics proportions corrected under that rotation.
+- **Fixes**: the first LRC line's highlight; a scanning notification that persisted across rescans; a pause delay on both the AAudio and Oboe sinks; the crash-activity layout; the artist-panel button in the ArtFlow home (#23); dismissing the keyboard popping fragments and three separate padding and window-bar problems in the metadata editor (#155); the cancel button in the app-label dialog; a double measure pass and text overlapping drawn buttons in the media-aware layouts; and artist-artwork cache collisions.
+- The extra queue and lyrics buttons were removed, and the shuffle button was hidden when the queue held fewer than two songs — a change `0.0.32_alpha` then reversed.
+- **Persian** and **Ukrainian** language support, with Russian and Polish updates; non-translatable strings relocated.
+
+**From 0.0.32_alpha (25 upstream commits)**
+
+- **The Lyrics interface was revamped** — an album-art toggle, Felicity media controls inside the panel, true crossfade on the album art, a vignette, and theme and status-bar colour fixes.
+- A dialog to **play songs recursively in the Folders Hierarchy** — the current directory alone, or it together with all its subdirectories — plus a media-state consistency fix there.
+- **Playback no longer freezes after audio-focus loss during a call.** Upstream rewrote roughly 800 lines of the AAudio and Oboe native players for this; it is by far the largest change in the release.
+- **A dashboard crash** when a song was played too early during app launch.
+- Fixes for a low tile count in the tiled home, clearing selections popping two screens at once, and the dot-indicator colour in the volume knob.
+- The hidden-shuffle-button behaviour added in `0.0.31_alpha` was reverted.
+- New **Polish** translations.
+
+### Fork patches that met upstream's changes
+
+- **One conflict across 51 replayed commits** — upstream's literal `versionCode` / `versionName` lines in `music/build.gradle` against the fork's `-P`-driven block, as on every sync. Resolved the usual way.
+- **The shuffle fix and upstream's shuffle-button change share a file.** `0.0.32_alpha` deletes the queue-size check that hid the shuffle button, seven lines inside `MediaFragment.kt`; the fork's `preShuffled` call site sits about 970 lines away in the same file, and the two merged without touching each other.
+- **Every other customization anchor was untouched upstream** in this range — `TrialPreferences.kt`, `Shuffle.kt`, `MediaPlaybackManager.kt`, `LoaderNotification.kt` and `FelicityPlayerService.kt` — so the trial removal, the scanner status pill and the Android Auto resumption override all replayed clean. `LoaderNotification.kt` does change on upstream's master, but only in commits that came after the `0.0.32_alpha` tag.
+- Verified in the compiled bytecode rather than the source: `Shuffle.class` carries the new `spreadGroups` pass with exactly one `shuffled()` call and no trace of the bucket code, and `TrialPreferences.isFullVersion()` / `isTrialExpired()` compile to constant `true` / `false`.
+
+### Packaging
+
+- **Gradle wrapper 9.3.1 → 9.8.1** (upstream's bump; the `distributionSha256Sum` pin was dropped with it). AGP 9.1.1, Kotlin 2.3.21, KSP 2.3.4 and the NDK pin `28.2.13676358` are unchanged, and `org.gradle.tooling.parallel` was enabled upstream.
+- versionName `0.0.32_alpha+001`, versionCode `320001`, foss flavor, arm64-v8a only.
