@@ -376,10 +376,15 @@ open class MediaFragment : KeyboardScopedFragment(), MiniPlayerPolicy {
     /**
      * Shuffles [songs] using the smart artist-aware algorithm, then starts playing from
      * position 0. The shuffled queue replaces the current queue entirely.
+     *
+     * The shuffle happens here rather than inside [MediaPlaybackManager.setSongs] because
+     * tapping the shuffle button shuffles the list whether or not the shuffle preference is
+     * on (toggling the preference is the long-press menu's job). The `preShuffled` flag tells
+     * the manager not to shuffle the list a second time.
      */
     protected fun shuffleMediaItems(songs: List<Audio>) {
         val shuffled = smartShuffle(songs, { it.artist ?: "" }).toMutableList()
-        MediaPlaybackManager.setSongs(shuffled, 0, autoPlay = true)
+        MediaPlaybackManager.setSongs(shuffled, 0, autoPlay = true, preShuffled = true)
         createSongHistoryDatabase(shuffled)
     }
 
