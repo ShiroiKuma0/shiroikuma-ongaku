@@ -258,15 +258,21 @@ object MediaPlaybackManager {
      * Provide a new queue to the controller and notify UI. Position is clamped to valid range.
      * Note: Emission order between list and position is not strictly guaranteed due to coroutines,
      * but replay=1 on both flows ensures UI will observe the latest of each.
+     *
+     * Pass [preShuffled] when [audios] has already been through [smartShuffle] — the shuffle
+     * button does its own shuffling so that it works even with the shuffle preference off, and
+     * reshuffling here would only reorder an already random queue at the cost of a second pass
+     * over the whole library.
      */
-    fun setSongs(audios: List<Audio>, position: Int = 0, startPositionMs: Long = 0L, autoPlay: Boolean = false, isRestore: Boolean = false) {
+    fun setSongs(audios: List<Audio>, position: Int = 0, startPositionMs: Long = 0L, autoPlay: Boolean = false, isRestore: Boolean = false, preShuffled: Boolean = false) {
         Log.d(
                 TAG,
                 "setSongs called: count=${audios.size}, position=$position, startPositionMs=$startPositionMs, autoPlay=$autoPlay"
         )
 
         // simply skip to the song position since list is same and user does not want shuffling here.
-        if (ShufflePreferences.isNoReshuffleEnabled()
+        if (preShuffled.not()
+                && ShufflePreferences.isNoReshuffleEnabled()
                 && shuffledQueue.isNotEmpty()
                 && audios.size == originalQueue.size
                 && audios.indices.all { audios[it].id == originalQueue[it].id }
@@ -331,7 +337,13 @@ object MediaPlaybackManager {
                 val activeQueue: List<Audio>
                 val newShuffledQueue: List<Audio>
 
-                if (shuffleOn && isRestore.not()) {
+                if (preShuffled) {
+                    // Already shuffled by the caller — take the order as given. Only record it as
+                    // the shuffled queue when shuffle is actually on, so that toggling shuffle off
+                    // still restores the untouched order the same way it does for any other queue.
+                    activeQueue = audios
+                    newShuffledQueue = if (shuffleOn) audios else emptyList()
+                } else if (shuffleOn && isRestore.not()) {
                     // Smart shuffle keeps artists spread out and anchors the tapped song first.
                     val startSong = audios.getOrNull(position)
                     val shuffled = smartShuffle(audios, { it.artist ?: "" }, startSong)
@@ -342,7 +354,11 @@ object MediaPlaybackManager {
                     newShuffledQueue = emptyList()
                 }
 
-                val clampedPosition = if (shuffleOn) 0 else position.coerceIn(0, activeQueue.size - 1)
+                val clampedPosition = if (shuffleOn && preShuffled.not()) {
+                    0
+                } else {
+                    position.coerceIn(0, activeQueue.size - 1)
+                }
 
                 val mediaItems = activeQueue.map { it.toMediaItem() }
 
