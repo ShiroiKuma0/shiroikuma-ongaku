@@ -15,6 +15,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.DocumentsContract
 import android.provider.Settings
 import android.text.TextUtils
 import android.util.TypedValue
@@ -55,6 +56,7 @@ import app.simple.felicity.preferences.AppearancePreferences
 import app.simple.felicity.preferences.AutomationPreferences
 import app.simple.felicity.preferences.MeteorPreferences
 import app.simple.felicity.preferences.ShiroikumaPreferences
+import app.simple.felicity.shared.shiroikuma.SkDiag
 import app.simple.felicity.shiroikuma.AlbumArtDownloader
 import app.simple.felicity.shiroikuma.PowerAmpArtImporter
 import app.simple.felicity.shiroikuma.PowerAmpRatingsImporter
@@ -131,6 +133,19 @@ class ShiroikumaUi : PreferenceFragment() {
         }
     }
 
+    /** The Stored line under Diagnostics, refilled from a background count. */
+    private var diagStoredTv: TypeFaceTextView? = null
+
+    /**
+     * Directory picker for the diagnostics export. Offered at “/sdcard/tmp” the first time, and
+     * at whatever was picked last afterwards.
+     */
+    private val diagExportPicker = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            onDiagExportTreeChosen(uri)
+        }
+    }
+
     /** Document picker for the PowerAmp album-art export (also a `.poweramp-backup` ZIP). */
     private val powerAmpArtPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -160,6 +175,14 @@ class ShiroikumaUi : PreferenceFragment() {
         refreshEximRowStatus()
         // Coming back from the system grant page must show the new state, not the stale one.
         allFilesValueView?.setText(allFilesAccessLabel())
+        refreshDiagStored()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // The keep-for-N-days window is applied on leaving the page as well as at start.
+        val app = context?.applicationContext ?: return
+        lifecycleScope.launch(Dispatchers.IO) { SkDiag.cleanup(app) }
     }
 
     private fun buildRows() {
@@ -436,6 +459,140 @@ class ShiroikumaUi : PreferenceFragment() {
         addImportPowerAmpRow(indent = 1)
         addImportPowerAmpArtRow(indent = 1)
         addDownloadAlbumArtRow(indent = 1)
+
+        // ------------------------------------------------ Diagnostics
+        addSection(R.string.sk_diag_section)
+        addNoteRow(getString(R.string.sk_diag_intro), indent = 1)
+
+        addSubgroup(R.string.sk_diag_group_screens, indent = 1)
+        addDiagSwitch(SkDiag.Group.SCREENS, indent = 2)
+        addDiagSwitch(SkDiag.Group.MEMORY, indent = 2)
+
+        addSubgroup(R.string.sk_diag_group_playback, indent = 1)
+        addDiagSwitch(SkDiag.Group.PLAYBACK, indent = 2)
+
+        addSubgroup(R.string.sk_diag_group_service, indent = 1)
+        addDiagSwitch(SkDiag.Group.SERVICE, indent = 2)
+
+        addSubgroup(R.string.sk_diag_group_library, indent = 1)
+        addDiagSwitch(SkDiag.Group.LIBRARY, indent = 2)
+
+        addSubgroup(R.string.sk_diag_group_automation, indent = 1)
+        addDiagSwitch(SkDiag.Group.AUTOMATION, indent = 2)
+
+        addSubgroup(R.string.sk_diag_group_recorded, indent = 1)
+        diagStoredTv = addDescribedRow(R.string.sk_diag_stored, getString(R.string.sk_diag_counting), indent = 2)
+        refreshDiagStored()
+        addSliderRow(R.string.sk_diag_keep, indent = 2,
+                     min = 0F, max = 60F, default = 0F,
+                     current = { SkDiag.getKeepDays(requireContext()).toFloat() },
+                     label = {
+                         if (it.toInt() == 0) getString(R.string.sk_diag_keep_all)
+                         else getString(R.string.sk_diag_keep_days, it.toInt())
+                     },
+                     onChange = { SkDiag.setKeepDays(requireContext(), it.toInt()) })
+        addActionRow(R.string.sk_diag_export, indent = 2, main = true, opens = true,
+                     description = getString(R.string.sk_diag_export_desc)) {
+            launchDiagExport()
+        }
+        addActionRow(R.string.sk_diag_share, indent = 2, opens = true,
+                     description = getString(R.string.sk_diag_share_desc)) {
+            shareDiag()
+        }
+        addActionRow(R.string.sk_diag_purge, indent = 2, opens = false,
+                     description = getString(R.string.sk_diag_purge_desc)) {
+            confirmDiagPurge()
+        }
+    }
+
+    // ------------------------------------------------------------------ Diagnostics
+
+    private fun addDiagSwitch(group: SkDiag.Group, indent: Int) {
+        addDescribedSwitchRow(group.titleRes, group.descRes, indent,
+                              isChecked = { SkDiag.isOn(group) },
+                              onChecked = { SkDiag.set(requireContext(), group, it) })
+    }
+
+    /** Counts what is on disk off the main thread — a day's file can be tens of megabytes. */
+    private fun refreshDiagStored() {
+        val app = context?.applicationContext ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val summary = withContext(Dispatchers.IO) { SkDiag.summarize(app) }
+            diagStoredTv?.text = describeDiagStored(summary)
+        }
+    }
+
+    private fun describeDiagStored(summary: SkDiag.Summary): String {
+        if (summary.count == 0) return getString(R.string.sk_diag_stored_none)
+        val size = formatBytes(summary.bytes)
+        return if (summary.firstDay == summary.lastDay) {
+            getString(R.string.sk_diag_stored_day, summary.count, size, summary.lastDay)
+        } else {
+            getString(R.string.sk_diag_stored_span, summary.count, size, summary.firstDay, summary.lastDay)
+        }
+    }
+
+    private fun formatBytes(bytes: Long): String = when {
+        bytes >= 1024L * 1024L -> String.format(Locale.ROOT, "%.1f MB", bytes / (1024.0 * 1024.0))
+        bytes >= 1024L -> String.format(Locale.ROOT, "%.0f kB", bytes / 1024.0)
+        else -> "$bytes B"
+    }
+
+    private fun launchDiagExport() {
+        val initial = SkDiag.getExportTree(requireContext())
+                ?: DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", "primary:tmp")
+        runCatching { diagExportPicker.launch(initial) }
+            .onFailure { diagExportPicker.launch(null) }
+    }
+
+    private fun onDiagExportTreeChosen(tree: Uri) {
+        val app = requireContext().applicationContext
+        SkDiag.setExportTree(app, tree)
+        viewLifecycleOwner.lifecycleScope.launch {
+            val copied = withContext(Dispatchers.IO) { SkDiag.export(app, tree) }
+            if (copied > 0) {
+                SkFlash.show(requireContext(), getString(R.string.sk_diag_export_done, copied))
+            } else {
+                SkFlash.show(requireContext(), R.string.sk_diag_export_failed)
+            }
+        }
+    }
+
+    private fun shareDiag() {
+        val intent = SkDiag.shareIntent(requireContext())
+        if (intent == null) {
+            SkFlash.show(requireContext(), R.string.sk_diag_share_none)
+            return
+        }
+        startActivity(Intent.createChooser(intent, getString(R.string.sk_diag_share)))
+    }
+
+    /** Says exactly what disappears before anything does. */
+    private fun confirmDiagPurge() {
+        val app = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            val summary = withContext(Dispatchers.IO) { SkDiag.summarize(app) }
+            if (summary.count == 0) {
+                SkFlash.show(requireContext(), R.string.sk_diag_stored_none)
+                return@launch
+            }
+            val span = if (summary.firstDay == summary.lastDay) summary.lastDay.orEmpty()
+            else "${summary.firstDay} – ${summary.lastDay}"
+            val dialog = AlertDialog.Builder(requireContext())
+                .setTitle(R.string.sk_diag_purge_title)
+                .setMessage(getString(R.string.sk_diag_purge_body, summary.count, formatBytes(summary.bytes), span))
+                .setPositiveButton(R.string.sk_diag_purge_confirm) { _, _ ->
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        val removed = withContext(Dispatchers.IO) { SkDiag.purge(app) }
+                        SkFlash.show(requireContext(), getString(R.string.sk_diag_purge_done, removed))
+                        refreshDiagStored()
+                    }
+                }
+                .setNegativeButton(R.string.sk_diag_purge_cancel, null)
+                .create()
+            dialog.show()
+            styleEximDialog(dialog)
+        }
     }
 
     // ------------------------------------------------------------------ row builders
@@ -586,6 +743,29 @@ class ShiroikumaUi : PreferenceFragment() {
         paint()
         restyle.add(paint)
         binding.rowsContainer.addView(row.root)
+    }
+
+
+    /**
+     * A described row with no control of its own — a label and its explanation. Used for facts
+     * the page states rather than settings it offers.
+     */
+    private fun addDescribedRow(@StringRes labelRes: Int, description: CharSequence, indent: Int): TypeFaceTextView {
+        val row = ItemSkSwitchDescribedBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        row.switchLabel.text = getString(labelRes)
+        row.switchDesc.text = description
+        row.switchToggle.visibility = View.GONE
+        row.root.isClickable = false
+        indentRow(row.root, indent)
+        val paint = {
+            row.switchLabel.setTextColor(skAccentColor())
+            row.switchDesc.setTextColor(skNoteColor())
+            row.switchRule.setBackgroundColor(skNoteColor())
+        }
+        paint()
+        restyle.add(paint)
+        binding.rowsContainer.addView(row.root)
+        return row.switchDesc
     }
 
     /**

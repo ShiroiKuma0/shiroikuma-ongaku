@@ -4,3 +4,8 @@ apply from: rootProject.file('common.gradle')
 android {
     namespace 'app.simple.felicity.shared'
 }
+
+dependencies {
+    // The diagnostics export writes into a directory picked through the Storage Access Framework.
+    implementation 'androidx.documentfile:documentfile:1.1.0'
+}

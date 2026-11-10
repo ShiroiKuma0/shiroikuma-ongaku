@@ -23,6 +23,9 @@ import app.simple.felicity.preferences.ShufflePreferences
 import app.simple.felicity.repository.constants.MediaConstants
 import app.simple.felicity.repository.listeners.MediaStateListener
 import app.simple.felicity.repository.models.Audio
+import app.simple.felicity.shared.shiroikuma.SkDiag
+import app.simple.felicity.shared.shiroikuma.SkDiagLog
+import app.simple.felicity.shared.shiroikuma.SkDiagProbes
 import app.simple.felicity.repository.shuffle.Shuffle.smartShuffle
 import app.simple.felicity.repository.utils.AudioUtils.getProperAlbum
 import app.simple.felicity.repository.utils.AudioUtils.getProperArtists
@@ -247,6 +250,7 @@ object MediaPlaybackManager {
         override fun onEvents(player: Player, events: Player.Events) {
             if (mediaController?.isConnected == false) {
                 Log.w(TAG, "MediaController disconnected — service likely died. Clearing stale reference.")
+                SkDiagLog.log(SkDiag.Group.SERVICE) { "controller disconnected — the service is gone" }
                 clearMediaController()
             }
         }
@@ -271,6 +275,7 @@ object MediaPlaybackManager {
         mediaController?.removeListener(disconnectWatcher)
         mediaController = controller
         controller.addListener(disconnectWatcher)
+        SkDiagLog.log(SkDiag.Group.SERVICE) { "controller opened, controllers=${SkDiagProbes.controllerOpened()}" }
         // If controller is already playing when set, ensure seek updates are running
         if (controller.isPlaying) startSeekPositionUpdates() else stopSeekPositionUpdates()
     }
@@ -278,7 +283,10 @@ object MediaPlaybackManager {
     fun clearMediaController() {
         stopSeekPositionUpdates()
         pendingSeekPositions.clear()
-        mediaController?.removeListener(disconnectWatcher)
+        mediaController?.let {
+            it.removeListener(disconnectWatcher)
+            SkDiagLog.log(SkDiag.Group.SERVICE) { "controller closed, controllers=${SkDiagProbes.controllerClosed()}" }
+        }
         mediaController = null
     }
 
@@ -296,6 +304,9 @@ object MediaPlaybackManager {
      */
     fun detachUi(isChangingConfigurations: Boolean) {
         attachedUiCount = (attachedUiCount - 1).coerceAtLeast(0)
+        SkDiagLog.log(SkDiag.Group.SERVICE) {
+            "ui detached, attached=$attachedUiCount changingConfigurations=$isChangingConfigurations"
+        }
         if (attachedUiCount == 0 && !isChangingConfigurations) {
             val controller = mediaController
             clearMediaController()
@@ -314,6 +325,9 @@ object MediaPlaybackManager {
      * over the whole library.
      */
     fun setSongs(audios: List<Audio>, position: Int = 0, startPositionMs: Long = 0L, autoPlay: Boolean = false, isRestore: Boolean = false, preShuffled: Boolean = false) {
+        SkDiagLog.log(SkDiag.Group.PLAYBACK) {
+            "queue set: ${audios.size} songs at $position, autoPlay=$autoPlay restore=$isRestore"
+        }
         Log.d(
                 TAG,
                 "setSongs called: count=${audios.size}, position=$position, startPositionMs=$startPositionMs, autoPlay=$autoPlay"
@@ -689,6 +703,7 @@ object MediaPlaybackManager {
     }
 
     fun pause() {
+        SkDiagLog.log(SkDiag.Group.PLAYBACK) { "pause at ${getSeekPosition()} ms" }
         mediaController?.pause()
         // Stop seek updates when paused to reduce unnecessary processing
         // UI will get the final position from the playback state change
@@ -696,6 +711,7 @@ object MediaPlaybackManager {
     }
 
     fun play() {
+        SkDiagLog.log(SkDiag.Group.PLAYBACK) { "play at $currentSongPosition of ${songs.size}" }
         if (mediaController == null) {
             Log.w(TAG, "play() called but mediaController is null")
             return
@@ -719,6 +735,7 @@ object MediaPlaybackManager {
     }
 
     fun stop() {
+        SkDiagLog.log(SkDiag.Group.PLAYBACK) { "stop" }
         mediaController?.stop()
         stopSeekPositionUpdates()
     }
@@ -931,6 +948,7 @@ object MediaPlaybackManager {
     }
 
     fun next() {
+        SkDiagLog.log(SkDiag.Group.PLAYBACK) { "next from $currentSongPosition of ${songs.size}" }
         lastNavigationDirection = true
         val nextPos = findNextNonSkippedPosition(currentSongPosition)
         if (nextPos != null) {
@@ -941,6 +959,7 @@ object MediaPlaybackManager {
     }
 
     fun previous() {
+        SkDiagLog.log(SkDiag.Group.PLAYBACK) { "previous from $currentSongPosition of ${songs.size}" }
         if (getSeekPosition() > 3000L) {
             // If we're more than 3 seconds into the song, just seek to the start for a quick restart.
             mediaController?.seekTo(currentSongPosition, 0L)
@@ -966,6 +985,7 @@ object MediaPlaybackManager {
     }
 
     fun seekTo(position: Long) {
+        SkDiagLog.log(SkDiag.Group.PLAYBACK) { "seek to $position ms" }
         val duration = getDuration()
         val clamped = if (duration > 0L) position.coerceIn(0L, duration) else max(0L, position)
         mediaController?.seekTo(clamped)

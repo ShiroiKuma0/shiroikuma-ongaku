@@ -21,6 +21,8 @@ import java.io.FileOutputStream
 import java.io.OutputStream
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
+import app.simple.felicity.shared.shiroikuma.SkDiag
+import app.simple.felicity.shared.shiroikuma.SkDiagLog
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -59,6 +61,7 @@ class StateExportReceiver : BroadcastReceiver() {
         SharedPreferences.init(app)
 
         val ordered = isOrderedBroadcast
+        SkDiagLog.log(SkDiag.Group.AUTOMATION) { "broadcast ${intent.action} ordered=$ordered" }
         when (intent.action) {
             ACTION_LIST_CATEGORIES -> {
                 val result = listCategories(app, intent)

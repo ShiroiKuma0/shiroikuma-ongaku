@@ -3,6 +3,7 @@ package app.simple.felicity.application;
 import android.app.Application;
 import android.content.SharedPreferences;
 
+import app.simple.felicity.shared.shiroikuma.SkDiag;
 import app.simple.felicity.shiroikuma.SkBackup;
 import dagger.hilt.android.HiltAndroidApp;
 
@@ -18,6 +19,9 @@ public class FelicityApplication extends Application {
     public void onCreate() {
         super.onCreate();
         resetAudioDatabaseForSAFMigration();
+        // Fork (白い熊, 2026-11-10): loads the diagnostics switches, renames any *.log files
+        // an older build left behind, and applies the keep-for-N-days window.
+        SkDiag.INSTANCE.init(this);
         // Fork (白い熊, 2026-09-10): favourites and playlists a restore could not attach yet
         // (the library was empty at the time) are attached at the end of every scan.
         SkBackup.installScanHook(this);

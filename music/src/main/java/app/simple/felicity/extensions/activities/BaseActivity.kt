@@ -45,6 +45,9 @@ import app.simple.felicity.preferences.TrialPreferences
 import app.simple.felicity.repository.covers.AudioCover
 import app.simple.felicity.repository.database.instances.AudioDatabase
 import app.simple.felicity.repository.models.AlbumArtColors
+import app.simple.felicity.shared.shiroikuma.SkDiag
+import app.simple.felicity.shared.shiroikuma.SkDiagLog
+import app.simple.felicity.shared.shiroikuma.SkDiagProbes
 import app.simple.felicity.shared.utils.BarHeight
 import app.simple.felicity.shared.utils.ContextUtils
 import app.simple.felicity.shared.utils.LocaleUtils
@@ -116,6 +119,7 @@ open class BaseActivity : AppCompatActivity(), SharedPreferences.OnSharedPrefere
         initTheme()
         content.setBackgroundColor(ThemeManager.theme.viewGroupTheme.backgroundColor)
 
+        SkDiagProbes.activityCreated(this)
         MediaPlaybackManager.attachUi()
         initMediaController()
         setStrictModePolicy()
@@ -180,6 +184,9 @@ open class BaseActivity : AppCompatActivity(), SharedPreferences.OnSharedPrefere
     private fun initMediaController(onReady: ((MediaController) -> Unit)? = null) {
         MediaPlaybackManager.getConnectedController()?.let { existing ->
             Log.d(TAG, "Reusing the connected MediaController")
+            SkDiagLog.log(SkDiag.Group.SERVICE) {
+                "controller reused by ${javaClass.simpleName}, controllers=${SkDiagProbes.controllerCount()}"
+            }
             mediaController = existing
             onReady?.invoke(existing)
             restoreLastSongStateFromDatabase()
@@ -191,6 +198,8 @@ open class BaseActivity : AppCompatActivity(), SharedPreferences.OnSharedPrefere
         val sessionToken =
             SessionToken(context,
                          ComponentName(context, FelicityPlayerService::class.java))
+
+        SkDiagLog.log(SkDiag.Group.SERVICE) { "controller build requested by ${javaClass.simpleName}" }
 
         controllerFuture =
             MediaController.Builder(context, sessionToken).buildAsync()
@@ -722,6 +731,8 @@ open class BaseActivity : AppCompatActivity(), SharedPreferences.OnSharedPrefere
         // The controller belongs to the process, not to this screen: MediaPlaybackManager
         // releases it once the last Activity is gone for good. All this screen does is let go
         // of its own reference — holding on is what stranded a screen per fold before.
+        SkDiagProbes.activityDestroyed(this, isChangingConfigurations)
+
         val pending = controllerFuture
         controllerFuture = null
         mediaController = null
