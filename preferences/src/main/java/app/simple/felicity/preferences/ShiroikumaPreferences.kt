@@ -54,6 +54,13 @@ object ShiroikumaPreferences {
     const val ACCENT_SECONDARY = "sk_accent_secondary"
     const val SWITCH_OFF = "sk_switch_off"
 
+    /**
+     * The dim, opaque yellow an outlined [app.simple.felicity.shiroikuma.SkSwitch] wears when
+     * it is off. Separate from [SWITCH_OFF], which fills the track of the stock switches and
+     * would be far too loud at this brightness.
+     */
+    const val SWITCH_OFF_DIM = "sk_switch_off_dim"
+
     // Player slots
     const val VISUALIZER = "sk_visualizer"
 
@@ -84,7 +91,8 @@ object ShiroikumaPreferences {
             HIGHLIGHT, SELECTED, DIVIDER, SPOT,
             TEXT_HEADER, TEXT_PRIMARY, TEXT_SECONDARY, TEXT_TERTIARY, TEXT_QUATERNARY,
             ICON_REGULAR, ICON_SECONDARY, ICON_DISABLED,
-            ACCENT_PRIMARY, ACCENT_SECONDARY, SWITCH_OFF, VISUALIZER)
+            ACCENT_PRIMARY, ACCENT_SECONDARY, SWITCH_OFF, SWITCH_OFF_DIM, VISUALIZER,
+            SETTINGS_NOTE)
 
     // ---------------------------------------------------------------------------------------------------------- //
 
@@ -160,6 +168,8 @@ object ShiroikumaPreferences {
             ACCENT_PRIMARY -> accent
             ACCENT_SECONDARY -> ColorUtils.blendARGB(accent, 0xFFFFFFFF.toInt(), 0.25F)
             SWITCH_OFF -> ColorUtils.blendARGB(background, text, 0.25F)
+            // 0.55 of the way from the background to the text: #8C8C00 on black-yellow.
+            SWITCH_OFF_DIM -> ColorUtils.blendARGB(background, text, 0.55F)
             VISUALIZER -> PALETTE_BLUE
             else -> text
         }

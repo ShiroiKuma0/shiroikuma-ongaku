@@ -261,6 +261,7 @@ class ShiroikumaUi : PreferenceFragment() {
         addColorRow(R.string.sk_color_accent_primary, ShiroikumaPreferences.ACCENT_PRIMARY, indent = 2)
         addColorRow(R.string.sk_color_accent_secondary, ShiroikumaPreferences.ACCENT_SECONDARY, indent = 2)
         addColorRow(R.string.sk_color_switch_off, ShiroikumaPreferences.SWITCH_OFF, indent = 2)
+        addColorRow(R.string.sk_color_switch_off_dim, ShiroikumaPreferences.SWITCH_OFF_DIM, indent = 2)
 
         // ------------------------------------------------ Player
         addSection(R.string.sk_section_player)
@@ -714,6 +715,9 @@ class ShiroikumaUi : PreferenceFragment() {
             row.switchToggle.toggle()
         }
         indentRow(row.root, indent)
+        val paint = { row.switchToggle.refreshColors() }
+        paint()
+        restyle.add(paint)
         binding.rowsContainer.addView(row.root)
     }
 
@@ -739,6 +743,7 @@ class ShiroikumaUi : PreferenceFragment() {
             row.switchLabel.setTextColor(skAccentColor())
             row.switchDesc.setTextColor(skNoteColor())
             row.switchRule.setBackgroundColor(skNoteColor())
+            row.switchToggle.refreshColors()
         }
         paint()
         restyle.add(paint)
