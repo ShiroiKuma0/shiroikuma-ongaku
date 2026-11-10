@@ -107,6 +107,7 @@ open class BaseActivity : AppCompatActivity(), SharedPreferences.OnSharedPrefere
         initTheme()
         content.setBackgroundColor(ThemeManager.theme.viewGroupTheme.backgroundColor)
 
+        MediaPlaybackManager.attachUi()
         initMediaController()
         setStrictModePolicy()
         enableNotchArea()
@@ -154,45 +155,57 @@ open class BaseActivity : AppCompatActivity(), SharedPreferences.OnSharedPrefere
         }
     }
 
+    /**
+     * Connects this screen to the one [MediaController] the process owns, building it only
+     * when there is none to reuse, then runs [onReady].
+     *
+     * Fork (白い熊, 2026-11-10): the controller is built on the **application** Context, and a
+     * live one is reused rather than rebuilt. A controller built on an Activity holds that
+     * Activity in its own `context` field, in its `SessionServiceConnection`, and in the binding
+     * the connection opens against [FelicityPlayerService] — so every controller left behind by
+     * a configuration change pinned a whole destroyed screen, its view tree and its album art.
+     * Measured on the phone: seven live service bindings, seven Activity instances, two windows,
+     * 406 MB resident against a 93 MB baseline.
+     */
     @OptIn(UnstableApi::class)
-    private fun initMediaController() {
+    private fun initMediaController(onReady: ((MediaController) -> Unit)? = null) {
+        MediaPlaybackManager.getConnectedController()?.let { existing ->
+            Log.d(TAG, "Reusing the connected MediaController")
+            mediaController = existing
+            onReady?.invoke(existing)
+            restoreLastSongStateFromDatabase()
+            generateAlbumArtPalette()
+            return
+        }
+
+        val context = applicationContext
         val sessionToken =
-            SessionToken(this,
-                         ComponentName(this, FelicityPlayerService::class.java))
+            SessionToken(context,
+                         ComponentName(context, FelicityPlayerService::class.java))
 
         controllerFuture =
-            MediaController.Builder(this, sessionToken).buildAsync()
+            MediaController.Builder(context, sessionToken).buildAsync()
 
         val listener = Runnable {
+            // The future is cancelled when the screen goes away before the controller
+            // connects, and a cancelled future throws from get().
+            val controller = try {
+                controllerFuture?.get()
+            } catch (e: Exception) {
+                Log.w(TAG, "MediaController was not built: ${e.message}")
+                null
+            } ?: return@Runnable
+
             Log.d(TAG, "MediaController created successfully")
-            mediaController = controllerFuture?.get()
-            MediaPlaybackManager.setMediaController(mediaController!!)
+            mediaController = controller
+            MediaPlaybackManager.setMediaController(controller)
 
-            // Watch for a disconnection so we can restart the service the moment the
-            // user tries to interact with the player again — no stale controller left behind.
-            mediaController?.addListener(serviceDisconnectListener)
-
+            onReady?.invoke(controller)
             restoreLastSongStateFromDatabase()
             generateAlbumArtPalette()
         }
 
         controllerFuture?.addListener(listener, MoreExecutors.directExecutor())
-    }
-
-    /**
-     * Detects when the [FelicityPlayerService] has been killed while the app is still
-     * on screen. The next time the user taps play/pause or any other control,
-     * [ensureServiceRunning] will reconnect and hand the fresh controller back to
-     * [MediaPlaybackManager] before the command is dispatched.
-     */
-    private val serviceDisconnectListener = object : androidx.media3.common.Player.Listener {
-        override fun onEvents(player: androidx.media3.common.Player, events: androidx.media3.common.Player.Events) {
-            if (mediaController?.isConnected == false) {
-                Log.w(TAG, "MediaController disconnected — service likely died. Clearing stale reference.")
-                MediaPlaybackManager.clearMediaController()
-                mediaController = null
-            }
-        }
     }
 
     /**
@@ -203,20 +216,15 @@ open class BaseActivity : AppCompatActivity(), SharedPreferences.OnSharedPrefere
      * app — it guarantees the service is alive before the command lands.
      */
     fun ensureServiceRunning(onReady: (MediaController) -> Unit) {
-        val current = mediaController
-        if (current != null && current.isConnected) {
+        val current = MediaPlaybackManager.getConnectedController()
+        if (current != null) {
+            mediaController = current
             onReady(current)
             return
         }
 
         Log.d(TAG, "Service not connected — restarting FelicityPlayerService…")
-        initMediaController()
-
-        // Attach a one-shot callback that fires once the fresh controller is ready.
-        controllerFuture?.addListener(Runnable {
-            val fresh = controllerFuture?.get() ?: return@Runnable
-            onReady(fresh)
-        }, MoreExecutors.directExecutor())
+        initMediaController(onReady)
     }
 
     private fun restoreLastSongStateFromDatabase() {
@@ -668,20 +676,17 @@ open class BaseActivity : AppCompatActivity(), SharedPreferences.OnSharedPrefere
         unregisterEncryptedSharedPreferencesListener()
         ThemeManager.removeListener(this)
 
-        // Skip releasing the MediaController on configuration changes (e.g. rotation).
-        // The service keeps playing; tearing down and rebuilding the controller causes
-        // a brief audio freeze because setMediaItems + prepare() is called again on reconnect.
-        if (!isChangingConfigurations) {
-            MediaPlaybackManager.stopSeekPositionUpdates()
-            try {
-                mediaController?.let {
-                    MediaPlaybackManager.clearMediaController()
-                    it.release()
-                }
-                MediaController.releaseFuture(controllerFuture!!)
-            } catch (e: NullPointerException) {
-                e.printStackTrace()
-            }
+        // The controller belongs to the process, not to this screen: MediaPlaybackManager
+        // releases it once the last Activity is gone for good. All this screen does is let go
+        // of its own reference — holding on is what stranded a screen per fold before.
+        val pending = controllerFuture
+        controllerFuture = null
+        mediaController = null
+        MediaPlaybackManager.detachUi(isChangingConfigurations)
+
+        // A controller still being built has nobody left to hand it to.
+        if (pending != null && pending.isDone.not()) {
+            MediaController.releaseFuture(pending)
         }
     }
 

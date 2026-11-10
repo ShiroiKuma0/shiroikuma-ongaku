@@ -10,6 +10,7 @@ import androidx.interpolator.view.animation.LinearOutSlowInInterpolator
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import app.simple.felicity.engine.managers.MediaPlaybackManager._songPositionFlow
 import app.simple.felicity.engine.managers.MediaPlaybackManager.currentSongPosition
@@ -242,8 +243,42 @@ object MediaPlaybackManager {
     var lastNavigationDirection: Boolean = true
         private set
 
+    /**
+     * Watches for the player service dying under us, so the next command reconnects
+     * instead of being dispatched into a dead controller.
+     *
+     * Fork (白い熊, 2026-11-10): this used to be an anonymous listener declared inside
+     * BaseActivity, which made every screen that built a controller reachable from the
+     * controller's listener set. Owning it here keeps it anchored to the process.
+     */
+    private val disconnectWatcher = object : Player.Listener {
+        override fun onEvents(player: Player, events: Player.Events) {
+            if (mediaController?.isConnected == false) {
+                Log.w(TAG, "MediaController disconnected — service likely died. Clearing stale reference.")
+                clearMediaController()
+            }
+        }
+    }
+
+    /**
+     * How many Activities are currently attached. The controller outlives any single
+     * screen — it is released only when the last one goes away for good.
+     */
+    private var attachedUiCount: Int = 0
+
+    /**
+     * The connected controller, or `null` when there is none to reuse.
+     * Callers rebuild only when this returns `null`.
+     */
+    fun getConnectedController(): MediaController? {
+        return mediaController?.takeIf { it.isConnected }
+    }
+
     fun setMediaController(controller: MediaController) {
+        if (mediaController === controller) return
+        mediaController?.removeListener(disconnectWatcher)
         mediaController = controller
+        controller.addListener(disconnectWatcher)
         // If controller is already playing when set, ensure seek updates are running
         if (controller.isPlaying) startSeekPositionUpdates() else stopSeekPositionUpdates()
     }
@@ -251,7 +286,29 @@ object MediaPlaybackManager {
     fun clearMediaController() {
         stopSeekPositionUpdates()
         pendingSeekPositions.clear()
+        mediaController?.removeListener(disconnectWatcher)
         mediaController = null
+    }
+
+    /**
+     * Called from every Activity's `onCreate`. Pairs with [detachUi].
+     */
+    fun attachUi() {
+        attachedUiCount++
+    }
+
+    /**
+     * Called from every Activity's `onDestroy`. The controller is released only when the
+     * last attached screen is destroyed for good — never on a configuration change, where
+     * the screen is coming straight back, and never while another Activity is still up.
+     */
+    fun detachUi(isChangingConfigurations: Boolean) {
+        attachedUiCount = (attachedUiCount - 1).coerceAtLeast(0)
+        if (attachedUiCount == 0 && !isChangingConfigurations) {
+            val controller = mediaController
+            clearMediaController()
+            controller?.release()
+        }
     }
 
     /**
