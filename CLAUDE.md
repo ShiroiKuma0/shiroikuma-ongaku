@@ -52,7 +52,7 @@ Multi-module Groovy-DSL Gradle project. App module `:music`; libraries `:theme :
 
 ## Current status
 
-Tracking upstream tag `0.0.32_alpha` (rebased 2026-10-20); 50 commits on `custom`. Current build = `0.0.32_alpha+001` (code `320001`). Upstream `master` runs 25 commits ahead of that tag but still carries code 32 / `0.0.32_alpha` — the next version bump has not happened yet, so no `0.0.33_alpha` tag exists.
+Tracking upstream tag `0.0.32_alpha` (rebased 2026-10-20); 55 commits on `custom`. Current build = `0.0.32_alpha+002` (code `320002`). Upstream `master` runs 25 commits ahead of that tag but still carries code 32 / `0.0.32_alpha` — the next version bump has not happened yet, so no `0.0.33_alpha` tag exists.
 
 ---
 
