@@ -32,6 +32,7 @@
     <string name="sk_group_accent" translatable="false">Accent colors</string>
     <string name="sk_color_accent_primary" translatable="false">Accent primary</string>
     <string name="sk_color_accent_secondary" translatable="false">Accent secondary</string>
+    <string name="sk_color_switch_off_dim" translatable="false">Switch off (outlined)</string>
     <string name="sk_color_switch_off" translatable="false">Switch off state</string>
 
     <string name="sk_section_player" translatable="false">Player</string>
