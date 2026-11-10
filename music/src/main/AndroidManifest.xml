@@ -178,6 +178,12 @@
             </intent-filter>
         </receiver>
 
+        <!-- Fork (白い熊, 2026-11-10): the Mark and Turn-all-off buttons on the diagnostics
+             recording notification. Reached only by explicit PendingIntents from SkDiag. -->
+        <receiver
+            android:name="app.simple.felicity.shared.shiroikuma.SkDiagReceiver"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
