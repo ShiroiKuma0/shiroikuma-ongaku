@@ -189,14 +189,14 @@
     <string name="sk_eim_playlists_result" translatable="false">%1$d created, %2$d merged, %3$d songs added, %4$d not found</string>
     <string name="sk_eim_deferred" translatable="false">%1$d kept waiting for the next library scan</string>
 
-    <!-- Folder-grant repair: the music-folder list survives a restore, the permission to read it does not. -->
+    <!-- Directory-grant repair: the music-directory list survives a restore, the permission to read it does not. -->
     <string name="sk_grant_lost_heading" translatable="false">Access lost — needs granting again (the picker opens there):</string>
-    <string name="sk_grant_title" translatable="false">Music folder access needs granting again</string>
-    <string name="sk_grant_body" translatable="false">This copy of 白い熊 音楽 no longer has permission to read a music folder it used to. Permission belongs to an installation, not to your data, so a restored or reinstalled copy always starts out this way — the folder list, favorites and playlists are intact and nothing can be scanned. Pick the same folder again and the library, favorites and playlists come back exactly as before.</string>
-    <string name="sk_grant_choose" translatable="false">Choose the folder</string>
+    <string name="sk_grant_title" translatable="false">Music directory access needs granting again</string>
+    <string name="sk_grant_body" translatable="false">This copy of 白い熊 音楽 no longer has permission to read a music directory it used to. Permission belongs to an installation, not to your data, so a restored or reinstalled copy always starts out this way — the directory list, favorites and playlists are intact and nothing can be scanned. Pick the same directory again and the library, favorites and playlists come back exactly as before.</string>
+    <string name="sk_grant_choose" translatable="false">Choose the directory</string>
     <string name="sk_grant_forget" translatable="false">Forget it</string>
     <string name="sk_grant_not_now" translatable="false">Not now</string>
-    <string name="sk_grant_regranted" translatable="false">Folder access restored — scanning the library</string>
+    <string name="sk_grant_regranted" translatable="false">Directory access restored — scanning the library</string>
 
     <!-- Library status pill above the mini player: the scan, and a restore waiting for it. -->
     <string name="sk_status_scanning" translatable="false">Scanning the library…</string>

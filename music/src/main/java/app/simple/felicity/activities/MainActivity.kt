@@ -47,7 +47,7 @@ import app.simple.felicity.decorations.utils.PermissionUtils.isSAFAccessGranted
 import app.simple.felicity.dialogs.app.VolumeKnob
 import app.simple.felicity.dialogs.app.VolumeKnob.Companion.showVolumeKnob
 import app.simple.felicity.dialogs.playlists.AddMultipleToPlaylistDialog.Companion.showAddMultipleToPlaylistDialog
-import app.simple.felicity.dialogs.shiroikuma.SkFolderGrantDialog
+import app.simple.felicity.dialogs.shiroikuma.SkDirectoryGrantDialog
 import app.simple.felicity.dialogs.shiroikuma.SkPendingRestoreDialog
 import app.simple.felicity.engine.managers.MediaPlaybackManager
 import app.simple.felicity.engine.managers.PlaybackStateManager
@@ -110,7 +110,7 @@ class MainActivity : BaseActivity(), MiniPlayerCallbacks {
      * The central lyrics' coordinator. Injected here so we can ask it to do a
      * re-lookup whenever the app comes back to the foreground and the current
      * song still has no lyrics — handy when the user manually dropped an .lrc
-     * file into the right folder while Felicity was in the background.
+     * file into the right directory while Felicity was in the background.
      */
     @Inject
     lateinit var lyricsManager: LyricsManager
@@ -348,7 +348,7 @@ class MainActivity : BaseActivity(), MiniPlayerCallbacks {
     }
 
     private fun startAudioDatabaseService() {
-        // SAF access (at least one folder granted) is enough to start the scan.
+        // SAF access (at least one directory granted) is enough to start the scan.
         if (applicationContext.isSAFAccessGranted()) {
             AudioDatabaseService.startScan(applicationContext)
         }
@@ -437,10 +437,10 @@ class MainActivity : BaseActivity(), MiniPlayerCallbacks {
             else -> {
                 // All permissions granted and trial is still active, go directly to home
                 showHome()
-                // Fork (白い熊, 2026-09-10): a folder in the list this install cannot read — the
+                // Fork (白い熊, 2026-09-10): a directory in the list this install cannot read — the
                 // shape of every restore and reinstall — is asked for back here, at launch,
                 // rather than discovered as a library with nothing in it.
-                SkFolderGrantDialog.showIfNeeded(supportFragmentManager, this)
+                SkDirectoryGrantDialog.showIfNeeded(supportFragmentManager, this)
             }
         }
     }
