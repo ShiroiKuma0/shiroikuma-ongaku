@@ -125,7 +125,7 @@ class SkPendingRestoreDialog : DialogFragment() {
         useAll?.visibility = if (unique.isEmpty()) View.GONE else View.VISIBLE
     }
 
-    /** One waiting song: its file name and folder, the library's answer, and the two buttons. */
+    /** One waiting song: its file name and directory, the library's answer, and the two buttons. */
     private fun row(item: SkBackup.PendingItem, candidates: List<Audio>): View {
         val context = requireContext()
         val dp = { v: Int -> SkDialogChrome.dp(context, v) }
@@ -160,9 +160,9 @@ class SkPendingRestoreDialog : DialogFragment() {
             gravity = Gravity.END
         }
         when (candidates.size) {
-            1 -> buttons.addView(SkDialogChrome.pill(context, getString(R.string.sk_pending_use)) { accept(item, candidates[0]) })
+            1 -> buttons.addView(SkDialogChrome.pill(context, getString(R.string.sk_pending_use), main = true) { accept(item, candidates[0]) })
             0 -> Unit
-            else -> buttons.addView(SkDialogChrome.pill(context, getString(R.string.sk_pending_choose)) { choose(item, candidates) })
+            else -> buttons.addView(SkDialogChrome.pill(context, getString(R.string.sk_pending_choose), main = true) { choose(item, candidates) })
         }
         buttons.addView(SkDialogChrome.pill(context, getString(R.string.sk_pending_discard)) { discard(item) }.apply {
             (layoutParams as? LinearLayout.LayoutParams ?: LinearLayout.LayoutParams(
