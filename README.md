@@ -10,14 +10,14 @@ A fork of [Felicity Music Player](https://github.com/Hamza417/Felicity) with **m
 
 Installs **side-by-side** with Felicity (app id `shiroikuma.ongaku`).
 
-**📥 Latest release: [`0.0.32_alpha+003`](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases)
+**📥 Latest release: [`0.0.32_alpha+004`](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases)
 
 </div>
 
 ---
 
 ## 🖤💛 白い熊 音楽 UI — the black-yellow theming engine
-A dedicated settings page (first row in Settings, or long-press the home-screen cog) controls the whole look: black background, yellow text, yellow borders everywhere by default. Nineteen color slots with two-tier inheritance (change the foundation, everything derives), each edited in a 4-slider RGBA picker with live preview, hex readout, and one-click recent-color boxes. External `.ttf`/`.otf` fonts import via the system picker and every font choice renders in its own glyphs; global text-size and font-weight sliders, corner radius and border width down to 0. Sections carry text-wide underlined headings with in-section live preview cards, so every change shows right where it's made.
+A dedicated settings page (first row in Settings, or long-press the home-screen cog) controls the whole look: black background, yellow text, yellow borders everywhere by default. Nineteen color slots with two-tier inheritance (change the foundation, everything derives), each edited in a 4-slider RGBA picker with live preview, hex readout, and one-click recent-color boxes. External `.ttf`/`.otf` fonts import via the system picker and every font choice renders in its own glyphs; global text-size and font-weight sliders, corner radius and border width down to 0. Sections carry text-wide underlined headings with in-section live preview cards, so every change shows right where it's made. Nothing is ever filled: buttons, action rows and even the switches are outlined pills — a switch is a round outline with a solid dot that sits right when on, left when off, in the accent on and an opaque dim yellow off.
 
 ## 💾 Export / Import — everything, by category
 The first section of the UI page exports every settable item to a chosen directory (queried on open for the latest export) and imports it back by category: theme, edge meteors, automation, app settings, plus ratings and playlists straight from the library database — matched by SAF document id with the file path as fallback, strictly additive, portable across versions. Round-pill panel, black-yellow result dialogs, one-tap restart after import.
