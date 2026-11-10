@@ -29,6 +29,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import app.simple.felicity.shared.shiroikuma.SkDiag
+import app.simple.felicity.shared.shiroikuma.SkDiagLog
 import javax.inject.Inject
 
 /**
@@ -78,6 +80,7 @@ class AutomationActivity : ComponentActivity() {
     private fun handle(intent: Intent?) {
         intent ?: return
         val op = intent.getStringExtra(KEY_OP)
+        SkDiagLog.log(SkDiag.Group.AUTOMATION) { "intent op=$op from ${callingPackage ?: "?"}" }
         if (op.isNullOrEmpty()) {
             reject("missing op")
             return

@@ -6,6 +6,8 @@ import android.content.Intent
 import android.os.Binder
 import android.os.IBinder
 import android.util.Log
+import app.simple.felicity.shared.shiroikuma.SkDiag
+import app.simple.felicity.shared.shiroikuma.SkDiagLog
 import androidx.annotation.Keep
 import app.simple.felicity.repository.loader.AudioDatabaseLoader
 import app.simple.felicity.repository.loader.PlaylistDatabaseLoader
@@ -158,9 +160,14 @@ class AudioDatabaseService : Service() {
         scanCoroutineLaunched = true
         val runToken = ++latestRunToken
         serviceScope.launch {
+            val startedAt = System.currentTimeMillis()
+            SkDiagLog.log(SkDiag.Group.LIBRARY) { "scan started" }
             try {
                 Log.d(TAG, "Starting audio database scan (idle path)…")
                 audioDatabaseLoader.processAudioFiles()
+                SkDiagLog.log(SkDiag.Group.LIBRARY) {
+                    "audio scan finished in ${System.currentTimeMillis() - startedAt} ms"
+                }
                 if (runToken != latestRunToken) {
                     Log.d(TAG, "Superseded by a newer scan — skipping M3U playlist scan")
                     return@launch
@@ -170,7 +177,11 @@ class AudioDatabaseService : Service() {
                 Log.d(TAG, "M3U playlist scan completed successfully")
             } catch (e: Exception) {
                 Log.e(TAG, "Error during scan", e)
+                SkDiagLog.log(SkDiag.Group.LIBRARY) { "scan failed: ${e.javaClass.simpleName}: ${e.message}" }
             } finally {
+                SkDiagLog.log(SkDiag.Group.LIBRARY) {
+                    "scan ended after ${System.currentTimeMillis() - startedAt} ms"
+                }
                 // Only the newest run may stop the service. If a forced refresh
                 // superseded us while we were running, stopping here would kill
                 // the fresh scan that replaced us.

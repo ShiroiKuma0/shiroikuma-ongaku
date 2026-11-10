@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fork (白い熊): the Diagnostics section of the 白い熊 音楽 UI settings page. Lives in :shared
+     so every module that records something can reach the same switches. -->
+<resources>
+
+    <string name="sk_diag_section" translatable="false">Diagnostics</string>
+    <string name="sk_diag_intro" translatable="false">Nothing is recorded until you switch it on here. Each log is written as plain text into the app\'s own directory — /sdcard/Android/data/shiroikuma.ongaku/files/diag/ — and never as a .log file, because EMUI\'s nightly clean-up deletes those.</string>
+
+    <!-- Subsection headings -->
+    <string name="sk_diag_group_screens" translatable="false">Screens and memory</string>
+    <string name="sk_diag_group_playback" translatable="false">Playback</string>
+    <string name="sk_diag_group_service" translatable="false">Service and session</string>
+    <string name="sk_diag_group_library" translatable="false">Library</string>
+    <string name="sk_diag_group_automation" translatable="false">Automation</string>
+    <string name="sk_diag_group_recorded" translatable="false">Recorded data</string>
+
+    <!-- The switches -->
+    <string name="sk_diag_screens" translatable="false">Screens and leaks</string>
+    <string name="sk_diag_screens_desc" translatable="false">Every screen created and destroyed, with whether it was a fold or a rotation. Each destroyed screen is then watched by a weak reference and checked again after a forced collection: still reachable means it leaked, and the line says RETAINED.</string>
+    <string name="sk_diag_memory" translatable="false">Memory samples</string>
+    <string name="sk_diag_memory_desc" translatable="false">Once a minute: resident size, the Java, native and graphics splits, and how many screens and media controllers the process is holding.</string>
+    <string name="sk_diag_playback" translatable="false">Playback</string>
+    <string name="sk_diag_playback_desc" translatable="false">Play, pause and stop, track changes, seeks, and every time the queue is set or replaced.</string>
+    <string name="sk_diag_service" translatable="false">Service and session</string>
+    <string name="sk_diag_service_desc" translatable="false">The player service starting and stopping, and every media controller built, reused, released or disconnected.</string>
+    <string name="sk_diag_library" translatable="false">Library</string>
+    <string name="sk_diag_library_desc" translatable="false">Library scans — when they start, how long they take and what they found.</string>
+    <string name="sk_diag_automation" translatable="false">Automation</string>
+    <string name="sk_diag_automation_desc" translatable="false">Automation intents from 自由作業盤 and 応用管理, and whether each one was let in.</string>
+
+    <!-- Recorded data -->
+    <string name="sk_diag_stored" translatable="false">Stored</string>
+    <string name="sk_diag_stored_none" translatable="false">Nothing recorded yet.</string>
+    <string name="sk_diag_stored_day" translatable="false">%1$d files · %2$s · %3$s</string>
+    <string name="sk_diag_stored_span" translatable="false">%1$d files · %2$s · %3$s – %4$s</string>
+    <string name="sk_diag_counting" translatable="false">Counting…</string>
+
+    <string name="sk_diag_keep" translatable="false">Keep for</string>
+    <string name="sk_diag_keep_all" translatable="false">Everything</string>
+    <string name="sk_diag_keep_days" translatable="false">%1$d days</string>
+
+    <string name="sk_diag_export" translatable="false">Export</string>
+    <string name="sk_diag_export_desc" translatable="false">Copies everything into a dated subdirectory of a directory you pick. Offered at /sdcard/tmp first.</string>
+    <string name="sk_diag_export_done" translatable="false">Exported %1$d files</string>
+    <string name="sk_diag_export_failed" translatable="false">Nothing was exported</string>
+
+    <string name="sk_diag_share" translatable="false">Share</string>
+    <string name="sk_diag_share_desc" translatable="false">Hands the files straight to another app.</string>
+    <string name="sk_diag_share_none" translatable="false">There is nothing to share yet</string>
+
+    <string name="sk_diag_purge" translatable="false">Purge</string>
+    <string name="sk_diag_purge_desc" translatable="false">Deletes every recorded file, after asking.</string>
+    <string name="sk_diag_purge_title" translatable="false">Delete every diagnostic file?</string>
+    <string name="sk_diag_purge_body" translatable="false">This deletes %1$d files, %2$s in all, covering %3$s. They are gone for good — export or share them first if any of it still matters.</string>
+    <string name="sk_diag_purge_confirm" translatable="false">Delete forever</string>
+    <string name="sk_diag_purge_cancel" translatable="false">Cancel</string>
+    <string name="sk_diag_purge_done" translatable="false">Deleted %1$d files</string>
+
+    <!-- The recording notification -->
+    <string name="sk_diag_notif_channel" translatable="false">Diagnostics recording</string>
+    <string name="sk_diag_notif_title" translatable="false">白い熊 音楽 is recording diagnostics</string>
+    <string name="sk_diag_notif_mark" translatable="false">Mark</string>
+    <string name="sk_diag_notif_alloff" translatable="false">Turn all off</string>
+    <string name="sk_diag_mark_toast" translatable="false">Mark #%1$d</string>
+
+</resources>

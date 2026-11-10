@@ -81,6 +81,8 @@ import app.simple.felicity.preferences.VisualizerPreferences
 import app.simple.felicity.repository.constants.MediaConstants
 import app.simple.felicity.repository.database.instances.AudioDatabase
 import app.simple.felicity.repository.models.Audio
+import app.simple.felicity.shared.shiroikuma.SkDiag
+import app.simple.felicity.shared.shiroikuma.SkDiagLog
 import app.simple.felicity.repository.repositories.AudioRepository
 import app.simple.felicity.repository.repositories.PlaylistRepository
 import app.simple.felicity.repository.repositories.SongStatRepository
@@ -280,6 +282,7 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
 
     override fun onCreate() {
         super.onCreate()
+        SkDiagLog.log(SkDiag.Group.SERVICE) { "player service created" }
         initRegisterSharedPreferenceChangeListener(applicationContext)
         playbackErrorNotifier = PlaybackErrorNotifier(applicationContext)
 
@@ -1616,6 +1619,7 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
     }
 
     override fun onDestroy() {
+        SkDiagLog.log(SkDiag.Group.SERVICE) { "player service destroyed" }
         savePlaybackStateToDatabase()
         unregisterSharedPreferenceChangeListener()
 
