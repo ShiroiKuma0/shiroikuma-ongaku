@@ -411,3 +411,19 @@ With it:
 Every user-visible string that said "folder" now says "directory": the **Directories** library mode and its **Directory Hierarchy**, Storage Directory Access and the setup screen behind it, Skip Hidden Directories, Manage Music Directories, both play/shuffle scope dialogs with their subdirectories, the scan summary, and the fork's own directory-grant repair dialog. `SkFolderGrants` and `SkFolderGrantDialog` were renamed to `SkDirectoryGrants` and `SkDirectoryGrantDialog` with the comment prose around them.
 
 The string *names* and upstream's private identifiers keep their spelling — nobody reads them, and renaming them would conflict on every rebase for no visible gain. The nine translation files are untouched.
+
+## 0.0.32_alpha+004 (2026-11-10, base 0.0.32_alpha)
+
+### Switches are an outlined pill with a solid dot
+
+Upstream's `FelicitySwitch` paints a filled track and a hollow **white** ring, and white is the one colour the black-yellow theme has no place for — a hollow ring also reads as a hole rather than as a control.
+
+The fork's own switch, `SkSwitch`, draws it the way the rest of the theme is drawn: a 2 dp fully round outline with the background showing through, and a solid dot inside it that sits on the right when on and on the left when off. 52 × 28 dp, the dot 46 % of the track height, 180 ms to travel.
+
+It is modelled on 白い熊 自由作業盤's switch with two corrections. The on state is **not** a filled yellow slab — it is that app's *off* treatment, outline plus a solid dot, in the accent `#FFFF00`. And the off state is the same outline in a dimmer, **opaque** yellow rather than a faded bright one: dimming by alpha looks disabled and lets the background through unevenly. Three values were rendered and compared — `#C8C800`, `#B3B300` and `#8C8C00` — and the darkest was chosen, so a switch that is off is never mistaken for one of the dim-gold notes beside it.
+
+Keeping one shape for both states means a column of switches reads as one column; only the brightness and the dot's side change.
+
+Neither colour is a constant. On follows the accent, and off is a new settable role — **Switch off (outlined)** — deriving to `#8C8C00` from the foundation slots and carrying its own row under Colors, so it can be retuned on the phone. It is deliberately separate from the existing **Switch off**, which fills the track of the stock switches and would be far too loud at this brightness. **Settings note**, added in the previous build, joins the colour-key list it should have been in.
+
+This is scoped to the fork's own settings rows. Swapping the widget app-wide would mean rewriting roughly forty `(view as FelicitySwitch)` casts in upstream's `PreferenceFragment`, so the upstream preference screens keep theirs for now.
