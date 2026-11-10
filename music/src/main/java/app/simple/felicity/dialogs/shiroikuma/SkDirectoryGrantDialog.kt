@@ -20,7 +20,7 @@ import androidx.fragment.app.FragmentManager
 import app.simple.felicity.R
 import app.simple.felicity.decorations.typeface.TypeFace
 import app.simple.felicity.decorations.typeface.TypeFaceTextView
-import app.simple.felicity.decorations.utils.SkFolderGrants
+import app.simple.felicity.decorations.utils.SkDirectoryGrants
 import app.simple.felicity.preferences.AppearancePreferences
 import app.simple.felicity.preferences.ShiroikumaPreferences
 import app.simple.felicity.repository.services.AudioDatabaseService
@@ -28,34 +28,34 @@ import app.simple.felicity.theme.managers.ThemeManager
 import app.simple.felicity.utils.SkFlash
 
 /**
- * 「This copy no longer holds access to a music folder it used to」 — asked once, at launch,
- * whenever the recorded folder list names a folder this installation cannot read.
+ * 「This copy no longer holds access to a music directory it used to」 — asked once, at launch,
+ * whenever the recorded directory list names a directory this installation cannot read.
  *
  * ## Why at launch, and not when the scan finds nothing (白い熊, 2026-09-10)
  *
- * A restore brings back the folder list, the favourites and the playlists, and none of the
+ * A restore brings back the directory list, the favourites and the playlists, and none of the
  * permission — a Storage Access Framework grant belongs to an installation. Without this the
  * restored app opened on an empty home screen, said nothing, and the only evidence that anything
- * was wrong was a library with no songs in it. The repair is exact: re-picking the same folder
+ * was wrong was a library with no songs in it. The repair is exact: re-picking the same directory
  * yields a byte-identical tree URI, the scan runs, and whatever the restore left waiting
  * (`SkBackup.applyPending`) attaches itself to the rows the scan creates.
  *
- * Three answers: choose the folder (the picker opens *at* the missing folder), forget it (the
- * folder leaves the list — 白い熊 has said it is gone), or not now (asked again next launch; a
- * folder declined today may be wanted back tomorrow, and the cost is one glance).
+ * Three answers: choose the directory (the picker opens *at* the missing directory), forget it (the
+ * directory leaves the list — 白い熊 has said it is gone), or not now (asked again next launch; a
+ * directory declined today may be wanted back tomorrow, and the cost is one glance).
  */
-class SkFolderGrantDialog : DialogFragment() {
+class SkDirectoryGrantDialog : DialogFragment() {
 
     private var body: TypeFaceTextView? = null
 
     private val picker = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { granted: Uri? ->
         val context = context ?: return@registerForActivityResult
-        if (granted != null && SkFolderGrants.persist(context, granted)) {
+        if (granted != null && SkDirectoryGrants.persist(context, granted)) {
             SkFlash.show(context, R.string.sk_grant_regranted)
             AudioDatabaseService.startScan(context.applicationContext)
         }
         // Re-ask either way: a cancelled pick leaves the list as it was, and a successful one may
-        // have covered more than the folder it was opened for.
+        // have covered more than the directory it was opened for.
         refresh()
     }
 
@@ -72,12 +72,12 @@ class SkFolderGrantDialog : DialogFragment() {
             // Wired here rather than in the builder so a tap never auto-dismisses: the dialog
             // stays up while the picker is out and closes only once nothing is missing.
             dialog.getButton(DialogInterface.BUTTON_POSITIVE)?.setOnClickListener {
-                val next = SkFolderGrants.missing(context).firstOrNull() ?: run { dismissAllowingStateLoss(); return@setOnClickListener }
-                runCatching { picker.launch(SkFolderGrants.initialUriFor(next)) }
+                val next = SkDirectoryGrants.missing(context).firstOrNull() ?: run { dismissAllowingStateLoss(); return@setOnClickListener }
+                runCatching { picker.launch(SkDirectoryGrants.initialUriFor(next)) }
                     .onFailure { SkFlash.show(context, it.message ?: it.javaClass.simpleName) }
             }
             dialog.getButton(DialogInterface.BUTTON_NEUTRAL)?.setOnClickListener {
-                SkFolderGrants.forgetMissing(context)
+                SkDirectoryGrants.forgetMissing(context)
                 dismissAllowingStateLoss()
             }
             refresh()
@@ -85,10 +85,10 @@ class SkFolderGrantDialog : DialogFragment() {
         return dialog
     }
 
-    /** Redraw the list of missing folders; close when there is nothing left to ask for. */
+    /** Redraw the list of missing directories; close when there is nothing left to ask for. */
     private fun refresh() {
         val context = context ?: return
-        val missing = SkFolderGrants.missing(context)
+        val missing = SkDirectoryGrants.missing(context)
         if (missing.isEmpty()) {
             dismissAllowingStateLoss()
             return
@@ -96,7 +96,7 @@ class SkFolderGrantDialog : DialogFragment() {
         body?.text = buildString {
             append(getString(R.string.sk_grant_body))
             append("\n")
-            missing.forEach { append("\n• ").append(SkFolderGrants.displayPathOf(it)) }
+            missing.forEach { append("\n• ").append(SkDirectoryGrants.displayPathOf(it)) }
         }
     }
 
@@ -174,13 +174,13 @@ class SkFolderGrantDialog : DialogFragment() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     companion object {
-        const val TAG = "SkFolderGrantDialog"
+        const val TAG = "SkDirectoryGrantDialog"
 
-        /** Show the gate if a recorded folder is not held; a no-op when nothing is missing or it is already up. */
+        /** Show the gate if a recorded directory is not held; a no-op when nothing is missing or it is already up. */
         fun showIfNeeded(manager: FragmentManager, context: Context) {
             if (manager.findFragmentByTag(TAG) != null) return
-            if (SkFolderGrants.missing(context).isEmpty()) return
-            SkFolderGrantDialog().show(manager, TAG)
+            if (SkDirectoryGrants.missing(context).isEmpty()) return
+            SkDirectoryGrantDialog().show(manager, TAG)
         }
     }
 }
