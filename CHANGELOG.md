@@ -357,3 +357,57 @@ Two upstream releases land in this build: `0.0.31_alpha` was tracked from 2026-1
 
 - **Gradle wrapper 9.3.1 → 9.8.1** (upstream's bump; the `distributionSha256Sum` pin was dropped with it). AGP 9.1.1, Kotlin 2.3.21, KSP 2.3.4 and the NDK pin `28.2.13676358` are unchanged, and `org.gradle.tooling.parallel` was enabled upstream.
 - versionName `0.0.32_alpha+001`, versionCode `320001`, foss flavor, arm64-v8a only.
+
+## 0.0.32_alpha+003 (2026-11-10, base 0.0.32_alpha)
+
+### The app was leaking a screen per fold
+
+白い熊 音楽 was flagged `LEAKING` by 白い熊 応用管理's process monitor: **7 activities, 2 windows**. Reading the live process on the phone confirmed it exactly. `dumpsys activity activities` showed one `MainActivity` record holding **six** `ConnectionRecord`s to `FelicityPlayerService` and a second holding one — seven live service bindings, matching `Activities: 7` and `ViewRootImpl: 2` in `dumpsys meminfo`. Five destroyed screens were still resident, with 1482 Views, 208 MB of native heap and 137 MB of GPU memory behind them: **406 MB against a 93 MB baseline**.
+
+Each of those bindings was one `MediaController`. `BaseActivity` built its controller with the **Activity** as the Context and then skipped releasing it whenever the teardown was a configuration change, to avoid the brief audio freeze a rebuild causes. But the recreated Activity starts with a null field, so it built another one — and the old controller, holding its Activity in its own `context` field, in its `SessionServiceConnection` and in the binding that connection opened, kept that whole screen alive. Every fold, unfold and rotation stranded one more.
+
+The controller now belongs to the process:
+
+- `MediaPlaybackManager` owns it. `getConnectedController()` hands the live one back, `attachUi()`/`detachUi()` count the attached screens, and the controller is released only when the last one is destroyed for good — never on a configuration change, and never while another Activity is still up.
+- `initMediaController()` reuses that controller instead of building a second, and builds on the **application** Context when there is none.
+- The disconnect watcher moved from an anonymous `Player.Listener` inside `BaseActivity` into the manager, so the controller's listener set no longer reaches a screen.
+- `onDestroy` drops its reference and cancels a still-pending future rather than releasing a controller someone else may now be using.
+
+The audio freeze the old code worked around does not come back: the controller is no longer torn down across a configuration change at all, so there is nothing to reconnect and re-prepare.
+
+### Diagnostics in the UI settings
+
+Finding that leak meant reading `dumpsys` over adb with the leaking process still alive — which only works if someone is at the PC at the right moment. The app now records it for itself. A new **Diagnostics** section on the 白い熊 音楽 UI page, modelled on 白い熊 地図's, with every log behind its own switch and all of them off by default.
+
+- **Screens and leaks** — every screen created and destroyed with the configuration-change flag, and then the test that matters: each destroyed screen is held by a weak reference and looked at again after a forced collection. Still reachable means it leaked, and the line says `RETAINED`. LeakCanary's core trick without the library, so it works in the signed release build.
+- **Memory samples** — once a minute, the same figures `dumpsys meminfo` prints for the process: total PSS and the Java, native and graphics splits, plus live screens, retained screens and how many media controllers the process holds. The graphics figure is what gave this leak away.
+- **Playback** — play, pause, stop, track changes, seeks and queue replacements.
+- **Service and session** — the player service starting and stopping, and every controller built, reused, opened, closed or disconnected.
+- **Library** — scans, with how long they took.
+- **Automation** — intents and broadcasts, and whether each was let in.
+
+Then **Recorded data**: what is stored (counted off the main thread), keep for N days (0 = everything, the default, applied at start and on leaving the page), export into a dated subdirectory of a directory picked each time, share through the app's FileProvider, and purge behind a dialog that first says how many files, how big, and which days go. While anything is recording an ongoing notification says so, with **Mark** — a numbered line to find afterwards — and **Turn all off**.
+
+Files live in `/sdcard/Android/data/shiroikuma.ongaku/files/diag/`, one per day, capped at 64 MB, and are **always `.txt`, never `.log`** — EMUI's Phone Manager deletes `*.log` under `Android/data` overnight while the phone charges. Anything an older build wrote as `.log` is renamed in on start, prepending when that day's `.txt` already exists. The writer also checks its file still exists before each line: a stream held open across a deletion goes on writing into the unlinked inode, silently, and every later line is lost.
+
+The machinery lives in `:shared`, so every module can record into the same switches.
+
+### Every pressable row on the settings page is a pill
+
+The page gave no clue that "Export / Import…" or "Import PowerAmp ratings" were things to press — they were drawn exactly like the headings above them. A row that does something when tapped is now an outlined pill, never filled, **as wide as its label** rather than stretched across the line, with its explanation beneath it in dim gold.
+
+Seven rows became pills: Export / Import… as the section's one panel, so the 3 dp bold main pill; Waiting restore, Import PowerAmp ratings, Import PowerAmp album art and All-files access, each with a chevron since each opens something; Regenerate token and Download missing album art without one, since they act in place. Rows carrying their own control — switches, colour swatches, sliders, the font and token values — stay plain rows, because the control is already the affordance.
+
+With it:
+
+- A new settable colour role, **Settings note (dim gold)**, for the descriptions and the thin rule down an explained item's left edge. It derives from the foundation slots (`#C8C800` on black-yellow) so it follows a changed text colour, and it has its own row under Text rather than being a hard-coded constant.
+- **Minimal row padding everywhere** — 2 dp top and bottom, with the platform's 48 dp minimum height stripped off the rows and the switches inside them.
+- The two automation switches, whose meaning is not obvious from their labels, became described rows.
+- **Dialog pills tell main from regular by weight again.** Every button had been drawn at 1.5 dp bold, so a confirm and a Cancel looked identical; the positive button now gets 3 dp bold and the rest 1.25 dp regular, in `SkDialogChrome` and the Export/Import panel alike. Use and Choose… in the waiting-restore sheet are marked as their block's main action.
+- Ripples go to the specified 30 % accent.
+
+### A directory is a directory
+
+Every user-visible string that said "folder" now says "directory": the **Directories** library mode and its **Directory Hierarchy**, Storage Directory Access and the setup screen behind it, Skip Hidden Directories, Manage Music Directories, both play/shuffle scope dialogs with their subdirectories, the scan summary, and the fork's own directory-grant repair dialog. `SkFolderGrants` and `SkFolderGrantDialog` were renamed to `SkDirectoryGrants` and `SkDirectoryGrantDialog` with the comment prose around them.
+
+The string *names* and upstream's private identifiers keep their spelling — nobody reads them, and renaming them would conflict on every rebase for no visible gain. The nine translation files are untouched.
