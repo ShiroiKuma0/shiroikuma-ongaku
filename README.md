@@ -6,11 +6,11 @@
 
 **A black-yellow, beat-lit, automation-ready music player.**
 
-A fork of [Felicity Music Player](https://github.com/Hamza417/Felicity) with **major additions**: a full black-yellow theming engine with its own settings page, category export/import of every setting including ratings and playlists (also driveable headlessly for batch backups), a PowerAmp-style full-screen spectrum visualizer, the 音楽端灯 edge-meteor light show driven by a sample-accurate PCM beat tracker, an automation surface external workspaces drive without a pasted secret, a data door that hands this app's whole backup — settings, ratings and playlists — to 白い熊 応用管理 so it survives a wiped phone, a restore that finishes itself on that wiped phone (the music folder's grant asked for back, favourites and playlists attached the moment the library is scanned, a waiting room for whatever could not be matched), Android Auto with full library browsing, album-art download/change (automatic, interactive, storage pick, clipboard paste), PowerAmp ratings/art import, and manual playlist reordering.
+A fork of [Felicity Music Player](https://github.com/Hamza417/Felicity) with **major additions**: a full black-yellow theming engine with its own settings page, category export/import of every setting including ratings and playlists (also driveable headlessly for batch backups), a PowerAmp-style full-screen spectrum visualizer, the 音楽端灯 edge-meteor light show driven by a sample-accurate PCM beat tracker, a Diagnostics section that catches a leaking screen by itself, an automation surface external workspaces drive without a pasted secret, a data door that hands this app's whole backup — settings, ratings and playlists — to 白い熊 応用管理 so it survives a wiped phone, a restore that finishes itself on that wiped phone (the music folder's grant asked for back, favourites and playlists attached the moment the library is scanned, a waiting room for whatever could not be matched), Android Auto with full library browsing, album-art download/change (automatic, interactive, storage pick, clipboard paste), PowerAmp ratings/art import, and manual playlist reordering.
 
 Installs **side-by-side** with Felicity (app id `shiroikuma.ongaku`).
 
-**📥 Latest release: [`0.0.32_alpha+001`](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases)
+**📥 Latest release: [`0.0.32_alpha+003`](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases)
 
 </div>
 
@@ -36,6 +36,9 @@ The player's spectrum reaches over the whole screen: super-thin blue bars (2 dp)
 
 ## 🌠 音楽端灯 — edge meteors
 Comet ribbons orbit the screen perimeter, glowing and beat-locked to the music. The beat source is a native tap on the decoder output (no `Visualizer` API, works under BT offload) with onset detection and a tempo phase-lock grid; the renderer is GPU-native layered capsules tuned over weeks. Runs in-app over the player, and optionally as a system-wide overlay window that lights the screen edge over any app while music plays — every knob (counts, speeds, glow, twinkle, palette, reaction) exposed in settings.
+
+## 🩺 Diagnostics — the app watches itself
+Every log behind its own switch, all off by default, written as plain text into the app's own directory. **Screens and leaks** holds each destroyed screen by a weak reference and looks again after a forced collection — still reachable means it leaked, and the line says `RETAINED`. **Memory samples** record once a minute what `dumpsys meminfo` would tell you: resident size, the Java, native and graphics splits, live and retained screens, and how many media controllers the process holds. Playback, service and session, library scans and automation each get their own switch. Keep them for N days, export into a dated directory, share them, or purge behind a dialog that first says exactly what disappears — and while anything is recording, a notification says so, with a **Mark** button to pin the moment something went wrong. Files are always `.txt`, never `.log`, because EMUI deletes those overnight.
 
 ## 🤖 Automation surface
 Play/pause and track-change broadcasts (with title, artist, favorite state, and a human-readable path), plus an intent endpoint for external automation (token optional, and ignored when not asked for): toggle favorite, delete the current track, transport controls, and play-playlist-by-name — optionally starting at a named track — all cold-start-safe.
