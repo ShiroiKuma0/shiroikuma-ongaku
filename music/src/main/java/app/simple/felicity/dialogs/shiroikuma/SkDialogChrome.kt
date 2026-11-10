@@ -53,13 +53,16 @@ object SkDialogChrome {
         typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), style, context)
     }
 
-    /** A pill button in the accent colour, the shape the UI page's Export/Import buttons have. */
-    fun pill(context: Context, label: CharSequence, onClick: () -> Unit): Button {
+    /**
+     * A pill button in the accent colour, the shape the UI page's Export/Import buttons have.
+     * Pass [main] for the one thing the block is for — it gets the thick frame and bold text.
+     */
+    fun pill(context: Context, label: CharSequence, main: Boolean = false, onClick: () -> Unit): Button {
         val density = context.resources.displayMetrics.density
         val accent = accentColor()
         return Button(context, null, android.R.attr.borderlessButtonStyle).apply {
             text = label
-            stylePill(this, accent, density, context)
+            stylePill(this, accent, density, context, main)
             setOnClickListener { onClick() }
         }
     }
@@ -78,7 +81,8 @@ object SkDialogChrome {
 
         for (which in intArrayOf(DialogInterface.BUTTON_POSITIVE, DialogInterface.BUTTON_NEGATIVE, DialogInterface.BUTTON_NEUTRAL)) {
             val button = dialog.getButton(which) ?: continue
-            stylePill(button, accent, density, context)
+            // The dialog's own main action is its positive button; the rest sit beside it.
+            stylePill(button, accent, density, context, which == DialogInterface.BUTTON_POSITIVE)
             (button.layoutParams as? ViewGroup.MarginLayoutParams)?.let { params ->
                 params.marginStart = dp(context, 8)
                 button.layoutParams = params
@@ -86,16 +90,17 @@ object SkDialogChrome {
         }
     }
 
-    private fun stylePill(button: Button, accent: Int, density: Float, context: Context) {
+    private fun stylePill(button: Button, accent: Int, density: Float, context: Context, main: Boolean) {
         val pill = GradientDrawable().apply {
             setColor(backgroundColor())
             cornerRadius = 50 * density // > half the height -> a pill
-            setStroke((1.5F * density).toInt(), accent)
+            setStroke(((if (main) 3F else 1.25F) * density).toInt().coerceAtLeast(1), accent)
         }
-        button.background = RippleDrawable(ColorStateList.valueOf((accent and 0x00FFFFFF) or 0x33000000), pill, null)
+        button.background = RippleDrawable(ColorStateList.valueOf((accent and 0x00FFFFFF) or 0x4D000000), pill, null)
         button.setTextColor(accent)
         button.transformationMethod = null // no all-caps
-        button.typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.BOLD, context)
+        button.typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(),
+                                               if (main) TypeFaceTextView.BOLD else TypeFaceTextView.REGULAR, context)
         button.setPadding(dp(context, 16), dp(context, 4), dp(context, 16), dp(context, 4))
         button.minHeight = 0
         button.minimumHeight = 0

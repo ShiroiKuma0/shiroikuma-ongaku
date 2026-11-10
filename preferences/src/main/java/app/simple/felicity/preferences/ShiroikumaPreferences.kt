@@ -37,6 +37,13 @@ object ShiroikumaPreferences {
     const val TEXT_TERTIARY = "sk_text_tertiary"
     const val TEXT_QUATERNARY = "sk_text_quaternary"
 
+    /**
+     * The dim gold explanatory text on a settings page is drawn in — the descriptions
+     * under a label and the thin rule down an item's left edge. A settable role rather
+     * than a constant, so it follows a changed text colour instead of fighting it.
+     */
+    const val SETTINGS_NOTE = "sk_settings_note"
+
     // Icon slots (IconTheme)
     const val ICON_REGULAR = "sk_icon_regular"
     const val ICON_SECONDARY = "sk_icon_secondary"
@@ -145,6 +152,8 @@ object ShiroikumaPreferences {
             TEXT_SECONDARY -> withAlpha(text, 0xC8)
             TEXT_TERTIARY -> withAlpha(text, 0x96)
             TEXT_QUATERNARY -> withAlpha(text, 0x64)
+            // 0.784 of the way from the background to the text: #C8C800 on black-yellow.
+            SETTINGS_NOTE -> ColorUtils.blendARGB(background, text, 0.784F)
             ICON_REGULAR -> text
             ICON_SECONDARY -> withAlpha(text, 0xAA)
             ICON_DISABLED -> withAlpha(text, 0x55)

@@ -33,12 +33,14 @@ import androidx.lifecycle.lifecycleScope
 import app.simple.felicity.R
 import app.simple.felicity.databinding.FragmentShiroikumaUiBinding
 import app.simple.felicity.databinding.HeaderPreferencesGenericBinding
+import app.simple.felicity.databinding.ItemSkActionBinding
 import app.simple.felicity.databinding.ItemSkColorBinding
 import app.simple.felicity.databinding.ItemSkPreviewBinding
 import app.simple.felicity.databinding.ItemSkSectionBinding
 import app.simple.felicity.databinding.ItemSkSliderBinding
 import app.simple.felicity.databinding.ItemSkSubgroupBinding
 import app.simple.felicity.databinding.ItemSkSwitchBinding
+import app.simple.felicity.databinding.ItemSkSwitchDescribedBinding
 import app.simple.felicity.databinding.ItemSkValueBinding
 import app.simple.felicity.decorations.constants.TypeFaceConstants
 import app.simple.felicity.decorations.corners.LayoutBackground
@@ -80,6 +82,13 @@ class ShiroikumaUi : PreferenceFragment() {
     private val swatches = HashMap<String, View>()
     private val accentLines = ArrayList<View>()
     private val previewCards = ArrayList<View>()
+
+    /**
+     * Everything on the page that is painted in code rather than by the theme — pill frames,
+     * accent labels, the dim-gold descriptions and their left rules. [TypeFaceTextView] repaints
+     * itself from its own color style whenever the theme fires, so these run again after it.
+     */
+    private val restyle = ArrayList<() -> Unit>()
     private var fontValueView: TypeFaceTextView? = null
     private var tokenValueView: TypeFaceTextView? = null
     private var tokenRowView: View? = null
@@ -88,13 +97,13 @@ class ShiroikumaUi : PreferenceFragment() {
 
     // Export/Import (Kōjiki flow): panel + row state
     private var eximDialog: AlertDialog? = null
-    private var eimFolderTv: TypeFaceTextView? = null
+    private var eimDirectoryTv: TypeFaceTextView? = null
     private var eimStatusTv: TypeFaceTextView? = null
     private var eimRowStatusTv: TypeFaceTextView? = null
     private var pendingExportCats: List<SkBackup.Cat>? = null
     private var pendingImportCats: List<SkBackup.Cat>? = null
 
-    /** SAF folder picker for the persisted export directory. */
+    /** SAF directory picker for the persisted export directory. */
     private val eimDirPicker = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
             onEimDirPicked(uri)
@@ -157,6 +166,7 @@ class ShiroikumaUi : PreferenceFragment() {
         swatches.clear()
         accentLines.clear()
         previewCards.clear()
+        restyle.clear()
         binding.rowsContainer.removeAllViews()
 
         // ------------------------------------------------ Export / Import (first, Kōjiki flow)
@@ -168,19 +178,19 @@ class ShiroikumaUi : PreferenceFragment() {
         // All-files grant and the 保存復元 receiver exist to drive exactly the export
         // above, headlessly, from 自由作業盤.
         addSubgroup(R.string.sk_section_automation, indent = 1)
-        addSwitchRow(R.string.sk_automation_enable, indent = 2,
-                     isChecked = { AutomationPreferences.isEnabled() },
-                     onChecked = { AutomationPreferences.setEnabled(it) })
+        addDescribedSwitchRow(R.string.sk_automation_enable, R.string.sk_automation_enable_desc, indent = 2,
+                              isChecked = { AutomationPreferences.isEnabled() },
+                              onChecked = { AutomationPreferences.setEnabled(it) })
         // 保存復元 contract v2 §2: the master switch above ships ON and the token below is
         // opt-in, because a pasted secret cannot survive a wipe and the case this now serves is
         // 応用管理 restoring this app AND its data onto a clean phone. The data door checks the
         // caller's package, uid and signing certificate either way.
-        addSwitchRow(R.string.sk_automation_require_token, indent = 2,
-                     isChecked = { AutomationPreferences.isTokenRequired() },
-                     onChecked = {
-                         AutomationPreferences.setTokenRequired(it)
-                         refreshTokenRowVisibility()
-                     })
+        addDescribedSwitchRow(R.string.sk_automation_require_token, R.string.sk_automation_require_token_desc, indent = 2,
+                              isChecked = { AutomationPreferences.isTokenRequired() },
+                              onChecked = {
+                                  AutomationPreferences.setTokenRequired(it)
+                                  refreshTokenRowVisibility()
+                              })
         addTokenRow(indent = 2)
         addRegenerateTokenRow(indent = 2)
         refreshTokenRowVisibility()
@@ -217,6 +227,7 @@ class ShiroikumaUi : PreferenceFragment() {
         addColorRow(R.string.sk_color_text_secondary, ShiroikumaPreferences.TEXT_SECONDARY, indent = 2)
         addColorRow(R.string.sk_color_text_tertiary, ShiroikumaPreferences.TEXT_TERTIARY, indent = 2)
         addColorRow(R.string.sk_color_text_quaternary, ShiroikumaPreferences.TEXT_QUATERNARY, indent = 2)
+        addColorRow(R.string.sk_color_settings_note, ShiroikumaPreferences.SETTINGS_NOTE, indent = 2)
 
         addSubgroup(R.string.sk_group_icons, indent = 1)
         addColorRow(R.string.sk_color_icon_regular, ShiroikumaPreferences.ICON_REGULAR, indent = 2)
@@ -549,6 +560,103 @@ class ShiroikumaUi : PreferenceFragment() {
         binding.rowsContainer.addView(row.root)
     }
 
+    /**
+     * A switch that carries an explanation: bold accent label, dim-gold description beneath it
+     * and a thin dim-gold rule down the item's left edge.
+     */
+    private fun addDescribedSwitchRow(@StringRes labelRes: Int, @StringRes descRes: Int, indent: Int,
+                                      isChecked: () -> Boolean,
+                                      onChecked: (Boolean) -> Unit) {
+        val row = ItemSkSwitchDescribedBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        row.switchLabel.text = getString(labelRes)
+        row.switchDesc.text = getString(descRes)
+        row.switchToggle.isChecked = isChecked()
+        row.switchToggle.setOnCheckedChangeListener { _, checked ->
+            onChecked(checked)
+        }
+        row.root.setOnClickListener {
+            row.switchToggle.toggle()
+        }
+        indentRow(row.root, indent)
+        val paint = {
+            row.switchLabel.setTextColor(skAccentColor())
+            row.switchDesc.setTextColor(skNoteColor())
+            row.switchRule.setBackgroundColor(skNoteColor())
+        }
+        paint()
+        restyle.add(paint)
+        binding.rowsContainer.addView(row.root)
+    }
+
+    /**
+     * Something to press: an outlined pill (never filled) holding the label — a 3 dp frame and
+     * bold for the main action of its section, 1.25 dp and regular otherwise — with a chevron
+     * when it opens another screen or a picker, and the explanation beneath it.
+     *
+     * The pill hugs its label rather than spanning the line, and the pill alone is the touch
+     * target: the explanation beneath is not clickable.
+     */
+    private fun addActionRow(@StringRes labelRes: Int, indent: Int,
+                             main: Boolean = false,
+                             opens: Boolean = true,
+                             description: CharSequence? = null,
+                             onClick: () -> Unit): ItemSkActionBinding {
+        val row = ItemSkActionBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        row.actionLabel.text = getString(labelRes)
+        row.actionChevron.visibility = if (opens) View.VISIBLE else View.GONE
+        row.actionDesc.text = description ?: ""
+        val described = description.isNullOrEmpty().not()
+        row.actionDesc.visibility = if (described) View.VISIBLE else View.GONE
+        // Kept in the layout when there is nothing to explain, so every pill on the page
+        // still starts at the same place.
+        row.actionRule.visibility = if (described) View.VISIBLE else View.INVISIBLE
+        row.actionPill.setOnClickListener { onClick() }
+        indentRow(row.root, indent)
+        val paint = {
+            row.actionPill.background = pillDrawable(main)
+            row.actionLabel.typeface = TypeFace.getTypeFace(
+                    AppearancePreferences.getAppFont(),
+                    if (main) TypeFaceTextView.BOLD else TypeFaceTextView.REGULAR, requireContext())
+            row.actionLabel.setTextColor(skAccentColor())
+            row.actionChevron.setTextColor(skAccentColor())
+            row.actionDesc.setTextColor(skNoteColor())
+            row.actionRule.setBackgroundColor(skNoteColor())
+        }
+        paint()
+        restyle.add(paint)
+        binding.rowsContainer.addView(row.root)
+        return row
+    }
+
+    /** A loose note belonging to no single item — dim gold, no rule. */
+    private fun addNoteRow(note: CharSequence, indent: Int) {
+        val view = TypeFaceTextView(requireContext()).apply {
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13F)
+            typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.REGULAR, context)
+            setPaddingRelative(dp(38 + 18 * indent), dp(2), dp(16), dp(4))
+            text = note
+        }
+        val paint = { view.setTextColor(skNoteColor()) }
+        paint()
+        restyle.add(paint)
+        binding.rowsContainer.addView(view)
+    }
+
+    /**
+     * The pill: fully round, the background showing through, an accent frame 3 dp thick for a
+     * main action and 1.25 dp otherwise. Never filled.
+     */
+    private fun pillDrawable(main: Boolean): RippleDrawable {
+        val accent = skAccentColor()
+        val density = resources.displayMetrics.density
+        val frame = GradientDrawable().apply {
+            setColor(Color.TRANSPARENT)
+            cornerRadius = 50 * density // > half the height -> fully round
+            setStroke(((if (main) 3F else 1.25F) * density).toInt().coerceAtLeast(1), accent)
+        }
+        return RippleDrawable(ColorStateList.valueOf((accent and 0x00FFFFFF) or 0x4D000000), frame, null)
+    }
+
     private fun addFontRow(indent: Int) {
         val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
         row.valueLabel.text = getString(R.string.sk_font)
@@ -595,17 +703,13 @@ class ShiroikumaUi : PreferenceFragment() {
 
     /** Regenerates the automation token and refreshes the token row. */
     private fun addRegenerateTokenRow(indent: Int) {
-        val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
-        row.valueLabel.text = getString(R.string.sk_automation_regenerate)
-        row.valueText.text = ""
-        regenerateRowView = row.root
-        indentRow(row.root, indent)
-        row.root.setOnClickListener {
+        val row = addActionRow(R.string.sk_automation_regenerate, indent, opens = false,
+                               description = getString(R.string.sk_automation_regenerate_desc)) {
             val fresh = AutomationPreferences.regenerateToken()
             tokenValueView?.text = fresh
             SkFlash.show(requireContext(), R.string.sk_automation_token_regenerated)
         }
-        binding.rowsContainer.addView(row.root)
+        regenerateRowView = row.root
     }
 
     /**
@@ -615,19 +719,16 @@ class ShiroikumaUi : PreferenceFragment() {
      * opens the system grant page; the state re-reads on every return to this page.
      */
     private fun addAllFilesAccessRow(indent: Int) {
-        val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
-        row.valueLabel.text = getString(R.string.sk_automation_allfiles)
-        row.valueText.text = getString(allFilesAccessLabel())
-        allFilesValueView = row.valueText
-        indentRow(row.root, indent)
-        row.root.setOnClickListener {
+        val row = addActionRow(R.string.sk_automation_allfiles, indent, opens = true,
+                               description = getString(allFilesAccessLabel())) {
             if (hasAllFilesAccess()) {
                 SkFlash.show(requireContext(), R.string.sk_automation_allfiles_on)
             } else {
                 openAllFilesAccessSettings()
             }
         }
-        binding.rowsContainer.addView(row.root)
+        // The grant state is this row's explanation, re-read on every return to the page.
+        allFilesValueView = row.actionDesc
     }
 
     private fun hasAllFilesAccess(): Boolean {
@@ -656,40 +757,29 @@ class ShiroikumaUi : PreferenceFragment() {
 
     /** Opens the system document picker for a PowerAmp backup; ratings become favorites. */
     private fun addImportPowerAmpRow(indent: Int) {
-        val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
-        row.valueLabel.text = getString(R.string.sk_import_poweramp)
-        row.valueText.text = ""
-        indentRow(row.root, indent)
-        row.root.setOnClickListener {
+        addActionRow(R.string.sk_import_poweramp, indent, opens = true,
+                     description = getString(R.string.sk_import_poweramp_desc)) {
             // The .poweramp-backup extension carries no registered mime type, so accept anything.
             powerAmpBackupPicker.launch(arrayOf("*/*"))
         }
-        binding.rowsContainer.addView(row.root)
     }
 
     /** Opens the system document picker for a PowerAmp album-art export; art gets embedded into files. */
     private fun addImportPowerAmpArtRow(indent: Int) {
-        val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
-        row.valueLabel.text = getString(R.string.sk_import_poweramp_art)
-        row.valueText.text = ""
-        indentRow(row.root, indent)
-        row.root.setOnClickListener {
+        addActionRow(R.string.sk_import_poweramp_art, indent, opens = true,
+                     description = getString(R.string.sk_import_poweramp_art_desc)) {
             // The .poweramp-backup extension carries no registered mime type, so accept anything.
             powerAmpArtPicker.launch(arrayOf("*/*"))
         }
-        binding.rowsContainer.addView(row.root)
     }
 
     /** Fully automatic — no picker: scans the library and fills artless albums from the Cover Art Archive. */
     private fun addDownloadAlbumArtRow(indent: Int) {
-        val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
-        row.valueLabel.text = getString(R.string.sk_download_album_art)
-        row.valueText.text = ""
-        indentRow(row.root, indent)
-        row.root.setOnClickListener {
+        // Fully automatic — nothing opens, so no chevron.
+        addActionRow(R.string.sk_download_album_art, indent, opens = false,
+                     description = getString(R.string.sk_download_album_art_desc)) {
             downloadMissingAlbumArt()
         }
-        binding.rowsContainer.addView(row.root)
     }
 
     /**
@@ -697,22 +787,13 @@ class ShiroikumaUi : PreferenceFragment() {
      * underneath mirroring the latest export found in the configured directory.
      */
     private fun addEximRow(indent: Int) {
-        val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
-        row.valueLabel.text = getString(R.string.sk_eim_row)
-        row.valueText.text = ""
-        indentRow(row.root, indent)
-        row.root.setOnClickListener {
+        val row = addActionRow(R.string.sk_eim_row, indent, main = true, opens = true) {
             showEximDialog()
         }
-        binding.rowsContainer.addView(row.root)
-
-        val status = TypeFaceTextView(requireContext()).apply {
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13F)
-            typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.MEDIUM, context)
-            setPaddingRelative(dp(38 + 18 * indent), 0, dp(16), dp(4))
-        }
-        eimRowStatusTv = status
-        binding.rowsContainer.addView(status)
+        // The status line is this row's explanation; it is filled in from a background probe.
+        row.actionDesc.visibility = View.VISIBLE
+        row.actionRule.visibility = View.VISIBLE
+        eimRowStatusTv = row.actionDesc
     }
 
     /**
@@ -720,22 +801,17 @@ class ShiroikumaUi : PreferenceFragment() {
      * the review sheet (`SkPendingRestoreDialog`) behind it.
      */
     private fun addPendingRestoreRow(indent: Int) {
-        val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
-        row.valueLabel.text = getString(R.string.sk_pending_row)
-        row.valueText.text = ""
-        indentRow(row.root, indent)
-        row.root.setOnClickListener { SkPendingRestoreDialog.show(parentFragmentManager) }
-        row.root.visibility = View.GONE
-        binding.rowsContainer.addView(row.root)
-
-        val status = TypeFaceTextView(requireContext()).apply {
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13F)
-            typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.MEDIUM, context)
-            setTextColor(EIM_WARN_COLOR)
-            setPaddingRelative(dp(38 + 18 * indent), 0, dp(16), dp(4))
-            visibility = View.GONE
+        val row = addActionRow(R.string.sk_pending_row, indent, opens = true) {
+            SkPendingRestoreDialog.show(parentFragmentManager)
         }
-        binding.rowsContainer.addView(status)
+        row.root.visibility = View.GONE
+        row.actionDesc.visibility = View.VISIBLE
+        row.actionRule.visibility = View.VISIBLE
+        val status = row.actionDesc
+        // Added after the row's own painter so the warning red survives a theme refresh.
+        val warn = { status.setTextColor(EIM_WARN_COLOR) }
+        warn()
+        restyle.add(warn)
 
         val app = requireContext().applicationContext
         viewLifecycleOwner.lifecycleScope.launch {
@@ -743,7 +819,6 @@ class ShiroikumaUi : PreferenceFragment() {
             SkBackup.pending.collect { pending ->
                 val waiting = pending != null && !pending.isEmpty
                 row.root.visibility = if (waiting) View.VISIBLE else View.GONE
-                status.visibility = row.root.visibility
                 if (pending != null && waiting) status.text = getString(R.string.sk_pending_row_status, pending.favorites, pending.songs)
             }
         }
@@ -759,7 +834,7 @@ class ShiroikumaUi : PreferenceFragment() {
             val warn = withContext(Dispatchers.IO) { SkBackup.latestExport(app) == null }
             eimRowStatusTv?.let { view ->
                 view.text = status
-                view.setTextColor(if (warn) EIM_WARN_COLOR else skTextColor())
+                view.setTextColor(if (warn) EIM_WARN_COLOR else skNoteColor())
                 view.alpha = if (warn) 1F else 0.75F
             }
         }
@@ -798,7 +873,7 @@ class ShiroikumaUi : PreferenceFragment() {
             typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.MEDIUM, context)
         })
 
-        // Export-directory box: caption + current folder, tap to (re)choose.
+        // Export-directory box: caption + current directory, tap to (re)choose.
         val dirBox = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             isClickable = true
@@ -812,11 +887,11 @@ class ShiroikumaUi : PreferenceFragment() {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12F)
             typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.MEDIUM, context)
         })
-        eimFolderTv = TypeFaceTextView(context).apply {
+        eimDirectoryTv = TypeFaceTextView(context).apply {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 15F)
             typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.BOLD, context)
         }
-        dirBox.addView(eimFolderTv)
+        dirBox.addView(eimDirectoryTv)
         root.addView(dirBox, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12) })
 
@@ -856,7 +931,7 @@ class ShiroikumaUi : PreferenceFragment() {
             .setNegativeButton(R.string.sk_eim_import, null)
             .setNeutralButton(android.R.string.cancel, null)
             .setOnDismissListener {
-                eimFolderTv = null
+                eimDirectoryTv = null
                 eimStatusTv = null
                 eximDialog = null
             }
@@ -913,16 +988,20 @@ class ShiroikumaUi : PreferenceFragment() {
 
         for (which in intArrayOf(DialogInterface.BUTTON_POSITIVE, DialogInterface.BUTTON_NEGATIVE, DialogInterface.BUTTON_NEUTRAL)) {
             val button = dialog.getButton(which) ?: continue
+            // Main vs regular is told by weight alone: the one thing the dialog is for gets a
+            // 3 dp frame and bold text, everything beside it 1.25 dp and regular.
+            val main = which == DialogInterface.BUTTON_POSITIVE
             val pill = GradientDrawable().apply {
                 setColor(skBackgroundColor())
                 cornerRadius = 50 * density // > half the height -> a pill
-                setStroke((1.5F * density).toInt(), accent)
+                setStroke(((if (main) 3F else 1.25F) * density).toInt().coerceAtLeast(1), accent)
             }
             button.background = RippleDrawable(
-                    ColorStateList.valueOf((accent and 0x00FFFFFF) or 0x33000000), pill, null)
+                    ColorStateList.valueOf((accent and 0x00FFFFFF) or 0x4D000000), pill, null)
             button.setTextColor(accent)
             button.transformationMethod = null // no all-caps
-            button.typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.BOLD, context)
+            button.typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(),
+                                                   if (main) TypeFaceTextView.BOLD else TypeFaceTextView.REGULAR, context)
             button.setPadding(dp(20), dp(6), dp(20), dp(6))
             (button.layoutParams as? ViewGroup.MarginLayoutParams)?.let { params ->
                 params.marginStart = dp(8)
@@ -935,18 +1014,18 @@ class ShiroikumaUi : PreferenceFragment() {
         return boxes.filter { it.isChecked }.map { it.tag as SkBackup.Cat }
     }
 
-    /** Updates the folder-name and last-export lines inside the open panel. */
+    /** Updates the directory-name and last-export lines inside the open panel. */
     private fun refreshEximDialogStatus() {
         val context = context ?: return
-        val folderView = eimFolderTv ?: return
+        val directoryView = eimDirectoryTv ?: return
         val statusView = eimStatusTv ?: return
         val dir = SkBackup.getExportDir(context)
         if (dir != null) {
-            folderView.text = dir.name ?: SkBackup.getDirUri(context)?.lastPathSegment ?: ""
-            folderView.setTextColor(skAccentColor())
+            directoryView.text = dir.name ?: SkBackup.getDirUri(context)?.lastPathSegment ?: ""
+            directoryView.setTextColor(skAccentColor())
         } else {
-            folderView.setText(R.string.sk_eim_dir_unset)
-            folderView.setTextColor(EIM_WARN_COLOR)
+            directoryView.setText(R.string.sk_eim_dir_unset)
+            directoryView.setTextColor(EIM_WARN_COLOR)
         }
         val app = context.applicationContext
         lifecycleScope.launch {
@@ -1360,6 +1439,8 @@ class ShiroikumaUi : PreferenceFragment() {
             view.background = swatchDrawable(ShiroikumaPreferences.getEffectiveColor(key))
         }
         accentLines.forEach { it.setBackgroundColor(skAccentColor()) }
+        // After the theme has repainted every TypeFaceTextView from its own color style.
+        restyle.forEach { it() }
     }
 
     // ------------------------------------------------------------------ fork colors
@@ -1375,6 +1456,11 @@ class ShiroikumaUi : PreferenceFragment() {
     private fun skTextColor(): Int =
         if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.TEXT_PRIMARY)
         else ThemeManager.theme.textViewTheme.primaryTextColor
+
+    /** The dim gold every explanation and left rule on this page is drawn in. */
+    private fun skNoteColor(): Int =
+        if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.SETTINGS_NOTE)
+        else ThemeManager.theme.textViewTheme.secondaryTextColor
 
     private fun skBorderColor(): Int =
         if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.BORDER)

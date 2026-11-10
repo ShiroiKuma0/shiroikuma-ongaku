@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A row that does something when tapped: an outlined pill (never filled) holding the label,
+     its explanation beneath, aligned with the label text rather than with the pill's edge, and a
+     thin dim-gold rule down the left edge spanning both. The pill is wrap_content so it hugs its
+     label instead of spanning the line, and the pill alone is the touch target — the explanation
+     beneath is not. Frame width, weight, chevron and every color are set in code. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:baselineAligned="false"
+    android:orientation="horizontal"
+    android:paddingVertical="3dp">
+
+    <View
+        android:id="@+id/action_rule"
+        android:layout_width="2dp"
+        android:layout_height="match_parent" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:id="@+id/action_pill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:minHeight="0dp"
+            android:orientation="horizontal"
+            android:paddingStart="18dp"
+            android:paddingTop="9dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="9dp">
+
+            <app.simple.felicity.decorations.typeface.TypeFaceTextView
+                android:id="@+id/action_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="15sp"
+                app:appFontStyle="regular"
+                app:textColorStyle="accent" />
+
+            <app.simple.felicity.decorations.typeface.TypeFaceTextView
+                android:id="@+id/action_chevron"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:includeFontPadding="false"
+                android:text="›"
+                android:textSize="20sp"
+                app:appFontStyle="regular"
+                app:textColorStyle="accent" />
+
+        </LinearLayout>
+
+        <app.simple.felicity.decorations.typeface.TypeFaceTextView
+            android:id="@+id/action_desc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="18dp"
+            android:paddingTop="3dp"
+            android:paddingEnd="16dp"
+            android:textSize="13sp"
+            app:appFontStyle="regular"
+            app:textColorStyle="secondary" />
+
+</LinearLayout>
+
+</LinearLayout>
