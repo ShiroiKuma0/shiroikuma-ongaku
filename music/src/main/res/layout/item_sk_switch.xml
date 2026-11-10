@@ -17,7 +17,7 @@
         app:appFontStyle="regular"
         app:textColorStyle="primary" />
 
-    <app.simple.felicity.decorations.toggles.FelicitySwitch
+    <app.simple.felicity.shiroikuma.SkSwitch
         android:id="@+id/switch_toggle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
