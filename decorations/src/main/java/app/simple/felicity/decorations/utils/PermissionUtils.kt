@@ -26,18 +26,18 @@ object PermissionUtils {
     }
 
     /**
-     * Returns true when the user has granted access to at least one folder via SAF.
+     * Returns true when the user has granted access to at least one directory via SAF.
      * This is the check we use to decide whether the app is ready to scan music.
      *
-     * Fork (白い熊, 2026-09-10): answered from the system's grant table, not from the folder
+     * Fork (白い熊, 2026-09-10): answered from the system's grant table, not from the directory
      * list alone. The list is data and travels in a backup; the grant belongs to this
      * installation and does not — so after a restore the list says "音楽" while nothing can
-     * be read, and the old check sent the app straight to an empty home screen. Now a folder
-     * counts only when this install actually holds it (see [SkFolderGrants]); the Setup screen
+     * be read, and the old check sent the app straight to an empty home screen. Now a directory
+     * counts only when this install actually holds it (see [SkDirectoryGrants]); the Setup screen
      * and the launch-time gate name the ones it does not and ask for them back.
      */
     fun Context.isSAFAccessGranted(): Boolean {
-        return SAFPreferences.hasAnyTreeUri() && SkFolderGrants.anyRecordedHeld(this)
+        return SAFPreferences.hasAnyTreeUri() && SkDirectoryGrants.anyRecordedHeld(this)
     }
 
     fun Fragment.isSAFAccessGranted(): Boolean {

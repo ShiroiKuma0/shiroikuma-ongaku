@@ -7,24 +7,24 @@ import android.provider.DocumentsContract
 import app.simple.felicity.preferences.SAFPreferences
 
 /**
- * Storage Access Framework grants for the music folders the library is built on — held,
+ * Storage Access Framework grants for the music directories the library is built on — held,
  * missing, and how to ask for one back.
  *
  * ## Why this exists (白い熊, 2026-09-10)
  *
  * The library is scanned from tree URIs the user picked once; [SAFPreferences] remembers *which*
- * folders, and the system remembers *that this installation may read them*. Only the first half
- * is data. A backup restores the folder list, the favourites and the playlists perfectly, and
+ * directories, and the system remembers *that this installation may read them*. Only the first half
+ * is data. A backup restores the directory list, the favourites and the playlists perfectly, and
  * not one byte of the permission — a persisted grant belongs to an installation, so a restored
- * copy on a wiped phone knows exactly which folder its music lives in and is not allowed to look.
+ * copy on a wiped phone knows exactly which directory its music lives in and is not allowed to look.
  *
  * The repair is the grant, and it is exact: document ids are path-based, so picking the same
- * folder again yields a **byte-identical** tree URI and every row that pointed at it works again
- * with nothing rewritten. This object answers "which recorded folders does this install not hold",
+ * directory again yields a **byte-identical** tree URI and every row that pointed at it works again
+ * with nothing rewritten. This object answers "which recorded directories does this install not hold",
  * hands the picker a place to open, and persists what comes back. Same model as the sister app
  * 書籍閲覧 (`WhiteBearFolderGrants`).
  */
-object SkFolderGrants {
+object SkDirectoryGrants {
 
     private const val EXTERNAL_STORAGE = "com.android.externalstorage.documents"
 
@@ -36,7 +36,7 @@ object SkFolderGrants {
             .filter { isTree(it) }
     }.getOrDefault(emptyList())
 
-    /** The folders the library is built on — what the user picked, restored or not. */
+    /** The directories the library is built on — what the user picked, restored or not. */
     fun recordedTrees(): List<Uri> = SAFPreferences.getTreeUris()
         .mapNotNull { runCatching { Uri.parse(it) }.getOrNull() }
         .filter { it.authority != null }
@@ -58,14 +58,14 @@ object SkFolderGrants {
 
     fun isCovered(context: Context, target: Uri): Boolean = treeCovering(context, target) != null
 
-    /** At least one recorded music folder is actually readable by this installation. */
+    /** At least one recorded music directory is actually readable by this installation. */
     fun anyRecordedHeld(context: Context): Boolean = recordedTrees().any { isCovered(context, it) }
 
-    /** Of the recorded folders, the ones this install no longer holds — in order, each once. */
+    /** Of the recorded directories, the ones this install no longer holds — in order, each once. */
     fun missing(context: Context): List<Uri> = recordedTrees().filterNot { isCovered(context, it) }
 
     /**
-     * Where the picker should open — the folder we are missing, as a document URI.
+     * Where the picker should open — the directory we are missing, as a document URI.
      *
      * A hint, not a command: AOSP's picker honours `EXTRA_INITIAL_URI`, and one that ignores it
      * simply opens where it likes, which costs some navigating and nothing else. The grant that
@@ -79,7 +79,7 @@ object SkFolderGrants {
 
     /**
      * Keep what the picker just handed back — persistably, so it survives the next launch — and
-     * record it as a music folder. Idempotent: re-granting a folder already in the list is a no-op
+     * record it as a music directory. Idempotent: re-granting a directory already in the list is a no-op
      * for the list.
      */
     fun persist(context: Context, granted: Uri): Boolean {
@@ -93,12 +93,12 @@ object SkFolderGrants {
         return taken
     }
 
-    /** Drop the recorded folders this install does not hold — the user has said they are gone. */
+    /** Drop the recorded directories this install does not hold — the user has said they are gone. */
     fun forgetMissing(context: Context) {
         missing(context).forEach { SAFPreferences.removeTreeUri(it.toString()) }
     }
 
-    /** `〇/音楽` — the readable half of a tree URI, for telling the user which folder. */
+    /** `〇/音楽` — the readable half of a tree URI, for telling the user which directory. */
     fun displayPathOf(tree: Uri): String {
         val id = runCatching { DocumentsContract.getTreeDocumentId(tree) }.getOrNull() ?: return tree.toString()
         val relative = id.substringAfter(':', missingDelimiterValue = id)

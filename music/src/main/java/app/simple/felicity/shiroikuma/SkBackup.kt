@@ -51,12 +51,12 @@ import java.util.zip.ZipOutputStream
  * ## The clean phone (白い熊, 2026-09-10)
  *
  * A restore onto a wiped phone runs against an *empty* library — 応用管理 imports straight after
- * the install, and the scan that fills the database cannot run before the music folder has been
- * granted again. Nothing here needs the folder: the preferences land as they are, the folder
- * list itself travels so the app can ask for that grant back (see `SkFolderGrants`), and every
+ * the install, and the scan that fills the database cannot run before the music directory has been
+ * granted again. Nothing here needs the directory: the preferences land as they are, the directory
+ * list itself travels so the app can ask for that grant back (see `SkDirectoryGrants`), and every
  * favourite or playlist song that finds no row is **kept waiting** in [pendingDir] rather than
  * counted as lost. [applyPending] re-runs those leftovers after each library scan and drains what
- * matched, so the restore completes itself the moment the folder is re-granted and scanned.
+ * matched, so the restore completes itself the moment the directory is re-granted and scanned.
  */
 object SkBackup {
 
@@ -84,10 +84,10 @@ object SkBackup {
     private val APP_EXCLUDE = setOf("crash_timestamp", "crash_log")
 
     /**
-     * The music-folder list (`SAFPreferences`). It **does** travel — it is the record of where the
-     * library lives, which is exactly what a restored copy needs in order to ask for that folder's
+     * The music-directory list (`SAFPreferences`). It **does** travel — it is the record of where the
+     * library lives, which is exactly what a restored copy needs in order to ask for that directory's
      * grant back — but it is merged as a union on import, never replaced: the phone being restored
-     * onto may already have a folder of its own, and a list is not a setting.
+     * onto may already have a directory of its own, and a list is not a setting.
      */
     private const val KEY_SAF_TREE_URIS = "saf_granted_tree_uris"
 
@@ -208,7 +208,7 @@ object SkBackup {
      *
      * [doc] is the SAF document id of the scanned file — `primary:〇/[277] 音楽/…/x.mp3` — the
      * scanner's own key, derived from the path alone, so it is byte-identical on any phone that
-     * holds the same files under the same folder. [path] is upstream's `path` column, which is
+     * holds the same files under the same directory. [path] is upstream's `path` column, which is
      * **approximate**: it is filled after the scan by matching (title, artist, album) against
      * MediaStore, so two files with the same tags share one path and a file MediaStore describes
      * differently has none. On 白い熊's new phone five favourites out of 341 sat unmatched on
@@ -508,8 +508,8 @@ object SkBackup {
                     val a = e.optJSONArray("v")
                     val set = HashSet<String>()
                     if (a != null) for (i in 0 until a.length()) set.add(a.optString(i))
-                    // The folder list is a union: keep what this phone already has, add what
-                    // the backup remembers. A folder is a record, not a setting to overwrite.
+                    // The directory list is a union: keep what this phone already has, add what
+                    // the backup remembers. A directory is a record, not a setting to overwrite.
                     if (k == KEY_SAF_TREE_URIS) prefs.getStringSet(k, null)?.let { set.addAll(it) }
                     ed.putStringSet(k, set)
                 }
