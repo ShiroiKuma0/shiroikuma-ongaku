@@ -78,8 +78,12 @@ import java.util.zip.ZipFile
  */
 class ShiroikumaUi : PreferenceFragment() {
 
-    private lateinit var binding: FragmentShiroikumaUiBinding
-    private lateinit var headerBinding: HeaderPreferencesGenericBinding
+    // Named skBinding/skHeaderBinding rather than binding/headerBinding: upstream
+    // 0.0.33_alpha moved those members into PreferenceFragment, typed for its own
+    // FragmentPreferenceAppearanceBinding, so our page's own layout cannot override them.
+    // The base's lifecycle code is inert here because this page leaves titleRes at 0.
+    private lateinit var skBinding: FragmentShiroikumaUiBinding
+    private lateinit var skHeaderBinding: HeaderPreferencesGenericBinding
 
     private val swatches = HashMap<String, View>()
     private val accentLines = ArrayList<View>()
@@ -154,16 +158,16 @@ class ShiroikumaUi : PreferenceFragment() {
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        binding = FragmentShiroikumaUiBinding.inflate(inflater, container, false)
-        headerBinding = HeaderPreferencesGenericBinding.inflate(inflater, container, false)
-        return binding.root
+        skBinding = FragmentShiroikumaUiBinding.inflate(inflater, container, false)
+        skHeaderBinding = HeaderPreferencesGenericBinding.inflate(inflater, container, false)
+        return skBinding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        headerBinding.title.text = getString(R.string.shiroikuma_ui)
-        headerBinding.icon.setImageResource(R.drawable.ic_settings)
-        binding.header.setContentView(headerBinding.root)
+        skHeaderBinding.title.text = getString(R.string.shiroikuma_ui)
+        skHeaderBinding.icon.setImageResource(R.drawable.ic_settings)
+        skBinding.header.setContentView(skHeaderBinding.root)
 
         buildRows()
         refreshShape()
@@ -190,7 +194,7 @@ class ShiroikumaUi : PreferenceFragment() {
         accentLines.clear()
         previewCards.clear()
         restyle.clear()
-        binding.rowsContainer.removeAllViews()
+        skBinding.rowsContainer.removeAllViews()
 
         // ------------------------------------------------ Export / Import (first, Kōjiki flow)
         addSection(R.string.sk_eim_section)
@@ -604,25 +608,25 @@ class ShiroikumaUi : PreferenceFragment() {
      * as wide as the text.
      */
     private fun addSection(@StringRes titleRes: Int) {
-        val first = binding.rowsContainer.childCount == 0
-        val row = ItemSkSectionBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        val first = skBinding.rowsContainer.childCount == 0
+        val row = ItemSkSectionBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
         row.sectionTitle.text = getString(titleRes)
         row.sectionSpacer.visibility = if (first) View.GONE else View.VISIBLE
         registerAccentLine(row.sectionSpacer)
         registerAccentLine(row.sectionUnderline)
         (row.root.layoutParams as ViewGroup.MarginLayoutParams).topMargin = if (first) dp(4) else dp(20)
-        binding.rowsContainer.addView(row.root)
+        skBinding.rowsContainer.addView(row.root)
     }
 
     /** kxkb-style sub-heading: 17sp bold accent title with a thinner text-wide underline. */
     private fun addSubgroup(@StringRes titleRes: Int, indent: Int) {
-        val row = ItemSkSubgroupBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        val row = ItemSkSubgroupBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
         row.subgroupTitle.text = getString(titleRes)
         registerAccentLine(row.subgroupUnderline)
         (row.root.layoutParams as ViewGroup.MarginLayoutParams).topMargin = dp(10)
         // Sub-heading sits one indent step deeper than its section title (20dp), rows go deeper still.
         row.root.setPaddingRelative(dp(20 + 18 * indent), row.root.paddingTop, row.root.paddingEnd, row.root.paddingBottom)
-        binding.rowsContainer.addView(row.root)
+        skBinding.rowsContainer.addView(row.root)
     }
 
     /** Colors a heading underline / section spacer with the effective accent and tracks it for refresh. */
@@ -639,7 +643,7 @@ class ShiroikumaUi : PreferenceFragment() {
      * visible right where they are made (no scrolling back to the top of the page).
      */
     private fun addPreviewCard(mode: PreviewMode) {
-        val card = ItemSkPreviewBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        val card = ItemSkPreviewBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
         when (mode) {
             PreviewMode.COLORS -> {
                 // Everything visible: text tiers, divider, icon + accent line.
@@ -664,11 +668,11 @@ class ShiroikumaUi : PreferenceFragment() {
             marginStart = dp(20)
         }
         previewCards.add(card.root)
-        binding.rowsContainer.addView(card.root)
+        skBinding.rowsContainer.addView(card.root)
     }
 
     private fun addColorRow(@StringRes labelRes: Int, key: String, indent: Int) {
-        val row = ItemSkColorBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        val row = ItemSkColorBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
         row.colorLabel.text = getString(labelRes)
         row.colorSwatch.background = swatchDrawable(ShiroikumaPreferences.getEffectiveColor(key))
         swatches[key] = row.colorSwatch
@@ -676,7 +680,7 @@ class ShiroikumaUi : PreferenceFragment() {
         row.root.setOnClickListener {
             openColorPicker(labelRes, key)
         }
-        binding.rowsContainer.addView(row.root)
+        skBinding.rowsContainer.addView(row.root)
     }
 
     private fun addSliderRow(@StringRes labelRes: Int, indent: Int,
@@ -684,7 +688,7 @@ class ShiroikumaUi : PreferenceFragment() {
                              current: () -> Float,
                              label: (Float) -> String,
                              onChange: (Float) -> Unit) {
-        val row = ItemSkSliderBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        val row = ItemSkSliderBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
         row.sliderLabel.text = getString(labelRes)
         row.sliderValue.text = label(current())
         row.sliderSeekbar.setRange(min, max)
@@ -699,13 +703,13 @@ class ShiroikumaUi : PreferenceFragment() {
             }
         })
         indentRow(row.root, indent)
-        binding.rowsContainer.addView(row.root)
+        skBinding.rowsContainer.addView(row.root)
     }
 
     private fun addSwitchRow(@StringRes labelRes: Int, indent: Int,
                              isChecked: () -> Boolean,
                              onChecked: (Boolean) -> Unit) {
-        val row = ItemSkSwitchBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        val row = ItemSkSwitchBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
         row.switchLabel.text = getString(labelRes)
         row.switchToggle.isChecked = isChecked()
         row.switchToggle.setOnCheckedChangeListener { _, checked ->
@@ -718,7 +722,7 @@ class ShiroikumaUi : PreferenceFragment() {
         val paint = { row.switchToggle.refreshColors() }
         paint()
         restyle.add(paint)
-        binding.rowsContainer.addView(row.root)
+        skBinding.rowsContainer.addView(row.root)
     }
 
     /**
@@ -728,7 +732,7 @@ class ShiroikumaUi : PreferenceFragment() {
     private fun addDescribedSwitchRow(@StringRes labelRes: Int, @StringRes descRes: Int, indent: Int,
                                       isChecked: () -> Boolean,
                                       onChecked: (Boolean) -> Unit) {
-        val row = ItemSkSwitchDescribedBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        val row = ItemSkSwitchDescribedBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
         row.switchLabel.text = getString(labelRes)
         row.switchDesc.text = getString(descRes)
         row.switchToggle.isChecked = isChecked()
@@ -747,7 +751,7 @@ class ShiroikumaUi : PreferenceFragment() {
         }
         paint()
         restyle.add(paint)
-        binding.rowsContainer.addView(row.root)
+        skBinding.rowsContainer.addView(row.root)
     }
 
 
@@ -756,7 +760,7 @@ class ShiroikumaUi : PreferenceFragment() {
      * the page states rather than settings it offers.
      */
     private fun addDescribedRow(@StringRes labelRes: Int, description: CharSequence, indent: Int): TypeFaceTextView {
-        val row = ItemSkSwitchDescribedBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        val row = ItemSkSwitchDescribedBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
         row.switchLabel.text = getString(labelRes)
         row.switchDesc.text = description
         row.switchToggle.visibility = View.GONE
@@ -769,7 +773,7 @@ class ShiroikumaUi : PreferenceFragment() {
         }
         paint()
         restyle.add(paint)
-        binding.rowsContainer.addView(row.root)
+        skBinding.rowsContainer.addView(row.root)
         return row.switchDesc
     }
 
@@ -786,7 +790,7 @@ class ShiroikumaUi : PreferenceFragment() {
                              opens: Boolean = true,
                              description: CharSequence? = null,
                              onClick: () -> Unit): ItemSkActionBinding {
-        val row = ItemSkActionBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        val row = ItemSkActionBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
         row.actionLabel.text = getString(labelRes)
         row.actionChevron.visibility = if (opens) View.VISIBLE else View.GONE
         row.actionDesc.text = description ?: ""
@@ -809,7 +813,7 @@ class ShiroikumaUi : PreferenceFragment() {
         }
         paint()
         restyle.add(paint)
-        binding.rowsContainer.addView(row.root)
+        skBinding.rowsContainer.addView(row.root)
         return row
     }
 
@@ -824,7 +828,7 @@ class ShiroikumaUi : PreferenceFragment() {
         val paint = { view.setTextColor(skNoteColor()) }
         paint()
         restyle.add(paint)
-        binding.rowsContainer.addView(view)
+        skBinding.rowsContainer.addView(view)
     }
 
     /**
@@ -843,7 +847,7 @@ class ShiroikumaUi : PreferenceFragment() {
     }
 
     private fun addFontRow(indent: Int) {
-        val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        val row = ItemSkValueBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
         row.valueLabel.text = getString(R.string.sk_font)
         row.valueText.text = fontDisplayName(AppearancePreferences.getAppFont())
         fontValueView = row.valueText
@@ -855,7 +859,7 @@ class ShiroikumaUi : PreferenceFragment() {
             }
             picker.show(childFragmentManager, SkFontPicker.TAG)
         }
-        binding.rowsContainer.addView(row.root)
+        skBinding.rowsContainer.addView(row.root)
     }
 
     /**
@@ -871,7 +875,7 @@ class ShiroikumaUi : PreferenceFragment() {
 
     /** Shows the automation token; tapping the row copies it to the clipboard. */
     private fun addTokenRow(indent: Int) {
-        val row = ItemSkValueBinding.inflate(layoutInflater, binding.rowsContainer, false)
+        val row = ItemSkValueBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
         row.valueLabel.text = getString(R.string.sk_automation_token)
         row.valueText.text = AutomationPreferences.getToken()
         tokenValueView = row.valueText
@@ -883,7 +887,7 @@ class ShiroikumaUi : PreferenceFragment() {
                     getString(R.string.sk_automation_token), AutomationPreferences.getToken()))
             SkFlash.show(requireContext(), R.string.sk_automation_token_copied)
         }
-        binding.rowsContainer.addView(row.root)
+        skBinding.rowsContainer.addView(row.root)
     }
 
     /** Regenerates the automation token and refreshes the token row. */

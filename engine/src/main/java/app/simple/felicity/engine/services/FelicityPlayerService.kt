@@ -2294,8 +2294,11 @@ class FelicityPlayerService : MediaLibraryService(), SharedPreferences.OnSharedP
                 }
                 parentId.startsWith(ARTIST_PREFIX) -> {
                     val artistName = Uri.decode(parentId.removePrefix(ARTIST_PREFIX))
+                    // Upstream 0.0.33_alpha added the artist whitelist (names never split on
+                    // separators); the car's artist listing has to honour the same set.
+                    val whitelist = audioRepository.getWhitelist()
                     allLibrarySongs()
-                        .filter { AudioRepository.artistFieldMatchesName(it.artist, artistName) }
+                        .filter { AudioRepository.artistFieldMatchesName(it.artist, artistName, whitelist) }
                         .sortedWith(compareBy({ it.album?.lowercase() ?: "" }, { it.track }))
                 }
                 parentId.startsWith(PLAYLIST_PREFIX) -> {
