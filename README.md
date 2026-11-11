@@ -10,7 +10,7 @@ A fork of [Felicity Music Player](https://github.com/Hamza417/Felicity) with **m
 
 Installs **side-by-side** with Felicity (app id `shiroikuma.ongaku`).
 
-**📥 Latest release: [`0.0.32_alpha+004`](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases)
+**📥 Latest release: [`0.0.33_alpha+001`](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikuma-ongaku/releases)
 
 </div>
 
