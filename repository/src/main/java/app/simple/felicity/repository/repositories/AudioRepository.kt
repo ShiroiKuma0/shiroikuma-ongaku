@@ -167,7 +167,9 @@ class AudioRepository @Inject constructor(
         } ?: throw IllegalStateException("AudioDao is null")
     }
 
-    private fun getWhitelist(): Set<String> {
+    // Fork: visible to the Android Auto browse tree in :engine, which calls
+    // artistFieldMatchesName() and needs the very same whitelist the app uses.
+    fun getWhitelist(): Set<String> {
         val fileWhitelist: Set<String> = AudioRepository::class.java.getResourceAsStream(ARTIST_WHITELIST)
             ?.bufferedReader()?.use { it.readLines().map { name -> name.trim() }.toSet() } ?: emptySet()
         val userWhitelist: Set<String> = LibraryPreferences.getArtistWhitelist()
