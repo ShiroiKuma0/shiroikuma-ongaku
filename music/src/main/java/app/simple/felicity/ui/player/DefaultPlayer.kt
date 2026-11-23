@@ -111,7 +111,8 @@ class DefaultPlayer : BasePlayerFragment() {
         if (animate) {
             val transition = AutoTransition()
             transition.duration = 500L
-            TransitionManager.beginDelayedTransition(binding.root, transition)
+            // Fork: our layout wraps the player in a root the binding types as View.
+            (binding.root as? ViewGroup)?.let { TransitionManager.beginDelayedTransition(it, transition) }
         }
 
         binding.stripContainer.visibility = if (show) View.VISIBLE else View.GONE
