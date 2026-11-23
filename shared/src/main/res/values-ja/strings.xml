@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 白い熊 音楽 — 日本語. Upstream Felicity has no Japanese translation; this file holds only
+         the upstream strings the fork reworded (directory wording, the app's name). -->
+    <string name="folders">ディレクトリ</string>
+    <string name="folders_hierarchy">ディレクトリの階層</string>
+    <string name="x_folders">%1$d ディレクトリ</string>
+    <string name="desc_data_collect">白い熊 音楽はデータを一切集めません。</string>
+    <string name="storage_folder_access">ストレージのディレクトリへのアクセス</string>
+    <string name="desc_storage_folder_access">タップして、白い熊 音楽に読み取らせる音楽のディレクトリを選んでください。ディレクトリはあとでライブラリの設定から追加できます。広いストレージの権限は要らず、選んだディレクトリだけを使います。</string>
+    <string name="desc_read_media_audio">白い熊 音楽が MediaStore から音声ファイルを読めるようにします。</string>
+    <string name="no_folders_granted">ディレクトリがまだ追加されていません。上をタップして音楽のディレクトリを選んでください。</string>
+    <string name="skip_hidden_folders">隠しディレクトリを飛ばす</string>
+    <string name="confirm_queue_replacement_summary">ディレクトリ、アルバム、アーティスト、プレイリストから再生を始めるとき、今の再生キューを置き換える前に確認します。</string>
+    <string name="shuffle_scope_message">このディレクトリ直下の曲だけをシャッフルしますか？　それとも、サブディレクトリにある曲もすべて含めますか？</string>
+    <string name="shuffle_this_folder_only">このディレクトリのみ</string>
+    <string name="shuffle_include_subfolders">サブディレクトリを含める</string>
+    <string name="play_scope_message">このディレクトリ直下の曲だけを再生しますか？　それとも、サブディレクトリにある曲もすべて含めますか？</string>
+    <string name="trial_expired_message">無料の試用期間が終わりました。白い熊 音楽を引き続きお使いになるには、完全版をご購入ください。</string>
+    <string name="manage_music_folders">音楽のディレクトリを管理</string>
+    <string name="scan_state_discovering">ディレクトリから音楽を探しています…</string>
+    <string name="scan_library_summary">音楽のディレクトリに新しいファイルや変わったファイルがないか調べ、ライブラリに加えます。すでにある項目はそのまま残ります。</string>
+</resources>

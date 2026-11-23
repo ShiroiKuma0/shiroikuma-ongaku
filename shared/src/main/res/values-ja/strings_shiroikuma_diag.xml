@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 白い熊 音楽 — 診断 (fork-only strings) -->
+    <string name="sk_diag_section">診断</string>
+    <string name="sk_diag_intro">ここで入にするまで、何も記録されません。記録はどれもテキストとして、アプリ自身のディレクトリ — /sdcard/Android/data/shiroikuma.ongaku/files/diag/ — に書かれます。EMUI の夜間の掃除で消されるため、.log ファイルにはしません。</string>
+    <string name="sk_diag_group_screens">画面とメモリ</string>
+    <string name="sk_diag_group_playback">再生</string>
+    <string name="sk_diag_group_service">サービスとセッション</string>
+    <string name="sk_diag_group_library">ライブラリ</string>
+    <string name="sk_diag_group_automation">自動化</string>
+    <string name="sk_diag_group_recorded">記録したデータ</string>
+    <string name="sk_diag_screens">画面とメモリ漏れ</string>
+    <string name="sk_diag_screens_desc">画面が作られ、破棄されるたびに、折りたたみか回転かも含めて記録します。破棄された画面は弱参照で見張り、強制的な回収のあとでもう一度確かめます。まだ届く場合は漏れており、その行には RETAINED と書かれます。</string>
+    <string name="sk_diag_memory">メモリの記録</string>
+    <string name="sk_diag_memory_desc">一分ごとに、常駐サイズ、Java・ネイティブ・グラフィックの内訳、プロセスが抱えている画面とメディアコントローラーの数を記録します。</string>
+    <string name="sk_diag_playback">再生</string>
+    <string name="sk_diag_playback_desc">再生、一時停止、停止、曲の切り替え、シーク、そしてキューの設定や置き換えのたびに記録します。</string>
+    <string name="sk_diag_service">サービスとセッション</string>
+    <string name="sk_diag_service_desc">再生サービスの開始と停止、メディアコントローラーの作成、再利用、解放、切断を記録します。</string>
+    <string name="sk_diag_library">ライブラリ</string>
+    <string name="sk_diag_library_desc">ライブラリの読み取り — いつ始まり、どれだけかかり、何が見つかったか。</string>
+    <string name="sk_diag_automation">自動化</string>
+    <string name="sk_diag_automation_desc">自由作業盤と応用管理からの自動化インテントと、それぞれを受け付けたかどうか。</string>
+    <string name="sk_diag_stored">保存済み</string>
+    <string name="sk_diag_stored_none">まだ何も記録されていません。</string>
+    <string name="sk_diag_stored_day">%1$d ファイル · %2$s · %3$s</string>
+    <string name="sk_diag_stored_span">%1$d ファイル · %2$s · %3$s – %4$s</string>
+    <string name="sk_diag_counting">数えています…</string>
+    <string name="sk_diag_keep">保存期間</string>
+    <string name="sk_diag_keep_all">すべて残す</string>
+    <string name="sk_diag_keep_days">%1$d 日</string>
+    <string name="sk_diag_export">書き出し</string>
+    <string name="sk_diag_export_desc">選んだディレクトリの中に日付つきのサブディレクトリを作り、すべてを写します。初めは /sdcard/tmp を示します。</string>
+    <string name="sk_diag_export_done">%1$d ファイルを書き出しました</string>
+    <string name="sk_diag_export_failed">何も書き出されませんでした</string>
+    <string name="sk_diag_share">共有</string>
+    <string name="sk_diag_share_desc">ファイルをそのままほかのアプリに渡します。</string>
+    <string name="sk_diag_share_none">共有できるものはまだありません</string>
+    <string name="sk_diag_purge">すべて消去</string>
+    <string name="sk_diag_purge_desc">確認のうえ、記録したファイルをすべて削除します。</string>
+    <string name="sk_diag_purge_title">診断ファイルをすべて削除しますか？</string>
+    <string name="sk_diag_purge_body">%1$d ファイル、合計 %2$s、期間 %3$s を削除します。元には戻せません。必要なものがあれば、先に書き出すか共有してください。</string>
+    <string name="sk_diag_purge_confirm">完全に削除</string>
+    <string name="sk_diag_purge_cancel">キャンセル</string>
+    <string name="sk_diag_purge_done">%1$d ファイルを削除しました</string>
+    <string name="sk_diag_notif_channel">診断の記録</string>
+    <string name="sk_diag_notif_title">白い熊 音楽が診断を記録しています</string>
+    <string name="sk_diag_notif_mark">印をつける</string>
+    <string name="sk_diag_notif_alloff">すべて切にする</string>
+    <string name="sk_diag_mark_toast">印 #%1$d</string>
+</resources>

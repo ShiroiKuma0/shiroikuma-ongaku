@@ -41,6 +41,9 @@ object LocaleUtils {
             Lang("Українська (Ukrainian)", "uk-UA"),
             // Persian
             Lang("فارسی (Persian)", "fa-IR"),
+            // Japanese — fork (白い熊 音楽): the fork's own strings are translated; upstream's
+            // are not, so its screens stay English under this choice.
+            Lang("日本語 (Japanese)", "ja-JP"),
     )
 
     fun getAppLocale(): Locale {
