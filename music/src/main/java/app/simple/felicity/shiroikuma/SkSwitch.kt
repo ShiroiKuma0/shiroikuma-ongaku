@@ -53,6 +53,12 @@ class SkSwitch @JvmOverloads constructor(
     @ColorInt
     private var offColor = 0
 
+    @ColorInt
+    private var onDotColor = 0
+
+    @ColorInt
+    private var offDotColor = 0
+
     init {
         refreshColors()
     }
@@ -61,15 +67,17 @@ class SkSwitch @JvmOverloads constructor(
     fun refreshColors() {
         val forkTheme = ShiroikumaPreferences.isEnabled()
         onColor = if (forkTheme) {
-            ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.ACCENT)
+            ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.SWITCH_ON_OUTLINE)
         } else {
             ThemeManager.accent.primaryAccentColor
         }
+        onDotColor = if (forkTheme) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.SWITCH_ON_DOT) else onColor
         offColor = if (forkTheme) {
             ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.SWITCH_OFF_DIM)
         } else {
             ThemeManager.theme.switchTheme.switchOffColor
         }
+        offDotColor = if (forkTheme) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.SWITCH_OFF_DOT) else offColor
         invalidate()
     }
 
@@ -144,7 +152,7 @@ class SkSwitch @JvmOverloads constructor(
         val inset = stroke / 2F + (track.height() / 2F - radius)
         val left = track.left + inset + radius
         val right = track.right - inset - radius
-        thumbPaint.color = color
+        thumbPaint.color = ColorUtils.blendARGB(offDotColor, onDotColor, progress)
         canvas.drawCircle(left + (right - left) * progress, track.centerY(), radius, thumbPaint)
     }
 

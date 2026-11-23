@@ -135,7 +135,19 @@ open class TypeFaceTextView : AppCompatTextView, ThemeChangedListener, SharedPre
         }
     }
 
+    /**
+     * Fork (白い熊 音楽 UI): a subclass that colours its compound icon by what it does returns
+     * that colour here, and upstream's tint mode is then skipped.
+     */
+    protected open fun forkDrawableTint(): Int? = null
+
     private fun setDrawableTint(animate: Boolean) {
+        forkDrawableTint()?.let {
+            TextViewCompat.setCompoundDrawableTintList(this, ColorStateList.valueOf(it))
+            lastDrawableColor = it
+            return
+        }
+
         if (animate) {
             when (drawableTintMode) {
                 DRAWABLE_ACCENT -> animateDrawableColorChange(lastDrawableColor, ThemeManager.accent.primaryAccentColor)

@@ -19,6 +19,7 @@ import android.provider.DocumentsContract
 import android.provider.Settings
 import android.text.TextUtils
 import android.util.TypedValue
+import android.view.DragEvent
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -27,6 +28,7 @@ import android.widget.CheckBox
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AlertDialog
 import androidx.documentfile.provider.DocumentFile
@@ -46,8 +48,10 @@ import app.simple.felicity.databinding.ItemSkValueBinding
 import app.simple.felicity.decorations.constants.TypeFaceConstants
 import app.simple.felicity.decorations.corners.LayoutBackground
 import app.simple.felicity.decorations.seekbars.FelicitySeekbar
+import app.simple.felicity.decorations.shiroikuma.SkPills
 import app.simple.felicity.decorations.typeface.TypeFace
 import app.simple.felicity.decorations.typeface.TypeFaceTextView
+import app.simple.felicity.dialogs.shiroikuma.SkDialogChrome
 import app.simple.felicity.dialogs.shiroikuma.SkFontPicker
 import app.simple.felicity.dialogs.shiroikuma.SkPendingRestoreDialog
 import app.simple.felicity.dialogs.shiroikuma.SkRgbaColorPicker
@@ -61,8 +65,10 @@ import app.simple.felicity.shiroikuma.AlbumArtDownloader
 import app.simple.felicity.shiroikuma.PowerAmpArtImporter
 import app.simple.felicity.shiroikuma.PowerAmpRatingsImporter
 import app.simple.felicity.shiroikuma.SkBackup
+import app.simple.felicity.shiroikuma.SkFlowLayout
 import app.simple.felicity.theme.managers.ShiroikumaTheme
 import app.simple.felicity.theme.managers.ThemeManager
+import app.simple.felicity.ui.panels.Preferences
 import app.simple.felicity.utils.SkFlash
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -189,331 +195,615 @@ class ShiroikumaUi : PreferenceFragment() {
         lifecycleScope.launch(Dispatchers.IO) { SkDiag.cleanup(app) }
     }
 
+    // ------------------------------------------------------------------ the page: link, index, sections
+
+    /**
+     * One top-level section of the page. Icon and colour sit beside the title here, so the
+     * heading and its chip in the index cannot drift apart. The colour is one of the seven
+     * section-icon roles, chosen by what kind of thing the section is.
+     */
+    private class Sec(val key: String, @StringRes val title: Int, @DrawableRes val icon: Int,
+                      val colorKey: String, val build: () -> Unit) {
+        var header: ItemSkSectionBinding? = null
+        var body: LinearLayout? = null
+        var built = false
+    }
+
+    /** Where the row builders put their rows: the body of the section being built. */
+    private lateinit var target: LinearLayout
+    private var secs: List<Sec> = emptyList()
+    private var chipFlow: SkFlowLayout? = null
+    private var lastChipSwap: View? = null
+
+    /**
+     * The sections in their default order. No two neighbours share a colour; a stored order
+     * that was dragged by hand is applied on top by [orderedSections] and never touched.
+     */
+    private fun sections(): List<Sec> = listOf(
+        Sec("exim", R.string.sk_eim_section, R.drawable.ic_swap, ShiroikumaPreferences.SECTION_REACH) {
+            addEximRow(indent = 1)
+            addPendingRestoreRow(indent = 1)
+
+            // Automation lives here rather than in a section of its own: the token, the
+            // All-files grant and the 保存復元 receiver exist to drive exactly the export
+            // above, headlessly, from 自由作業盤.
+            addSubgroup(R.string.sk_section_automation, indent = 1)
+            addDescribedSwitchRow(R.string.sk_automation_enable, R.string.sk_automation_enable_desc, indent = 2,
+                                  icon = R.drawable.ic_link, role = ShiroikumaPreferences.MENU_ICON_CONNECT,
+                                  isChecked = { AutomationPreferences.isEnabled() },
+                                  onChecked = { AutomationPreferences.setEnabled(it) })
+            // 保存復元 contract v2 §2: the master switch above ships ON and the token below is
+            // opt-in, because a pasted secret cannot survive a wipe and the case this now serves is
+            // 応用管理 restoring this app AND its data onto a clean phone. The data door checks the
+            // caller's package, uid and signing certificate either way.
+            addDescribedSwitchRow(R.string.sk_automation_require_token, R.string.sk_automation_require_token_desc, indent = 2,
+                                  icon = R.drawable.ic_key, role = ShiroikumaPreferences.MENU_ICON_BLOCK,
+                                  isChecked = { AutomationPreferences.isTokenRequired() },
+                                  onChecked = {
+                                      AutomationPreferences.setTokenRequired(it)
+                                      refreshTokenRowVisibility()
+                                  })
+            addTokenRow(indent = 2)
+            addRegenerateTokenRow(indent = 2)
+            refreshTokenRowVisibility()
+            addAllFilesAccessRow(indent = 2)
+        },
+        Sec("general", R.string.sk_section_general, R.drawable.ic_settings, ShiroikumaPreferences.SECTION_BASE) {
+            addSwitchRow(R.string.sk_enable_theme, indent = 1,
+                         icon = R.drawable.ic_palette, role = ShiroikumaPreferences.MENU_ICON_VIEW,
+                         isChecked = { ShiroikumaPreferences.isEnabled() },
+                         onChecked = { checked ->
+                             ShiroikumaPreferences.setEnabled(checked)
+                             refreshTheme()
+                         })
+        },
+        Sec("buttons", R.string.sk_section_buttons, R.drawable.ic_ring_16dp, ShiroikumaPreferences.SECTION_CONTROLS) {
+            addColorRow(R.string.sk_color_button_text, ShiroikumaPreferences.BUTTON_TEXT, indent = 1)
+            addColorRow(R.string.sk_color_button_frame, ShiroikumaPreferences.BUTTON_FRAME, indent = 1)
+            addColorRow(R.string.sk_color_button_ground, ShiroikumaPreferences.BUTTON_GROUND, indent = 1)
+            addColorRow(R.string.sk_color_button_delete, ShiroikumaPreferences.BUTTON_DELETE, indent = 1)
+        },
+        Sec("foundation", R.string.sk_section_foundation, R.drawable.ic_palette, ShiroikumaPreferences.SECTION_BASE) {
+            addPreviewCard(PreviewMode.COLORS)
+            addColorRow(R.string.sk_color_background, ShiroikumaPreferences.BACKGROUND, indent = 1)
+            addColorRow(R.string.sk_color_text, ShiroikumaPreferences.TEXT, indent = 1)
+            addColorRow(R.string.sk_color_accent, ShiroikumaPreferences.ACCENT, indent = 1)
+            addColorRow(R.string.sk_color_border, ShiroikumaPreferences.BORDER, indent = 1)
+            addSubgroup(R.string.sk_group_accent, indent = 1)
+            addColorRow(R.string.sk_color_accent_primary, ShiroikumaPreferences.ACCENT_PRIMARY, indent = 2)
+            addColorRow(R.string.sk_color_accent_secondary, ShiroikumaPreferences.ACCENT_SECONDARY, indent = 2)
+        },
+        Sec("text", R.string.sk_section_text, R.drawable.ic_text_fields, ShiroikumaPreferences.SECTION_WORDS) {
+            addColorRow(R.string.sk_color_text_header, ShiroikumaPreferences.TEXT_HEADER, indent = 1)
+            addColorRow(R.string.sk_color_text_primary, ShiroikumaPreferences.TEXT_PRIMARY, indent = 1)
+            addColorRow(R.string.sk_color_text_secondary, ShiroikumaPreferences.TEXT_SECONDARY, indent = 1)
+            addColorRow(R.string.sk_color_text_tertiary, ShiroikumaPreferences.TEXT_TERTIARY, indent = 1)
+            addColorRow(R.string.sk_color_text_quaternary, ShiroikumaPreferences.TEXT_QUATERNARY, indent = 1)
+            addColorRow(R.string.sk_color_settings_note, ShiroikumaPreferences.SETTINGS_NOTE, indent = 1)
+        },
+        Sec("surfaces", R.string.sk_section_surfaces, R.drawable.ic_list, ShiroikumaPreferences.SECTION_FRAME) {
+            addColorRow(R.string.sk_color_highlight, ShiroikumaPreferences.HIGHLIGHT, indent = 1)
+            addColorRow(R.string.sk_color_selected, ShiroikumaPreferences.SELECTED, indent = 1)
+            addColorRow(R.string.sk_color_divider, ShiroikumaPreferences.DIVIDER, indent = 1)
+            addColorRow(R.string.sk_color_spot, ShiroikumaPreferences.SPOT, indent = 1)
+        },
+        Sec("switches", R.string.sk_section_switches, R.drawable.ic_power_off, ShiroikumaPreferences.SECTION_CONTROLS) {
+            addColorRow(R.string.sk_color_switch_on_outline, ShiroikumaPreferences.SWITCH_ON_OUTLINE, indent = 1)
+            addColorRow(R.string.sk_color_switch_on_dot, ShiroikumaPreferences.SWITCH_ON_DOT, indent = 1)
+            addColorRow(R.string.sk_color_switch_off_dim, ShiroikumaPreferences.SWITCH_OFF_DIM, indent = 1)
+            addColorRow(R.string.sk_color_switch_off_dot, ShiroikumaPreferences.SWITCH_OFF_DOT, indent = 1)
+            addColorRow(R.string.sk_color_switch_off, ShiroikumaPreferences.SWITCH_OFF, indent = 1)
+            addColorRow(R.string.sk_color_check_tick, ShiroikumaPreferences.CHECK_TICK, indent = 1)
+        },
+        Sec("dialogs", R.string.sk_section_dialogs, R.drawable.ic_info, ShiroikumaPreferences.SECTION_REACH) {
+            addColorRow(R.string.sk_color_dialog_ground, ShiroikumaPreferences.DIALOG_GROUND, indent = 1)
+            addColorRow(R.string.sk_color_dialog_frame, ShiroikumaPreferences.DIALOG_FRAME, indent = 1)
+            addColorRow(R.string.sk_color_dialog_title, ShiroikumaPreferences.DIALOG_TITLE, indent = 1)
+            addColorRow(R.string.sk_color_dialog_text, ShiroikumaPreferences.DIALOG_TEXT, indent = 1)
+        },
+        Sec("icons", R.string.sk_section_icons, R.drawable.ic_image, ShiroikumaPreferences.SECTION_BASE) {
+            addColorRow(R.string.sk_color_icon_regular, ShiroikumaPreferences.ICON_REGULAR, indent = 1)
+            addColorRow(R.string.sk_color_icon_secondary, ShiroikumaPreferences.ICON_SECONDARY, indent = 1)
+            addColorRow(R.string.sk_color_icon_disabled, ShiroikumaPreferences.ICON_DISABLED, indent = 1)
+        },
+        Sec("menus", R.string.sk_section_menus, R.drawable.ic_menu, ShiroikumaPreferences.SECTION_REACH) {
+            addColorRow(R.string.sk_color_menu_label, ShiroikumaPreferences.MENU_LABEL, indent = 1)
+            addColorRow(R.string.sk_color_menu_row_frame, ShiroikumaPreferences.MENU_ROW_FRAME, indent = 1)
+            addColorRow(R.string.sk_color_menu_divider, ShiroikumaPreferences.MENU_DIVIDER, indent = 1)
+            addSubgroup(R.string.sk_group_menu_icons, indent = 1)
+            addColorRow(R.string.sk_color_menu_icon_connect, ShiroikumaPreferences.MENU_ICON_CONNECT, indent = 2)
+            addColorRow(R.string.sk_color_menu_icon_write, ShiroikumaPreferences.MENU_ICON_WRITE, indent = 2)
+            addColorRow(R.string.sk_color_menu_icon_person, ShiroikumaPreferences.MENU_ICON_PERSON, indent = 2)
+            addColorRow(R.string.sk_color_menu_icon_share, ShiroikumaPreferences.MENU_ICON_SHARE, indent = 2)
+            addColorRow(R.string.sk_color_menu_icon_view, ShiroikumaPreferences.MENU_ICON_VIEW, indent = 2)
+            addColorRow(R.string.sk_color_menu_icon_block, ShiroikumaPreferences.MENU_ICON_BLOCK, indent = 2)
+            addColorRow(R.string.sk_color_menu_icon_delete, ShiroikumaPreferences.MENU_ICON_DELETE, indent = 2)
+        },
+        Sec("typography", R.string.sk_section_typography, R.drawable.ic_alphabet, ShiroikumaPreferences.SECTION_WORDS) {
+            addPreviewCard(PreviewMode.TYPOGRAPHY)
+            addFontRow(indent = 1)
+            addSliderRow(R.string.sk_text_size, indent = 1,
+                         min = 50F, max = 200F, default = 100F,
+                         current = { ShiroikumaPreferences.getTextScale() * 100F },
+                         label = { "${it.toInt()} %" },
+                         onChange = { ShiroikumaPreferences.setTextScale(it / 100F) })
+            addSliderRow(R.string.sk_font_weight, indent = 1,
+                         min = -300F, max = 300F, default = 0F,
+                         current = { ShiroikumaPreferences.getFontWeightDelta().toFloat() },
+                         label = { String.format(Locale.ROOT, "%+d", it.toInt()) },
+                         onChange = { ShiroikumaPreferences.setFontWeightDelta(it.toInt()) })
+        },
+        Sec("shape", R.string.sk_section_shape, R.drawable.ic_corner, ShiroikumaPreferences.SECTION_FRAME) {
+            addPreviewCard(PreviewMode.SHAPE)
+            addSliderRow(R.string.sk_corner_radius, indent = 1,
+                         min = 0F, max = AppearancePreferences.MAX_CORNER_RADIUS, default = AppearancePreferences.DEFAULT_CORNER_RADIUS,
+                         current = { AppearancePreferences.getCornerRadius() },
+                         label = { it.toInt().toString() },
+                         onChange = {
+                             ShiroikumaPreferences.setCornerRadiusExact(it)
+                             refreshShape()
+                         })
+            addSliderRow(R.string.sk_border_width, indent = 1,
+                         min = 0F, max = ShiroikumaPreferences.MAX_BORDER_WIDTH, default = ShiroikumaPreferences.DEFAULT_BORDER_WIDTH,
+                         current = { ShiroikumaPreferences.getBorderWidth() },
+                         label = { if (it == 0F) getString(R.string.sk_none) else String.format(Locale.ROOT, "%.1f dp", it) },
+                         onChange = {
+                             ShiroikumaPreferences.setBorderWidth(it)
+                             refreshShape()
+                         })
+            addSliderRow(R.string.sk_list_spacing, indent = 1,
+                         min = 0F, max = AppearancePreferences.MAX_SPACING, default = AppearancePreferences.DEFAULT_SPACING,
+                         current = { AppearancePreferences.getListSpacing() },
+                         label = { it.toInt().toString() },
+                         onChange = { AppearancePreferences.setListSpacing(it) })
+        },
+        Sec("player", R.string.sk_section_player, R.drawable.ic_play, ShiroikumaPreferences.SECTION_BASE) {
+            addColorRow(R.string.sk_color_visualizer, ShiroikumaPreferences.VISUALIZER, indent = 1)
+            addSwitchRow(R.string.sk_keep_screen_on, indent = 1,
+                         icon = R.drawable.ic_keep_screen_on, role = ShiroikumaPreferences.MENU_ICON_VIEW,
+                         isChecked = { ShiroikumaPreferences.isKeepScreenOnEnabled() },
+                         onChecked = { ShiroikumaPreferences.setKeepScreenOnEnabled(it) })
+        },
+        Sec("meteors", R.string.sk_section_meteors, R.drawable.ic_animation, ShiroikumaPreferences.SECTION_FLASH) {
+            addSwitchRow(R.string.sk_meteor_enable, indent = 1,
+                         icon = R.drawable.ic_animation, role = ShiroikumaPreferences.MENU_ICON_VIEW,
+                         isChecked = { MeteorPreferences.isEnabled() },
+                         onChecked = { MeteorPreferences.setEnabled(it) })
+            addSwitchRow(R.string.sk_meteor_overlay, indent = 1,
+                         icon = R.drawable.ic_animation, role = ShiroikumaPreferences.MENU_ICON_VIEW,
+                         isChecked = { MeteorPreferences.isOverlayEnabled() },
+                         onChecked = { checked ->
+                             MeteorPreferences.setOverlayEnabled(checked)
+                             // The overlay window needs SYSTEM_ALERT_WINDOW — steer to the system
+                             // grant page when toggled on without it; the service skips silently
+                             // until the permission is actually granted.
+                             if (checked && !Settings.canDrawOverlays(requireContext())) {
+                                 startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                                      Uri.parse("package:${requireContext().packageName}")))
+                             }
+                         })
+            addSwitchRow(R.string.sk_meteor_reactive, indent = 1,
+                         icon = R.drawable.ic_animation, role = ShiroikumaPreferences.MENU_ICON_VIEW,
+                         isChecked = { MeteorPreferences.isReactive() },
+                         onChecked = { MeteorPreferences.setReactive(it) })
+            addSwitchRow(R.string.sk_meteor_reverse, indent = 1,
+                         icon = R.drawable.ic_animation, role = ShiroikumaPreferences.MENU_ICON_VIEW,
+                         isChecked = { MeteorPreferences.isReversed() },
+                         onChecked = { MeteorPreferences.setReversed(it) })
+
+            addSubgroup(R.string.sk_meteor_group_ribbons, indent = 1)
+            addSliderRow(R.string.sk_meteor_count, indent = 2,
+                         min = 1F, max = 60F, default = 18F,
+                         current = { MeteorPreferences.getCount().toFloat() },
+                         label = { it.toInt().toString() },
+                         onChange = { MeteorPreferences.setCount(it.toInt()) })
+            addSliderRow(R.string.sk_meteor_spawn_ms, indent = 2,
+                         min = 10F, max = 500F, default = 60F,
+                         current = { MeteorPreferences.getSpawnMs() },
+                         label = { "${it.toInt()} ms" },
+                         onChange = { MeteorPreferences.setSpawnMs(it) })
+            addSliderRow(R.string.sk_meteor_period_s, indent = 2,
+                         min = 1F, max = 30F, default = 5F,
+                         current = { MeteorPreferences.getPeriodS() },
+                         label = { String.format(Locale.ROOT, "%.1f s", it) },
+                         onChange = { MeteorPreferences.setPeriodS(it) })
+            addSliderRow(R.string.sk_meteor_min_len, indent = 2,
+                         min = 0.01F, max = 0.5F, default = 0.05F,
+                         current = { MeteorPreferences.getMinLen() },
+                         label = { String.format(Locale.ROOT, "%.2f", it) },
+                         onChange = { MeteorPreferences.setMinLen(it) })
+            addSliderRow(R.string.sk_meteor_max_len, indent = 2,
+                         min = 0.01F, max = 0.5F, default = 0.14F,
+                         current = { MeteorPreferences.getMaxLen() },
+                         label = { String.format(Locale.ROOT, "%.2f", it) },
+                         onChange = { MeteorPreferences.setMaxLen(it) })
+
+            addSubgroup(R.string.sk_meteor_group_band, indent = 1)
+            addSliderRow(R.string.sk_meteor_padding, indent = 2,
+                         min = 0F, max = 30F, default = 5F,
+                         current = { MeteorPreferences.getPadding() },
+                         label = { "${it.toInt()} px" },
+                         onChange = { MeteorPreferences.setPadding(it) })
+            addSliderRow(R.string.sk_meteor_radius, indent = 2,
+                         min = 0F, max = 80F, default = 32F,
+                         current = { MeteorPreferences.getRadius() },
+                         label = { "${it.toInt()} px" },
+                         onChange = { MeteorPreferences.setRadius(it) })
+            addSliderRow(R.string.sk_meteor_corner_mask, indent = 2,
+                         min = 0F, max = 60F, default = 18F,
+                         current = { MeteorPreferences.getCornerMask() },
+                         label = { "${it.toInt()} px" },
+                         onChange = { MeteorPreferences.setCornerMask(it) })
+            addSliderRow(R.string.sk_meteor_glow, indent = 2,
+                         min = 0F, max = 40F, default = 12F,
+                         current = { MeteorPreferences.getGlow() },
+                         label = { "${it.toInt()} px" },
+                         onChange = { MeteorPreferences.setGlow(it) })
+            addSliderRow(R.string.sk_meteor_glow_layers, indent = 2,
+                         min = 0F, max = 6F, default = 2F,
+                         current = { MeteorPreferences.getGlowLayers().toFloat() },
+                         label = { it.toInt().toString() },
+                         onChange = { MeteorPreferences.setGlowLayers(it.toInt()) })
+            addSliderRow(R.string.sk_meteor_glow_spread, indent = 2,
+                         min = 0.5F, max = 5F, default = 2F,
+                         current = { MeteorPreferences.getGlowSpread() },
+                         label = { String.format(Locale.ROOT, "%.1f", it) },
+                         onChange = { MeteorPreferences.setGlowSpread(it) })
+            addSliderRow(R.string.sk_meteor_glow_strength, indent = 2,
+                         min = 0F, max = 3F, default = 1F,
+                         current = { MeteorPreferences.getGlowStrength() },
+                         label = { String.format(Locale.ROOT, "%.1f", it) },
+                         onChange = { MeteorPreferences.setGlowStrength(it) })
+            addSliderRow(R.string.sk_meteor_head_glow, indent = 2,
+                         min = 0F, max = 4F, default = 1.5F,
+                         current = { MeteorPreferences.getHeadGlow() },
+                         label = { String.format(Locale.ROOT, "%.1f", it) },
+                         onChange = { MeteorPreferences.setHeadGlow(it) })
+            addSliderRow(R.string.sk_meteor_twinkle, indent = 2,
+                         min = 0F, max = 1F, default = 0.35F,
+                         current = { MeteorPreferences.getTwinkle() },
+                         label = { String.format(Locale.ROOT, "%.2f", it) },
+                         onChange = { MeteorPreferences.setTwinkle(it) })
+            addSliderRow(R.string.sk_meteor_hue_drift, indent = 2,
+                         min = 0F, max = 90F, default = 12F,
+                         current = { MeteorPreferences.getHueDrift() },
+                         label = { "${it.toInt()} °/s" },
+                         onChange = { MeteorPreferences.setHueDrift(it) })
+            addSliderRow(R.string.sk_meteor_max_fps, indent = 2,
+                         min = 0F, max = 120F, default = 45F,
+                         current = { MeteorPreferences.getMaxFps() },
+                         label = { if (it.toInt() == 0) "vsync" else it.toInt().toString() },
+                         onChange = { MeteorPreferences.setMaxFps(it) })
+
+            addSubgroup(R.string.sk_meteor_group_reaction, indent = 1)
+            addSliderRow(R.string.sk_meteor_react_gain, indent = 2,
+                         min = 0F, max = 3F, default = 1F,
+                         current = { MeteorPreferences.getReactGain() },
+                         label = { String.format(Locale.ROOT, "%.1f", it) },
+                         onChange = { MeteorPreferences.setReactGain(it) })
+            addSliderRow(R.string.sk_meteor_react_pulse, indent = 2,
+                         min = 0F, max = 2F, default = 0.6F,
+                         current = { MeteorPreferences.getReactPulse() },
+                         label = { String.format(Locale.ROOT, "%.1f", it) },
+                         onChange = { MeteorPreferences.setReactPulse(it) })
+            addSliderRow(R.string.sk_meteor_react_kick, indent = 2,
+                         min = 0F, max = 3F, default = 1F,
+                         current = { MeteorPreferences.getReactKick() },
+                         label = { String.format(Locale.ROOT, "%.1f", it) },
+                         onChange = { MeteorPreferences.setReactKick(it) })
+            addSliderRow(R.string.sk_meteor_react_sharp, indent = 2,
+                         min = 1F, max = 12F, default = 5F,
+                         current = { MeteorPreferences.getReactSharp() },
+                         label = { String.format(Locale.ROOT, "%.1f", it) },
+                         onChange = { MeteorPreferences.setReactSharp(it) })
+            addSliderRow(R.string.sk_meteor_speed_min, indent = 2,
+                         min = 0F, max = 3F, default = 0F,
+                         current = { MeteorPreferences.getSpeedMin() },
+                         label = { String.format(Locale.ROOT, "%.1f", it) },
+                         onChange = { MeteorPreferences.setSpeedMin(it) })
+            addSliderRow(R.string.sk_meteor_speed_max, indent = 2,
+                         min = 0F, max = 3F, default = 1.5F,
+                         current = { MeteorPreferences.getSpeedMax() },
+                         label = { String.format(Locale.ROOT, "%.1f", it) },
+                         onChange = { MeteorPreferences.setSpeedMax(it) })
+            addSliderRow(R.string.sk_meteor_speed_change_s, indent = 2,
+                         min = 1F, max = 20F, default = 5F,
+                         current = { MeteorPreferences.getSpeedChangeS() },
+                         label = { String.format(Locale.ROOT, "%.1f s", it) },
+                         onChange = { MeteorPreferences.setSpeedChangeS(it) })
+        },
+        Sec("library", R.string.sk_section_library, R.drawable.ic_library, ShiroikumaPreferences.SECTION_REACH) {
+            addImportPowerAmpRow(indent = 1)
+            addImportPowerAmpArtRow(indent = 1)
+            addDownloadAlbumArtRow(indent = 1)
+        },
+        Sec("diag", R.string.sk_diag_section, R.drawable.ic_memory, ShiroikumaPreferences.SECTION_WARNING) {
+            addNoteRow(getString(R.string.sk_diag_intro), indent = 1)
+
+            addSubgroup(R.string.sk_diag_group_screens, indent = 1)
+            addDiagSwitch(SkDiag.Group.SCREENS, indent = 2)
+            addDiagSwitch(SkDiag.Group.MEMORY, indent = 2)
+
+            addSubgroup(R.string.sk_diag_group_playback, indent = 1)
+            addDiagSwitch(SkDiag.Group.PLAYBACK, indent = 2)
+
+            addSubgroup(R.string.sk_diag_group_service, indent = 1)
+            addDiagSwitch(SkDiag.Group.SERVICE, indent = 2)
+
+            addSubgroup(R.string.sk_diag_group_library, indent = 1)
+            addDiagSwitch(SkDiag.Group.LIBRARY, indent = 2)
+
+            addSubgroup(R.string.sk_diag_group_automation, indent = 1)
+            addDiagSwitch(SkDiag.Group.AUTOMATION, indent = 2)
+
+            addSubgroup(R.string.sk_diag_group_recorded, indent = 1)
+            diagStoredTv = addDescribedRow(R.string.sk_diag_stored, getString(R.string.sk_diag_counting), indent = 2)
+            refreshDiagStored()
+            addSliderRow(R.string.sk_diag_keep, indent = 2,
+                         min = 0F, max = 60F, default = 0F,
+                         current = { SkDiag.getKeepDays(requireContext()).toFloat() },
+                         label = {
+                             if (it.toInt() == 0) getString(R.string.sk_diag_keep_all)
+                             else getString(R.string.sk_diag_keep_days, it.toInt())
+                         },
+                         onChange = { SkDiag.setKeepDays(requireContext(), it.toInt()) })
+            addActionRow(R.string.sk_diag_export, indent = 2, main = true, opens = true,
+                         icon = R.drawable.ic_folder_open_outline, role = ShiroikumaPreferences.MENU_ICON_SHARE,
+                         description = getString(R.string.sk_diag_export_desc)) {
+                launchDiagExport()
+            }
+            addActionRow(R.string.sk_diag_share, indent = 2, opens = true,
+                         icon = R.drawable.ic_send, role = ShiroikumaPreferences.MENU_ICON_SHARE,
+                         description = getString(R.string.sk_diag_share_desc)) {
+                shareDiag()
+            }
+            addActionRow(R.string.sk_diag_purge, indent = 2, opens = false,
+                         icon = R.drawable.ic_delete, role = ShiroikumaPreferences.MENU_ICON_DELETE, destructive = true,
+                         description = getString(R.string.sk_diag_purge_desc)) {
+                confirmDiagPurge()
+            }
+        },
+        Sec("page", R.string.sk_section_page, R.drawable.ic_app_settings, ShiroikumaPreferences.SECTION_BASE) {
+            addSubgroup(R.string.sk_group_section_icons, indent = 1)
+            addColorRow(R.string.sk_color_section_base, ShiroikumaPreferences.SECTION_BASE, indent = 2)
+            addColorRow(R.string.sk_color_section_controls, ShiroikumaPreferences.SECTION_CONTROLS, indent = 2)
+            addColorRow(R.string.sk_color_section_words, ShiroikumaPreferences.SECTION_WORDS, indent = 2)
+            addColorRow(R.string.sk_color_section_frame, ShiroikumaPreferences.SECTION_FRAME, indent = 2)
+            addColorRow(R.string.sk_color_section_reach, ShiroikumaPreferences.SECTION_REACH, indent = 2)
+            addColorRow(R.string.sk_color_section_warning, ShiroikumaPreferences.SECTION_WARNING, indent = 2)
+            addColorRow(R.string.sk_color_section_flash, ShiroikumaPreferences.SECTION_FLASH, indent = 2)
+            addSubgroup(R.string.sk_group_chips, indent = 1)
+            addColorRow(R.string.sk_color_chip_text, ShiroikumaPreferences.CHIP_TEXT, indent = 2)
+            addColorRow(R.string.sk_color_chip_frame, ShiroikumaPreferences.CHIP_FRAME, indent = 2)
+        },
+        Sec("maintenance", R.string.sk_section_maintenance, R.drawable.ic_reset, ShiroikumaPreferences.SECTION_WARNING) {
+            addActionRow(R.string.sk_reset_section_order, indent = 1, opens = false,
+                         description = getString(R.string.sk_reset_section_order_desc),
+                         icon = R.drawable.ic_reset, role = ShiroikumaPreferences.MENU_ICON_CONNECT) {
+                ShiroikumaPreferences.clearSectionOrder()
+                SkFlash.show(requireContext(), R.string.sk_reset_section_order_done)
+                skBinding.rowsContainer.post { buildRows() }
+            }
+            addActionRow(R.string.sk_reset_all_colors, indent = 1, opens = false,
+                         description = getString(R.string.sk_reset_all_colors_desc),
+                         icon = R.drawable.ic_palette, role = ShiroikumaPreferences.MENU_ICON_CONNECT) {
+                confirmResetAllColors()
+            }
+        }
+    )
+
+    private fun orderedSections(): List<Sec> {
+        val all = sections()
+        val stored = ShiroikumaPreferences.getSectionOrder()
+        if (stored.isEmpty()) return all
+        val known = stored.mapNotNull { key -> all.firstOrNull { it.key == key } }
+        // A section added by a later build keeps its default place at the end.
+        return known + all.filter { it !in known }
+    }
+
     private fun buildRows() {
         swatches.clear()
         accentLines.clear()
         previewCards.clear()
         restyle.clear()
-        skBinding.rowsContainer.removeAllViews()
+        val root = skBinding.rowsContainer
+        root.removeAllViews()
+        target = root
 
-        // ------------------------------------------------ Export / Import (first, Kōjiki flow)
-        addSection(R.string.sk_eim_section)
-        addEximRow(indent = 1)
-        addPendingRestoreRow(indent = 1)
+        addSettingsLink()
+        secs = orderedSections()
+        addChipIndex()
 
-        // Automation lives here rather than in a section of its own: the token, the
-        // All-files grant and the 保存復元 receiver exist to drive exactly the export
-        // above, headlessly, from 自由作業盤.
-        addSubgroup(R.string.sk_section_automation, indent = 1)
-        addDescribedSwitchRow(R.string.sk_automation_enable, R.string.sk_automation_enable_desc, indent = 2,
-                              isChecked = { AutomationPreferences.isEnabled() },
-                              onChecked = { AutomationPreferences.setEnabled(it) })
-        // 保存復元 contract v2 §2: the master switch above ships ON and the token below is
-        // opt-in, because a pasted secret cannot survive a wipe and the case this now serves is
-        // 応用管理 restoring this app AND its data onto a clean phone. The data door checks the
-        // caller's package, uid and signing certificate either way.
-        addDescribedSwitchRow(R.string.sk_automation_require_token, R.string.sk_automation_require_token_desc, indent = 2,
-                              isChecked = { AutomationPreferences.isTokenRequired() },
-                              onChecked = {
-                                  AutomationPreferences.setTokenRequired(it)
-                                  refreshTokenRowVisibility()
-                              })
-        addTokenRow(indent = 2)
-        addRegenerateTokenRow(indent = 2)
-        refreshTokenRowVisibility()
-        addAllFilesAccessRow(indent = 2)
-
-        // ------------------------------------------------ General
-        addSection(R.string.sk_section_general)
-        addSwitchRow(R.string.sk_enable_theme, indent = 1,
-                     isChecked = { ShiroikumaPreferences.isEnabled() },
-                     onChecked = { checked ->
-                         ShiroikumaPreferences.setEnabled(checked)
-                         refreshTheme()
-                     })
-
-        // ------------------------------------------------ Colors
-        addSection(R.string.sk_section_colors)
-        addPreviewCard(PreviewMode.COLORS)
-
-        addSubgroup(R.string.sk_group_foundation, indent = 1)
-        addColorRow(R.string.sk_color_background, ShiroikumaPreferences.BACKGROUND, indent = 2)
-        addColorRow(R.string.sk_color_text, ShiroikumaPreferences.TEXT, indent = 2)
-        addColorRow(R.string.sk_color_accent, ShiroikumaPreferences.ACCENT, indent = 2)
-        addColorRow(R.string.sk_color_border, ShiroikumaPreferences.BORDER, indent = 2)
-
-        addSubgroup(R.string.sk_group_surfaces, indent = 1)
-        addColorRow(R.string.sk_color_highlight, ShiroikumaPreferences.HIGHLIGHT, indent = 2)
-        addColorRow(R.string.sk_color_selected, ShiroikumaPreferences.SELECTED, indent = 2)
-        addColorRow(R.string.sk_color_divider, ShiroikumaPreferences.DIVIDER, indent = 2)
-        addColorRow(R.string.sk_color_spot, ShiroikumaPreferences.SPOT, indent = 2)
-
-        addSubgroup(R.string.sk_group_text, indent = 1)
-        addColorRow(R.string.sk_color_text_header, ShiroikumaPreferences.TEXT_HEADER, indent = 2)
-        addColorRow(R.string.sk_color_text_primary, ShiroikumaPreferences.TEXT_PRIMARY, indent = 2)
-        addColorRow(R.string.sk_color_text_secondary, ShiroikumaPreferences.TEXT_SECONDARY, indent = 2)
-        addColorRow(R.string.sk_color_text_tertiary, ShiroikumaPreferences.TEXT_TERTIARY, indent = 2)
-        addColorRow(R.string.sk_color_text_quaternary, ShiroikumaPreferences.TEXT_QUATERNARY, indent = 2)
-        addColorRow(R.string.sk_color_settings_note, ShiroikumaPreferences.SETTINGS_NOTE, indent = 2)
-
-        addSubgroup(R.string.sk_group_icons, indent = 1)
-        addColorRow(R.string.sk_color_icon_regular, ShiroikumaPreferences.ICON_REGULAR, indent = 2)
-        addColorRow(R.string.sk_color_icon_secondary, ShiroikumaPreferences.ICON_SECONDARY, indent = 2)
-        addColorRow(R.string.sk_color_icon_disabled, ShiroikumaPreferences.ICON_DISABLED, indent = 2)
-
-        addSubgroup(R.string.sk_group_accent, indent = 1)
-        addColorRow(R.string.sk_color_accent_primary, ShiroikumaPreferences.ACCENT_PRIMARY, indent = 2)
-        addColorRow(R.string.sk_color_accent_secondary, ShiroikumaPreferences.ACCENT_SECONDARY, indent = 2)
-        addColorRow(R.string.sk_color_switch_off, ShiroikumaPreferences.SWITCH_OFF, indent = 2)
-        addColorRow(R.string.sk_color_switch_off_dim, ShiroikumaPreferences.SWITCH_OFF_DIM, indent = 2)
-
-        // ------------------------------------------------ Player
-        addSection(R.string.sk_section_player)
-        addColorRow(R.string.sk_color_visualizer, ShiroikumaPreferences.VISUALIZER, indent = 1)
-        addSwitchRow(R.string.sk_keep_screen_on, indent = 1,
-                     isChecked = { ShiroikumaPreferences.isKeepScreenOnEnabled() },
-                     onChecked = { ShiroikumaPreferences.setKeepScreenOnEnabled(it) })
-
-        // ------------------------------------------------ 音楽端灯 (edge meteors)
-        addSection(R.string.sk_section_meteors)
-        addSwitchRow(R.string.sk_meteor_enable, indent = 1,
-                     isChecked = { MeteorPreferences.isEnabled() },
-                     onChecked = { MeteorPreferences.setEnabled(it) })
-        addSwitchRow(R.string.sk_meteor_overlay, indent = 1,
-                     isChecked = { MeteorPreferences.isOverlayEnabled() },
-                     onChecked = { checked ->
-                         MeteorPreferences.setOverlayEnabled(checked)
-                         // The overlay window needs SYSTEM_ALERT_WINDOW — steer to the system
-                         // grant page when toggled on without it; the service skips silently
-                         // until the permission is actually granted.
-                         if (checked && !Settings.canDrawOverlays(requireContext())) {
-                             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                                  Uri.parse("package:${requireContext().packageName}")))
-                         }
-                     })
-        addSwitchRow(R.string.sk_meteor_reactive, indent = 1,
-                     isChecked = { MeteorPreferences.isReactive() },
-                     onChecked = { MeteorPreferences.setReactive(it) })
-        addSwitchRow(R.string.sk_meteor_reverse, indent = 1,
-                     isChecked = { MeteorPreferences.isReversed() },
-                     onChecked = { MeteorPreferences.setReversed(it) })
-
-        addSubgroup(R.string.sk_meteor_group_ribbons, indent = 1)
-        addSliderRow(R.string.sk_meteor_count, indent = 2,
-                     min = 1F, max = 60F, default = 18F,
-                     current = { MeteorPreferences.getCount().toFloat() },
-                     label = { it.toInt().toString() },
-                     onChange = { MeteorPreferences.setCount(it.toInt()) })
-        addSliderRow(R.string.sk_meteor_spawn_ms, indent = 2,
-                     min = 10F, max = 500F, default = 60F,
-                     current = { MeteorPreferences.getSpawnMs() },
-                     label = { "${it.toInt()} ms" },
-                     onChange = { MeteorPreferences.setSpawnMs(it) })
-        addSliderRow(R.string.sk_meteor_period_s, indent = 2,
-                     min = 1F, max = 30F, default = 5F,
-                     current = { MeteorPreferences.getPeriodS() },
-                     label = { String.format(Locale.ROOT, "%.1f s", it) },
-                     onChange = { MeteorPreferences.setPeriodS(it) })
-        addSliderRow(R.string.sk_meteor_min_len, indent = 2,
-                     min = 0.01F, max = 0.5F, default = 0.05F,
-                     current = { MeteorPreferences.getMinLen() },
-                     label = { String.format(Locale.ROOT, "%.2f", it) },
-                     onChange = { MeteorPreferences.setMinLen(it) })
-        addSliderRow(R.string.sk_meteor_max_len, indent = 2,
-                     min = 0.01F, max = 0.5F, default = 0.14F,
-                     current = { MeteorPreferences.getMaxLen() },
-                     label = { String.format(Locale.ROOT, "%.2f", it) },
-                     onChange = { MeteorPreferences.setMaxLen(it) })
-
-        addSubgroup(R.string.sk_meteor_group_band, indent = 1)
-        addSliderRow(R.string.sk_meteor_padding, indent = 2,
-                     min = 0F, max = 30F, default = 5F,
-                     current = { MeteorPreferences.getPadding() },
-                     label = { "${it.toInt()} px" },
-                     onChange = { MeteorPreferences.setPadding(it) })
-        addSliderRow(R.string.sk_meteor_radius, indent = 2,
-                     min = 0F, max = 80F, default = 32F,
-                     current = { MeteorPreferences.getRadius() },
-                     label = { "${it.toInt()} px" },
-                     onChange = { MeteorPreferences.setRadius(it) })
-        addSliderRow(R.string.sk_meteor_corner_mask, indent = 2,
-                     min = 0F, max = 60F, default = 18F,
-                     current = { MeteorPreferences.getCornerMask() },
-                     label = { "${it.toInt()} px" },
-                     onChange = { MeteorPreferences.setCornerMask(it) })
-        addSliderRow(R.string.sk_meteor_glow, indent = 2,
-                     min = 0F, max = 40F, default = 12F,
-                     current = { MeteorPreferences.getGlow() },
-                     label = { "${it.toInt()} px" },
-                     onChange = { MeteorPreferences.setGlow(it) })
-        addSliderRow(R.string.sk_meteor_glow_layers, indent = 2,
-                     min = 0F, max = 6F, default = 2F,
-                     current = { MeteorPreferences.getGlowLayers().toFloat() },
-                     label = { it.toInt().toString() },
-                     onChange = { MeteorPreferences.setGlowLayers(it.toInt()) })
-        addSliderRow(R.string.sk_meteor_glow_spread, indent = 2,
-                     min = 0.5F, max = 5F, default = 2F,
-                     current = { MeteorPreferences.getGlowSpread() },
-                     label = { String.format(Locale.ROOT, "%.1f", it) },
-                     onChange = { MeteorPreferences.setGlowSpread(it) })
-        addSliderRow(R.string.sk_meteor_glow_strength, indent = 2,
-                     min = 0F, max = 3F, default = 1F,
-                     current = { MeteorPreferences.getGlowStrength() },
-                     label = { String.format(Locale.ROOT, "%.1f", it) },
-                     onChange = { MeteorPreferences.setGlowStrength(it) })
-        addSliderRow(R.string.sk_meteor_head_glow, indent = 2,
-                     min = 0F, max = 4F, default = 1.5F,
-                     current = { MeteorPreferences.getHeadGlow() },
-                     label = { String.format(Locale.ROOT, "%.1f", it) },
-                     onChange = { MeteorPreferences.setHeadGlow(it) })
-        addSliderRow(R.string.sk_meteor_twinkle, indent = 2,
-                     min = 0F, max = 1F, default = 0.35F,
-                     current = { MeteorPreferences.getTwinkle() },
-                     label = { String.format(Locale.ROOT, "%.2f", it) },
-                     onChange = { MeteorPreferences.setTwinkle(it) })
-        addSliderRow(R.string.sk_meteor_hue_drift, indent = 2,
-                     min = 0F, max = 90F, default = 12F,
-                     current = { MeteorPreferences.getHueDrift() },
-                     label = { "${it.toInt()} °/s" },
-                     onChange = { MeteorPreferences.setHueDrift(it) })
-        addSliderRow(R.string.sk_meteor_max_fps, indent = 2,
-                     min = 0F, max = 120F, default = 45F,
-                     current = { MeteorPreferences.getMaxFps() },
-                     label = { if (it.toInt() == 0) "vsync" else it.toInt().toString() },
-                     onChange = { MeteorPreferences.setMaxFps(it) })
-
-        addSubgroup(R.string.sk_meteor_group_reaction, indent = 1)
-        addSliderRow(R.string.sk_meteor_react_gain, indent = 2,
-                     min = 0F, max = 3F, default = 1F,
-                     current = { MeteorPreferences.getReactGain() },
-                     label = { String.format(Locale.ROOT, "%.1f", it) },
-                     onChange = { MeteorPreferences.setReactGain(it) })
-        addSliderRow(R.string.sk_meteor_react_pulse, indent = 2,
-                     min = 0F, max = 2F, default = 0.6F,
-                     current = { MeteorPreferences.getReactPulse() },
-                     label = { String.format(Locale.ROOT, "%.1f", it) },
-                     onChange = { MeteorPreferences.setReactPulse(it) })
-        addSliderRow(R.string.sk_meteor_react_kick, indent = 2,
-                     min = 0F, max = 3F, default = 1F,
-                     current = { MeteorPreferences.getReactKick() },
-                     label = { String.format(Locale.ROOT, "%.1f", it) },
-                     onChange = { MeteorPreferences.setReactKick(it) })
-        addSliderRow(R.string.sk_meteor_react_sharp, indent = 2,
-                     min = 1F, max = 12F, default = 5F,
-                     current = { MeteorPreferences.getReactSharp() },
-                     label = { String.format(Locale.ROOT, "%.1f", it) },
-                     onChange = { MeteorPreferences.setReactSharp(it) })
-        addSliderRow(R.string.sk_meteor_speed_min, indent = 2,
-                     min = 0F, max = 3F, default = 0F,
-                     current = { MeteorPreferences.getSpeedMin() },
-                     label = { String.format(Locale.ROOT, "%.1f", it) },
-                     onChange = { MeteorPreferences.setSpeedMin(it) })
-        addSliderRow(R.string.sk_meteor_speed_max, indent = 2,
-                     min = 0F, max = 3F, default = 1.5F,
-                     current = { MeteorPreferences.getSpeedMax() },
-                     label = { String.format(Locale.ROOT, "%.1f", it) },
-                     onChange = { MeteorPreferences.setSpeedMax(it) })
-        addSliderRow(R.string.sk_meteor_speed_change_s, indent = 2,
-                     min = 1F, max = 20F, default = 5F,
-                     current = { MeteorPreferences.getSpeedChangeS() },
-                     label = { String.format(Locale.ROOT, "%.1f s", it) },
-                     onChange = { MeteorPreferences.setSpeedChangeS(it) })
-
-        // ------------------------------------------------ Typography
-        addSection(R.string.sk_section_typography)
-        addPreviewCard(PreviewMode.TYPOGRAPHY)
-        addFontRow(indent = 1)
-        addSliderRow(R.string.sk_text_size, indent = 1,
-                     min = 50F, max = 200F, default = 100F,
-                     current = { ShiroikumaPreferences.getTextScale() * 100F },
-                     label = { "${it.toInt()} %" },
-                     onChange = { ShiroikumaPreferences.setTextScale(it / 100F) })
-        addSliderRow(R.string.sk_font_weight, indent = 1,
-                     min = -300F, max = 300F, default = 0F,
-                     current = { ShiroikumaPreferences.getFontWeightDelta().toFloat() },
-                     label = { String.format(Locale.ROOT, "%+d", it.toInt()) },
-                     onChange = { ShiroikumaPreferences.setFontWeightDelta(it.toInt()) })
-
-        // ------------------------------------------------ Shape & spacing
-        addSection(R.string.sk_section_shape)
-        addPreviewCard(PreviewMode.SHAPE)
-        addSliderRow(R.string.sk_corner_radius, indent = 1,
-                     min = 0F, max = AppearancePreferences.MAX_CORNER_RADIUS, default = AppearancePreferences.DEFAULT_CORNER_RADIUS,
-                     current = { AppearancePreferences.getCornerRadius() },
-                     label = { it.toInt().toString() },
-                     onChange = {
-                         ShiroikumaPreferences.setCornerRadiusExact(it)
-                         refreshShape()
-                     })
-        addSliderRow(R.string.sk_border_width, indent = 1,
-                     min = 0F, max = ShiroikumaPreferences.MAX_BORDER_WIDTH, default = ShiroikumaPreferences.DEFAULT_BORDER_WIDTH,
-                     current = { ShiroikumaPreferences.getBorderWidth() },
-                     label = { if (it == 0F) getString(R.string.sk_none) else String.format(Locale.ROOT, "%.1f dp", it) },
-                     onChange = {
-                         ShiroikumaPreferences.setBorderWidth(it)
-                         refreshShape()
-                     })
-        addSliderRow(R.string.sk_list_spacing, indent = 1,
-                     min = 0F, max = AppearancePreferences.MAX_SPACING, default = AppearancePreferences.DEFAULT_SPACING,
-                     current = { AppearancePreferences.getListSpacing() },
-                     label = { it.toInt().toString() },
-                     onChange = { AppearancePreferences.setListSpacing(it) })
-
-        // ------------------------------------------------ Library
-        addSection(R.string.sk_section_library)
-        addImportPowerAmpRow(indent = 1)
-        addImportPowerAmpArtRow(indent = 1)
-        addDownloadAlbumArtRow(indent = 1)
-
-        // ------------------------------------------------ Diagnostics
-        addSection(R.string.sk_diag_section)
-        addNoteRow(getString(R.string.sk_diag_intro), indent = 1)
-
-        addSubgroup(R.string.sk_diag_group_screens, indent = 1)
-        addDiagSwitch(SkDiag.Group.SCREENS, indent = 2)
-        addDiagSwitch(SkDiag.Group.MEMORY, indent = 2)
-
-        addSubgroup(R.string.sk_diag_group_playback, indent = 1)
-        addDiagSwitch(SkDiag.Group.PLAYBACK, indent = 2)
-
-        addSubgroup(R.string.sk_diag_group_service, indent = 1)
-        addDiagSwitch(SkDiag.Group.SERVICE, indent = 2)
-
-        addSubgroup(R.string.sk_diag_group_library, indent = 1)
-        addDiagSwitch(SkDiag.Group.LIBRARY, indent = 2)
-
-        addSubgroup(R.string.sk_diag_group_automation, indent = 1)
-        addDiagSwitch(SkDiag.Group.AUTOMATION, indent = 2)
-
-        addSubgroup(R.string.sk_diag_group_recorded, indent = 1)
-        diagStoredTv = addDescribedRow(R.string.sk_diag_stored, getString(R.string.sk_diag_counting), indent = 2)
-        refreshDiagStored()
-        addSliderRow(R.string.sk_diag_keep, indent = 2,
-                     min = 0F, max = 60F, default = 0F,
-                     current = { SkDiag.getKeepDays(requireContext()).toFloat() },
-                     label = {
-                         if (it.toInt() == 0) getString(R.string.sk_diag_keep_all)
-                         else getString(R.string.sk_diag_keep_days, it.toInt())
-                     },
-                     onChange = { SkDiag.setKeepDays(requireContext(), it.toInt()) })
-        addActionRow(R.string.sk_diag_export, indent = 2, main = true, opens = true,
-                     description = getString(R.string.sk_diag_export_desc)) {
-            launchDiagExport()
+        val open = ShiroikumaPreferences.getOpenSections()
+        secs.forEach { sec ->
+            addSectionHeader(sec)
+            val body = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
+            root.addView(body, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            sec.body = body
+            if (sec.key in open) {
+                buildSection(sec)
+                body.visibility = View.VISIBLE
+            } else {
+                // A folded section's rows are built only when it is first opened.
+                body.visibility = View.GONE
+            }
+            paintChevron(sec)
         }
-        addActionRow(R.string.sk_diag_share, indent = 2, opens = true,
-                     description = getString(R.string.sk_diag_share_desc)) {
-            shareDiag()
+    }
+
+    private fun buildSection(sec: Sec) {
+        val body = sec.body ?: return
+        target = body
+        sec.build()
+        sec.built = true
+        target = skBinding.rowsContainer
+        refreshShape()
+    }
+
+    /** The first element of the page: the thick pill that opens the app's own settings. */
+    private fun addSettingsLink() {
+        addActionRow(R.string.sk_app_settings, indent = 0, main = true, opens = true,
+                     description = getString(R.string.sk_app_settings_desc),
+                     icon = R.drawable.ic_settings) {
+            openFragment(Preferences.newInstance(), Preferences.TAG)
         }
-        addActionRow(R.string.sk_diag_purge, indent = 2, opens = false,
-                     description = getString(R.string.sk_diag_purge_desc)) {
-            confirmDiagPurge()
+    }
+
+    private fun sectionColor(sec: Sec): Int =
+        if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(sec.colorKey) else skAccentColor()
+
+    /**
+     * The index: a wrapping grid of small outlined chips, one per section, each as wide as its
+     * icon, label and padding. A tap unfolds the section and scrolls to it; a long-press lifts
+     * the chip into a drag, the chips reorder live under the finger, and the sections follow
+     * on drop.
+     */
+    private fun addChipIndex() {
+        val flow = SkFlowLayout(requireContext()).apply {
+            setPadding(dp(4), dp(10), 0, dp(6))
         }
+        secs.forEach { flow.addView(chip(it)) }
+        flow.setOnDragListener { _, event ->
+            val dragged = event.localState as? View ?: return@setOnDragListener false
+            when (event.action) {
+                DragEvent.ACTION_DRAG_LOCATION -> {
+                    val over = flow.indexAt(event.x, event.y)
+                    val from = flow.indexOfChild(dragged)
+                    val under = if (over >= 0) flow.getChildAt(over) else null
+                    when {
+                        under == null || under === dragged -> lastChipSwap = null
+                        // Chips differ in width, so the chip just displaced can land back under
+                        // the finger; it is not swapped again until the finger has left it.
+                        under === lastChipSwap -> Unit
+                        from >= 0 -> {
+                            flow.removeView(dragged)
+                            flow.addView(dragged, over.coerceAtMost(flow.childCount))
+                            lastChipSwap = under
+                        }
+                    }
+                }
+                DragEvent.ACTION_DRAG_ENDED -> {
+                    dragged.alpha = 1F
+                    lastChipSwap = null
+                    val order = (0 until flow.childCount).mapNotNull { flow.getChildAt(it).tag as? String }
+                    if (order != secs.map { it.key }) {
+                        ShiroikumaPreferences.setSectionOrder(order)
+                        flow.post { if (view != null) buildRows() }
+                    }
+                }
+            }
+            true
+        }
+        chipFlow = flow
+        skBinding.rowsContainer.addView(flow, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+    }
+
+    private fun chip(sec: Sec): View {
+        val chip = TypeFaceTextView(requireContext()).apply {
+            text = getString(sec.title)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13F)
+            maxLines = 1
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(10), dp(5), dp(12), dp(5))
+            tag = sec.key
+        }
+        val paint = {
+            val frame = if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.CHIP_FRAME) else skAccentColor()
+            chip.background = SkPills.pill(requireContext(), frame, false)
+            chip.setTextColor(if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.CHIP_TEXT) else skAccentColor())
+            chip.typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.REGULAR, requireContext())
+            SkPills.labelIcon(chip, sec.icon, sectionColor(sec))
+        }
+        paint()
+        restyle.add(paint)
+        chip.setOnClickListener { jumpTo(sec) }
+        chip.setOnLongClickListener { v ->
+            v.startDragAndDrop(null, View.DragShadowBuilder(v), v, 0)
+            v.alpha = 0.3F
+            true
+        }
+        return chip
+    }
+
+    /**
+     * Folding section heading: the 1 px line above it stays whether the section is folded or
+     * open, the heading carries the section's icon in the section's colour, and a tap folds or
+     * unfolds the rows.
+     */
+    private fun addSectionHeader(sec: Sec) {
+        val row = ItemSkSectionBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
+        row.sectionTitle.text = getString(sec.title)
+        registerAccentLine(row.sectionSpacer)
+        registerAccentLine(row.sectionUnderline)
+        val paint = {
+            SkPills.labelIcon(row.sectionTitle, sec.icon, sectionColor(sec))
+            row.sectionChevron.setTextColor(skAccentColor())
+        }
+        paint()
+        restyle.add(paint)
+        row.sectionRow.setOnClickListener { toggleSection(sec) }
+        (row.root.layoutParams as ViewGroup.MarginLayoutParams).topMargin = dp(6)
+        sec.header = row
+        skBinding.rowsContainer.addView(row.root)
+    }
+
+    private fun paintChevron(sec: Sec) {
+        val open = sec.body?.visibility == View.VISIBLE
+        sec.header?.sectionChevron?.text = if (open) "⌄" else "›"
+    }
+
+    private fun toggleSection(sec: Sec) {
+        val body = sec.body ?: return
+        val opening = body.visibility != View.VISIBLE
+        if (opening && !sec.built) buildSection(sec)
+        body.visibility = if (opening) View.VISIBLE else View.GONE
+        paintChevron(sec)
+        val open = ShiroikumaPreferences.getOpenSections().toMutableSet()
+        if (opening) open.add(sec.key) else open.remove(sec.key)
+        ShiroikumaPreferences.setOpenSections(open)
+    }
+
+    /** A tap on a chip: unfold the section and scroll to its heading. */
+    private fun jumpTo(sec: Sec) {
+        if (sec.body?.visibility != View.VISIBLE) toggleSection(sec)
+        val header = sec.header?.root ?: return
+        skBinding.scrollView.post {
+            skBinding.scrollView.smoothScrollTo(0, header.top + skBinding.rowsContainer.top)
+        }
+    }
+
+    /** Puts a row's icon at the start of its label: coloured by what the row does, sized by the label. */
+    private fun rowIcon(label: android.widget.TextView, @DrawableRes icon: Int, roleKey: String) {
+        val paint = {
+            SkPills.labelIcon(label, icon,
+                              if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(roleKey) else skAccentColor())
+        }
+        paint()
+        restyle.add(paint)
+    }
+
+    private fun confirmResetAllColors() {
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle(R.string.sk_reset_all_colors_title)
+            .setMessage(R.string.sk_reset_all_colors_body)
+            .setPositiveButton(R.string.sk_reset_all_colors_confirm) { _, _ ->
+                ShiroikumaPreferences.resetAllColors()
+                refreshTheme()
+                SkFlash.show(requireContext(), R.string.sk_reset_all_colors_done)
+            }
+            .setNegativeButton(R.string.sk_diag_purge_cancel, null)
+            .create()
+        dialog.show()
+        styleEximDialog(dialog)
     }
 
     // ------------------------------------------------------------------ Diagnostics
 
     private fun addDiagSwitch(group: SkDiag.Group, indent: Int) {
         addDescribedSwitchRow(group.titleRes, group.descRes, indent,
+                              icon = R.drawable.ic_file_info, role = ShiroikumaPreferences.MENU_ICON_VIEW,
                               isChecked = { SkDiag.isOn(group) },
                               onChecked = { SkDiag.set(requireContext(), group, it) })
     }
@@ -596,37 +886,22 @@ class ShiroikumaUi : PreferenceFragment() {
                 .setNegativeButton(R.string.sk_diag_purge_cancel, null)
                 .create()
             dialog.show()
-            styleEximDialog(dialog)
+            // Purging deletes: the confirming pill is red.
+            styleEximDialog(dialog, destructive = true)
         }
     }
 
     // ------------------------------------------------------------------ row builders
 
-    /**
-     * kxkb-style section heading: a 1px accent hairline spacer above the group (omitted
-     * on the first section), then a 20sp bold accent title with a 2.5dp underline exactly
-     * as wide as the text.
-     */
-    private fun addSection(@StringRes titleRes: Int) {
-        val first = skBinding.rowsContainer.childCount == 0
-        val row = ItemSkSectionBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
-        row.sectionTitle.text = getString(titleRes)
-        row.sectionSpacer.visibility = if (first) View.GONE else View.VISIBLE
-        registerAccentLine(row.sectionSpacer)
-        registerAccentLine(row.sectionUnderline)
-        (row.root.layoutParams as ViewGroup.MarginLayoutParams).topMargin = if (first) dp(4) else dp(20)
-        skBinding.rowsContainer.addView(row.root)
-    }
-
     /** kxkb-style sub-heading: 17sp bold accent title with a thinner text-wide underline. */
     private fun addSubgroup(@StringRes titleRes: Int, indent: Int) {
-        val row = ItemSkSubgroupBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
+        val row = ItemSkSubgroupBinding.inflate(layoutInflater, target, false)
         row.subgroupTitle.text = getString(titleRes)
         registerAccentLine(row.subgroupUnderline)
         (row.root.layoutParams as ViewGroup.MarginLayoutParams).topMargin = dp(10)
         // Sub-heading sits one indent step deeper than its section title (20dp), rows go deeper still.
         row.root.setPaddingRelative(dp(20 + 18 * indent), row.root.paddingTop, row.root.paddingEnd, row.root.paddingBottom)
-        skBinding.rowsContainer.addView(row.root)
+        target.addView(row.root)
     }
 
     /** Colors a heading underline / section spacer with the effective accent and tracks it for refresh. */
@@ -643,7 +918,7 @@ class ShiroikumaUi : PreferenceFragment() {
      * visible right where they are made (no scrolling back to the top of the page).
      */
     private fun addPreviewCard(mode: PreviewMode) {
-        val card = ItemSkPreviewBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
+        val card = ItemSkPreviewBinding.inflate(layoutInflater, target, false)
         when (mode) {
             PreviewMode.COLORS -> {
                 // Everything visible: text tiers, divider, icon + accent line.
@@ -668,19 +943,20 @@ class ShiroikumaUi : PreferenceFragment() {
             marginStart = dp(20)
         }
         previewCards.add(card.root)
-        skBinding.rowsContainer.addView(card.root)
+        target.addView(card.root)
     }
 
     private fun addColorRow(@StringRes labelRes: Int, key: String, indent: Int) {
-        val row = ItemSkColorBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
+        val row = ItemSkColorBinding.inflate(layoutInflater, target, false)
         row.colorLabel.text = getString(labelRes)
         row.colorSwatch.background = swatchDrawable(ShiroikumaPreferences.getEffectiveColor(key))
+        rowIcon(row.colorLabel, R.drawable.ic_palette, ShiroikumaPreferences.MENU_ICON_VIEW)
         swatches[key] = row.colorSwatch
         indentRow(row.root, indent)
         row.root.setOnClickListener {
             openColorPicker(labelRes, key)
         }
-        skBinding.rowsContainer.addView(row.root)
+        target.addView(row.root)
     }
 
     private fun addSliderRow(@StringRes labelRes: Int, indent: Int,
@@ -688,8 +964,9 @@ class ShiroikumaUi : PreferenceFragment() {
                              current: () -> Float,
                              label: (Float) -> String,
                              onChange: (Float) -> Unit) {
-        val row = ItemSkSliderBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
+        val row = ItemSkSliderBinding.inflate(layoutInflater, target, false)
         row.sliderLabel.text = getString(labelRes)
+        rowIcon(row.sliderLabel, R.drawable.ic_tune, ShiroikumaPreferences.MENU_ICON_VIEW)
         row.sliderValue.text = label(current())
         row.sliderSeekbar.setRange(min, max)
         row.sliderSeekbar.setDefaultProgress(default)
@@ -703,14 +980,17 @@ class ShiroikumaUi : PreferenceFragment() {
             }
         })
         indentRow(row.root, indent)
-        skBinding.rowsContainer.addView(row.root)
+        target.addView(row.root)
     }
 
     private fun addSwitchRow(@StringRes labelRes: Int, indent: Int,
+                             @DrawableRes icon: Int = R.drawable.ic_power_off,
+                             role: String = ShiroikumaPreferences.MENU_ICON_CONNECT,
                              isChecked: () -> Boolean,
                              onChecked: (Boolean) -> Unit) {
-        val row = ItemSkSwitchBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
+        val row = ItemSkSwitchBinding.inflate(layoutInflater, target, false)
         row.switchLabel.text = getString(labelRes)
+        rowIcon(row.switchLabel, icon, role)
         row.switchToggle.isChecked = isChecked()
         row.switchToggle.setOnCheckedChangeListener { _, checked ->
             onChecked(checked)
@@ -722,7 +1002,7 @@ class ShiroikumaUi : PreferenceFragment() {
         val paint = { row.switchToggle.refreshColors() }
         paint()
         restyle.add(paint)
-        skBinding.rowsContainer.addView(row.root)
+        target.addView(row.root)
     }
 
     /**
@@ -730,10 +1010,13 @@ class ShiroikumaUi : PreferenceFragment() {
      * and a thin dim-gold rule down the item's left edge.
      */
     private fun addDescribedSwitchRow(@StringRes labelRes: Int, @StringRes descRes: Int, indent: Int,
+                                      @DrawableRes icon: Int = R.drawable.ic_power_off,
+                                      role: String = ShiroikumaPreferences.MENU_ICON_CONNECT,
                                       isChecked: () -> Boolean,
                                       onChecked: (Boolean) -> Unit) {
-        val row = ItemSkSwitchDescribedBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
+        val row = ItemSkSwitchDescribedBinding.inflate(layoutInflater, target, false)
         row.switchLabel.text = getString(labelRes)
+        rowIcon(row.switchLabel, icon, role)
         row.switchDesc.text = getString(descRes)
         row.switchToggle.isChecked = isChecked()
         row.switchToggle.setOnCheckedChangeListener { _, checked ->
@@ -751,7 +1034,7 @@ class ShiroikumaUi : PreferenceFragment() {
         }
         paint()
         restyle.add(paint)
-        skBinding.rowsContainer.addView(row.root)
+        target.addView(row.root)
     }
 
 
@@ -760,9 +1043,10 @@ class ShiroikumaUi : PreferenceFragment() {
      * the page states rather than settings it offers.
      */
     private fun addDescribedRow(@StringRes labelRes: Int, description: CharSequence, indent: Int): TypeFaceTextView {
-        val row = ItemSkSwitchDescribedBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
+        val row = ItemSkSwitchDescribedBinding.inflate(layoutInflater, target, false)
         row.switchLabel.text = getString(labelRes)
         row.switchDesc.text = description
+        rowIcon(row.switchLabel, R.drawable.ic_info, ShiroikumaPreferences.MENU_ICON_VIEW)
         row.switchToggle.visibility = View.GONE
         row.root.isClickable = false
         indentRow(row.root, indent)
@@ -773,7 +1057,7 @@ class ShiroikumaUi : PreferenceFragment() {
         }
         paint()
         restyle.add(paint)
-        skBinding.rowsContainer.addView(row.root)
+        target.addView(row.root)
         return row.switchDesc
     }
 
@@ -789,8 +1073,11 @@ class ShiroikumaUi : PreferenceFragment() {
                              main: Boolean = false,
                              opens: Boolean = true,
                              description: CharSequence? = null,
+                             @DrawableRes icon: Int = R.drawable.ic_arrow_forward,
+                             role: String = ShiroikumaPreferences.MENU_ICON_VIEW,
+                             destructive: Boolean = false,
                              onClick: () -> Unit): ItemSkActionBinding {
-        val row = ItemSkActionBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
+        val row = ItemSkActionBinding.inflate(layoutInflater, target, false)
         row.actionLabel.text = getString(labelRes)
         row.actionChevron.visibility = if (opens) View.VISIBLE else View.GONE
         row.actionDesc.text = description ?: ""
@@ -802,18 +1089,20 @@ class ShiroikumaUi : PreferenceFragment() {
         row.actionPill.setOnClickListener { onClick() }
         indentRow(row.root, indent)
         val paint = {
-            row.actionPill.background = pillDrawable(main)
+            row.actionPill.background = pillDrawable(main, destructive)
             row.actionLabel.typeface = TypeFace.getTypeFace(
                     AppearancePreferences.getAppFont(),
                     if (main) TypeFaceTextView.BOLD else TypeFaceTextView.REGULAR, requireContext())
-            row.actionLabel.setTextColor(skAccentColor())
-            row.actionChevron.setTextColor(skAccentColor())
+            row.actionLabel.setTextColor(skButtonColor(ShiroikumaPreferences.BUTTON_TEXT, destructive))
+            row.actionChevron.setTextColor(skButtonColor(ShiroikumaPreferences.BUTTON_TEXT, destructive))
             row.actionDesc.setTextColor(skNoteColor())
             row.actionRule.setBackgroundColor(skNoteColor())
         }
         paint()
         restyle.add(paint)
-        skBinding.rowsContainer.addView(row.root)
+        // The icon sits inside the pill, right before its label.
+        rowIcon(row.actionLabel, icon, role)
+        target.addView(row.root)
         return row
     }
 
@@ -828,15 +1117,15 @@ class ShiroikumaUi : PreferenceFragment() {
         val paint = { view.setTextColor(skNoteColor()) }
         paint()
         restyle.add(paint)
-        skBinding.rowsContainer.addView(view)
+        target.addView(view)
     }
 
     /**
      * The pill: fully round, the background showing through, an accent frame 3 dp thick for a
      * main action and 1.25 dp otherwise. Never filled.
      */
-    private fun pillDrawable(main: Boolean): RippleDrawable {
-        val accent = skAccentColor()
+    private fun pillDrawable(main: Boolean, destructive: Boolean = false): RippleDrawable {
+        val accent = skButtonColor(ShiroikumaPreferences.BUTTON_FRAME, destructive)
         val density = resources.displayMetrics.density
         val frame = GradientDrawable().apply {
             setColor(Color.TRANSPARENT)
@@ -847,8 +1136,9 @@ class ShiroikumaUi : PreferenceFragment() {
     }
 
     private fun addFontRow(indent: Int) {
-        val row = ItemSkValueBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
+        val row = ItemSkValueBinding.inflate(layoutInflater, target, false)
         row.valueLabel.text = getString(R.string.sk_font)
+        rowIcon(row.valueLabel, R.drawable.ic_text_fields, ShiroikumaPreferences.MENU_ICON_WRITE)
         row.valueText.text = fontDisplayName(AppearancePreferences.getAppFont())
         fontValueView = row.valueText
         indentRow(row.root, indent)
@@ -859,7 +1149,7 @@ class ShiroikumaUi : PreferenceFragment() {
             }
             picker.show(childFragmentManager, SkFontPicker.TAG)
         }
-        skBinding.rowsContainer.addView(row.root)
+        target.addView(row.root)
     }
 
     /**
@@ -875,8 +1165,9 @@ class ShiroikumaUi : PreferenceFragment() {
 
     /** Shows the automation token; tapping the row copies it to the clipboard. */
     private fun addTokenRow(indent: Int) {
-        val row = ItemSkValueBinding.inflate(layoutInflater, skBinding.rowsContainer, false)
+        val row = ItemSkValueBinding.inflate(layoutInflater, target, false)
         row.valueLabel.text = getString(R.string.sk_automation_token)
+        rowIcon(row.valueLabel, R.drawable.ic_key, ShiroikumaPreferences.MENU_ICON_BLOCK)
         row.valueText.text = AutomationPreferences.getToken()
         tokenValueView = row.valueText
         tokenRowView = row.root
@@ -887,12 +1178,13 @@ class ShiroikumaUi : PreferenceFragment() {
                     getString(R.string.sk_automation_token), AutomationPreferences.getToken()))
             SkFlash.show(requireContext(), R.string.sk_automation_token_copied)
         }
-        skBinding.rowsContainer.addView(row.root)
+        target.addView(row.root)
     }
 
     /** Regenerates the automation token and refreshes the token row. */
     private fun addRegenerateTokenRow(indent: Int) {
         val row = addActionRow(R.string.sk_automation_regenerate, indent, opens = false,
+                               icon = R.drawable.ic_refresh, role = ShiroikumaPreferences.MENU_ICON_CONNECT,
                                description = getString(R.string.sk_automation_regenerate_desc)) {
             val fresh = AutomationPreferences.regenerateToken()
             tokenValueView?.text = fresh
@@ -909,6 +1201,7 @@ class ShiroikumaUi : PreferenceFragment() {
      */
     private fun addAllFilesAccessRow(indent: Int) {
         val row = addActionRow(R.string.sk_automation_allfiles, indent, opens = true,
+                               icon = R.drawable.ic_folder_open_outline,
                                description = getString(allFilesAccessLabel())) {
             if (hasAllFilesAccess()) {
                 SkFlash.show(requireContext(), R.string.sk_automation_allfiles_on)
@@ -947,6 +1240,7 @@ class ShiroikumaUi : PreferenceFragment() {
     /** Opens the system document picker for a PowerAmp backup; ratings become favorites. */
     private fun addImportPowerAmpRow(indent: Int) {
         addActionRow(R.string.sk_import_poweramp, indent, opens = true,
+                     icon = R.drawable.ic_star_16dp, role = ShiroikumaPreferences.MENU_ICON_SHARE,
                      description = getString(R.string.sk_import_poweramp_desc)) {
             // The .poweramp-backup extension carries no registered mime type, so accept anything.
             powerAmpBackupPicker.launch(arrayOf("*/*"))
@@ -956,6 +1250,7 @@ class ShiroikumaUi : PreferenceFragment() {
     /** Opens the system document picker for a PowerAmp album-art export; art gets embedded into files. */
     private fun addImportPowerAmpArtRow(indent: Int) {
         addActionRow(R.string.sk_import_poweramp_art, indent, opens = true,
+                     icon = R.drawable.ic_image, role = ShiroikumaPreferences.MENU_ICON_SHARE,
                      description = getString(R.string.sk_import_poweramp_art_desc)) {
             // The .poweramp-backup extension carries no registered mime type, so accept anything.
             powerAmpArtPicker.launch(arrayOf("*/*"))
@@ -966,6 +1261,7 @@ class ShiroikumaUi : PreferenceFragment() {
     private fun addDownloadAlbumArtRow(indent: Int) {
         // Fully automatic — nothing opens, so no chevron.
         addActionRow(R.string.sk_download_album_art, indent, opens = false,
+                     icon = R.drawable.ic_cloud, role = ShiroikumaPreferences.MENU_ICON_CONNECT,
                      description = getString(R.string.sk_download_album_art_desc)) {
             downloadMissingAlbumArt()
         }
@@ -976,7 +1272,8 @@ class ShiroikumaUi : PreferenceFragment() {
      * underneath mirroring the latest export found in the configured directory.
      */
     private fun addEximRow(indent: Int) {
-        val row = addActionRow(R.string.sk_eim_row, indent, main = true, opens = true) {
+        val row = addActionRow(R.string.sk_eim_row, indent, main = true, opens = true,
+                               icon = R.drawable.ic_swap, role = ShiroikumaPreferences.MENU_ICON_SHARE) {
             showEximDialog()
         }
         // The status line is this row's explanation; it is filled in from a background probe.
@@ -990,7 +1287,8 @@ class ShiroikumaUi : PreferenceFragment() {
      * the review sheet (`SkPendingRestoreDialog`) behind it.
      */
     private fun addPendingRestoreRow(indent: Int) {
-        val row = addActionRow(R.string.sk_pending_row, indent, opens = true) {
+        val row = addActionRow(R.string.sk_pending_row, indent, opens = true,
+                               icon = R.drawable.ic_history, role = ShiroikumaPreferences.MENU_ICON_CONNECT) {
             SkPendingRestoreDialog.show(parentFragmentManager)
         }
         row.root.visibility = View.GONE
@@ -998,7 +1296,7 @@ class ShiroikumaUi : PreferenceFragment() {
         row.actionRule.visibility = View.VISIBLE
         val status = row.actionDesc
         // Added after the row's own painter so the warning red survives a theme refresh.
-        val warn = { status.setTextColor(EIM_WARN_COLOR) }
+        val warn = { status.setTextColor(skWarnColor()) }
         warn()
         restyle.add(warn)
 
@@ -1023,7 +1321,7 @@ class ShiroikumaUi : PreferenceFragment() {
             val warn = withContext(Dispatchers.IO) { SkBackup.latestExport(app) == null }
             eimRowStatusTv?.let { view ->
                 view.text = status
-                view.setTextColor(if (warn) EIM_WARN_COLOR else skNoteColor())
+                view.setTextColor(if (warn) skWarnColor() else skNoteColor())
                 view.alpha = if (warn) 1F else 0.75F
             }
         }
@@ -1163,40 +1461,8 @@ class ShiroikumaUi : PreferenceFragment() {
      * Fork styling for the panel and its info dialogs: black window with the border-slot
      * (yellow) frame, and round pill buttons — black fill, accent stroke and text.
      */
-    private fun styleEximDialog(dialog: AlertDialog) {
-        val context = requireContext()
-        val density = resources.displayMetrics.density
-        val accent = skAccentColor()
-        val border = skBorderColor()
-
-        dialog.window?.setBackgroundDrawable(InsetDrawable(GradientDrawable().apply {
-            setColor(skBackgroundColor())
-            cornerRadius = AppearancePreferences.getCornerRadius()
-            setStroke((2 * density).toInt(), border)
-        }, (16 * density).toInt()))
-
-        for (which in intArrayOf(DialogInterface.BUTTON_POSITIVE, DialogInterface.BUTTON_NEGATIVE, DialogInterface.BUTTON_NEUTRAL)) {
-            val button = dialog.getButton(which) ?: continue
-            // Main vs regular is told by weight alone: the one thing the dialog is for gets a
-            // 3 dp frame and bold text, everything beside it 1.25 dp and regular.
-            val main = which == DialogInterface.BUTTON_POSITIVE
-            val pill = GradientDrawable().apply {
-                setColor(skBackgroundColor())
-                cornerRadius = 50 * density // > half the height -> a pill
-                setStroke(((if (main) 3F else 1.25F) * density).toInt().coerceAtLeast(1), accent)
-            }
-            button.background = RippleDrawable(
-                    ColorStateList.valueOf((accent and 0x00FFFFFF) or 0x4D000000), pill, null)
-            button.setTextColor(accent)
-            button.transformationMethod = null // no all-caps
-            button.typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(),
-                                                   if (main) TypeFaceTextView.BOLD else TypeFaceTextView.REGULAR, context)
-            button.setPadding(dp(20), dp(6), dp(20), dp(6))
-            (button.layoutParams as? ViewGroup.MarginLayoutParams)?.let { params ->
-                params.marginStart = dp(8)
-                button.layoutParams = params
-            }
-        }
+    private fun styleEximDialog(dialog: AlertDialog, destructive: Boolean = false) {
+        SkDialogChrome.style(dialog, destructive)
     }
 
     private fun selectedCats(boxes: List<CheckBox>): List<SkBackup.Cat> {
@@ -1214,14 +1480,14 @@ class ShiroikumaUi : PreferenceFragment() {
             directoryView.setTextColor(skAccentColor())
         } else {
             directoryView.setText(R.string.sk_eim_dir_unset)
-            directoryView.setTextColor(EIM_WARN_COLOR)
+            directoryView.setTextColor(skWarnColor())
         }
         val app = context.applicationContext
         lifecycleScope.launch {
             val status = withContext(Dispatchers.IO) { SkBackup.lastExportStatus(app) }
             val warn = withContext(Dispatchers.IO) { SkBackup.latestExport(app) == null }
             statusView.text = status
-            statusView.setTextColor(if (warn) EIM_WARN_COLOR else skTextColor())
+            statusView.setTextColor(if (warn) skWarnColor() else skTextColor())
         }
     }
 
@@ -1372,6 +1638,7 @@ class ShiroikumaUi : PreferenceFragment() {
         styleEximDialog(dialog)
     }
 
+
     /** Title + body in fork colors for the info dialogs (the window frame comes from [styleEximDialog]). */
     private fun eimInfoBox(title: String, body: String): View {
         val context = requireContext()
@@ -1381,7 +1648,7 @@ class ShiroikumaUi : PreferenceFragment() {
         }
         box.addView(TypeFaceTextView(context).apply {
             text = title
-            setTextColor(skAccentColor())
+            setTextColor(SkDialogChrome.titleColor())
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 18F)
             typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), TypeFaceTextView.BOLD, context)
         })
@@ -1651,6 +1918,16 @@ class ShiroikumaUi : PreferenceFragment() {
         if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.SETTINGS_NOTE)
         else ThemeManager.theme.textViewTheme.secondaryTextColor
 
+    /** The red of a warning line and of anything that deletes — a settable role. */
+    private fun skWarnColor(): Int = ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.BUTTON_DELETE)
+
+    /** A button role, or the delete red for a button that deletes. */
+    private fun skButtonColor(key: String, destructive: Boolean): Int = when {
+        destructive -> skWarnColor()
+        ShiroikumaPreferences.isEnabled() -> ShiroikumaPreferences.getEffectiveColor(key)
+        else -> skAccentColor()
+    }
+
     private fun skBorderColor(): Int =
         if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.BORDER)
         else ThemeManager.accent.primaryAccentColor
@@ -1677,7 +1954,7 @@ class ShiroikumaUi : PreferenceFragment() {
         return GradientDrawable().apply {
             shape = GradientDrawable.OVAL
             setColor(color)
-            setStroke(dp(1), 0x66888888)
+            setStroke(dp(1), skNoteColor())
         }
     }
 
@@ -1698,7 +1975,5 @@ class ShiroikumaUi : PreferenceFragment() {
 
         const val TAG = "ShiroikumaUi"
 
-        /** Red used for the "no directory / no export yet" warning lines. */
-        private val EIM_WARN_COLOR = 0xFFFF5252.toInt()
     }
 }

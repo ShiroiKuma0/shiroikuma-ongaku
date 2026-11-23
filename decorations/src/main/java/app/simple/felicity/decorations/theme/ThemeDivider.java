@@ -42,7 +42,40 @@ public class ThemeDivider extends View implements ThemeChangedListener {
         super.onAttachedToWindow();
         if (!isInEditMode()) {
             ThemeManager.INSTANCE.addListener(this);
+            skMenuDivider = isBetweenMenuRows();
+            if (skMenuDivider) {
+                // Fork (白い熊 音楽 UI): between the groups of a menu the divider is a clear 1 dp
+                // line in the opaque darker accent, not the faint hairline of a list.
+                android.view.ViewGroup.LayoutParams params = getLayoutParams();
+                int oneDp = Math.max(1, Math.round(getResources().getDisplayMetrics().density));
+                if (params != null && params.height < oneDp) {
+                    params.height = oneDp;
+                    setLayoutParams(params);
+                }
+                setTint(false);
+            }
         }
+    }
+    
+    /** Fork: true while this divider separates groups of a menu sheet. */
+    private boolean skMenuDivider = false;
+    
+    private boolean isBetweenMenuRows() {
+        if (!app.simple.felicity.decorations.shiroikuma.SkPills.enabled()) {
+            return false;
+        }
+        if (!(getParent() instanceof android.widget.LinearLayout parent)) {
+            return false;
+        }
+        if (parent.getOrientation() != android.widget.LinearLayout.VERTICAL) {
+            return false;
+        }
+        for (int i = 0; i < parent.getChildCount(); i++) {
+            if (parent.getChildAt(i) instanceof app.simple.felicity.decorations.ripple.DynamicRippleTextView) {
+                return true;
+            }
+        }
+        return false;
     }
     
     @Override
@@ -57,6 +90,12 @@ public class ThemeDivider extends View implements ThemeChangedListener {
     }
     
     private void setTint(boolean animate) {
+        if (skMenuDivider && app.simple.felicity.decorations.shiroikuma.SkPills.enabled()) {
+            setBackgroundTintList(ColorStateList.valueOf(app.simple.felicity.decorations.shiroikuma.SkPills.color(
+                    app.simple.felicity.preferences.ShiroikumaPreferences.MENU_DIVIDER)));
+            return;
+        }
+        
         if (isInEditMode()) {
             setBackgroundTintList(ColorStateList.valueOf(Color.LTGRAY));
         } else {

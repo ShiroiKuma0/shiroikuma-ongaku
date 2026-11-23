@@ -23,23 +23,27 @@ import app.simple.felicity.theme.managers.ThemeManager
 object SkDialogChrome {
 
     fun backgroundColor(): Int =
-        if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.BACKGROUND)
+        if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.DIALOG_GROUND)
         else ThemeManager.theme.viewGroupTheme.backgroundColor
 
     fun accentColor(): Int =
-        if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.ACCENT)
+        if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.BUTTON_FRAME)
         else ThemeManager.accent.primaryAccentColor
 
     fun textColor(): Int =
-        if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.TEXT_PRIMARY)
+        if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.DIALOG_TEXT)
         else ThemeManager.theme.textViewTheme.primaryTextColor
+
+    fun titleColor(): Int =
+        if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.DIALOG_TITLE)
+        else ThemeManager.accent.primaryAccentColor
 
     fun secondaryTextColor(): Int =
         if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.TEXT_SECONDARY)
         else ThemeManager.theme.textViewTheme.secondaryTextColor
 
     fun borderColor(): Int =
-        if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.BORDER)
+        if (ShiroikumaPreferences.isEnabled()) ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.DIALOG_FRAME)
         else ThemeManager.accent.primaryAccentColor
 
     fun dp(context: Context, value: Int): Int = (value * context.resources.displayMetrics.density).toInt()
@@ -67,8 +71,15 @@ object SkDialogChrome {
         }
     }
 
-    /** Frame the window and restyle whatever buttons the builder created; call once shown. */
-    fun style(dialog: AlertDialog) {
+    /** The red a button that deletes lends to its frame and label. */
+    fun deleteColor(): Int = ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.BUTTON_DELETE)
+
+    /**
+     * Frame the window and restyle whatever buttons the builder created; call once shown.
+     * Pass [destructive] for a dialog whose confirmation deletes something: its main pill
+     * turns red, still unfilled.
+     */
+    fun style(dialog: AlertDialog, destructive: Boolean = false) {
         val context = dialog.context
         val density = context.resources.displayMetrics.density
         val accent = accentColor()
@@ -82,7 +93,8 @@ object SkDialogChrome {
         for (which in intArrayOf(DialogInterface.BUTTON_POSITIVE, DialogInterface.BUTTON_NEGATIVE, DialogInterface.BUTTON_NEUTRAL)) {
             val button = dialog.getButton(which) ?: continue
             // The dialog's own main action is its positive button; the rest sit beside it.
-            stylePill(button, accent, density, context, which == DialogInterface.BUTTON_POSITIVE)
+            val positive = which == DialogInterface.BUTTON_POSITIVE
+            stylePill(button, if (positive && destructive) deleteColor() else accent, density, context, positive)
             (button.layoutParams as? ViewGroup.MarginLayoutParams)?.let { params ->
                 params.marginStart = dp(context, 8)
                 button.layoutParams = params
@@ -97,7 +109,8 @@ object SkDialogChrome {
             setStroke(((if (main) 3F else 1.25F) * density).toInt().coerceAtLeast(1), accent)
         }
         button.background = RippleDrawable(ColorStateList.valueOf((accent and 0x00FFFFFF) or 0x4D000000), pill, null)
-        button.setTextColor(accent)
+        button.setTextColor(if (accent == deleteColor() || !ShiroikumaPreferences.isEnabled()) accent
+                            else ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.BUTTON_TEXT))
         button.transformationMethod = null // no all-caps
         button.typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(),
                                                if (main) TypeFaceTextView.BOLD else TypeFaceTextView.REGULAR, context)

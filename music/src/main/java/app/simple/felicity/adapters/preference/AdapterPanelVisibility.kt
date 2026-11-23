@@ -63,6 +63,7 @@ class AdapterPanelVisibility(
                 // Icons are optional — skip setting one if the preference didn't supply it.
                 if (preference.icon != 0) {
                     holder.binding.icon.setImageResource(preference.icon)
+                    holder.binding.icon.setForkRoleFromTitle(preference.title) // Fork: icon coloured by role
                 }
 
                 // Restore the saved state without triggering the listener — otherwise

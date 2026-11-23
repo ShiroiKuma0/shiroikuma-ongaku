@@ -53,7 +53,30 @@ public class ThemeIcon extends AppCompatImageView implements ThemeChangedListene
         typedArray.recycle();
     }
     
+    /** Fork (白い熊 音楽 UI): what the row this icon belongs to does; null leaves upstream's tint. */
+    private app.simple.felicity.decorations.shiroikuma.SkPills.Role skRole = null;
+    
+    /**
+     * Fork (白い熊 音楽 UI): colours this icon by what its row does, told from the name of the
+     * row's title string. A list is read by colour before it is read by word.
+     */
+    public void setForkRoleFromTitle(int titleResId) {
+        String name;
+        try {
+            name = getResources().getResourceEntryName(titleResId);
+        } catch (Exception e) {
+            name = "";
+        }
+        skRole = app.simple.felicity.decorations.shiroikuma.SkPills.listRoleForName(name);
+        setTintColor(tintMode, false);
+    }
+    
     private void setTint(int endColor, boolean animate) {
+        if (skRole != null && app.simple.felicity.decorations.shiroikuma.SkPills.enabled()) {
+            setImageTintList(ColorStateList.valueOf(app.simple.felicity.decorations.shiroikuma.SkPills.roleColor(skRole)));
+            return;
+        }
+        
         if (animate) {
             valueAnimator = ValueAnimator.ofArgb(getImageTintList().getDefaultColor(), endColor);
             valueAnimator.setDuration(getResources().getInteger(R.integer.animation_duration));

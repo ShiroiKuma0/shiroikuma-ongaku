@@ -23,6 +23,7 @@ class AdapterPreference(private val data: List<Preference>) : RecyclerView.Adapt
         holder.binding.title.text = holder.context.getString(data[position].title)
         holder.binding.description.text = holder.context.getString(data[position].description)
         holder.binding.icon.setImageResource(data[position].icon)
+        holder.binding.icon.setForkRoleFromTitle(data[position].title) // Fork: icon coloured by role
 
         holder.binding.textContainer.visibility = if (titlesVisible) View.VISIBLE else View.GONE
 

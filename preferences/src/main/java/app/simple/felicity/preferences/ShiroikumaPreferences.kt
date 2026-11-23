@@ -61,8 +61,59 @@ object ShiroikumaPreferences {
      */
     const val SWITCH_OFF_DIM = "sk_switch_off_dim"
 
+    // Button roles — every pill reads these three; a button that deletes lends BUTTON_DELETE
+    // to its frame and label.
+    const val BUTTON_TEXT = "sk_button_text"
+    const val BUTTON_FRAME = "sk_button_frame"
+    const val BUTTON_GROUND = "sk_button_ground"
+    const val BUTTON_DELETE = "sk_button_delete"
+
+    // Dialog roles (the fork's own dialogs; upstream's share the foundation and text roles)
+    const val DIALOG_GROUND = "sk_dialog_ground"
+    const val DIALOG_FRAME = "sk_dialog_frame"
+    const val DIALOG_TITLE = "sk_dialog_title"
+    const val DIALOG_TEXT = "sk_dialog_text"
+
+    // Switch roles — outline and dot, on and off. The off outline is SWITCH_OFF_DIM.
+    const val SWITCH_ON_OUTLINE = "sk_switch_on_outline"
+    const val SWITCH_ON_DOT = "sk_switch_on_dot"
+    const val SWITCH_OFF_DOT = "sk_switch_off_dot"
+
+    /** The tick inside a checked check box — a selection mark, never a switch. */
+    const val CHECK_TICK = "sk_check_tick"
+
+    // Menu roles
+    const val MENU_LABEL = "sk_menu_label"
+    const val MENU_ROW_FRAME = "sk_menu_row_frame"
+    const val MENU_DIVIDER = "sk_menu_divider"
+    const val MENU_ICON_CONNECT = "sk_menu_icon_connect"
+    const val MENU_ICON_WRITE = "sk_menu_icon_write"
+    const val MENU_ICON_PERSON = "sk_menu_icon_person"
+    const val MENU_ICON_SHARE = "sk_menu_icon_share"
+    const val MENU_ICON_VIEW = "sk_menu_icon_view"
+    const val MENU_ICON_BLOCK = "sk_menu_icon_block"
+    const val MENU_ICON_DELETE = "sk_menu_icon_delete"
+
+    // Section icons of the UI page — seven colours, each with one meaning
+    const val SECTION_BASE = "sk_section_base"
+    const val SECTION_CONTROLS = "sk_section_controls"
+    const val SECTION_WORDS = "sk_section_words"
+    const val SECTION_FRAME = "sk_section_frame"
+    const val SECTION_REACH = "sk_section_reach"
+    const val SECTION_WARNING = "sk_section_warning"
+    const val SECTION_FLASH = "sk_section_flash"
+
+    // The UI page's chip index
+    const val CHIP_TEXT = "sk_chip_text"
+    const val CHIP_FRAME = "sk_chip_frame"
+
     // Player slots
     const val VISUALIZER = "sk_visualizer"
+
+    // UI page arrangement: section order and which sections are open. Plain sk_ keys, so they
+    // travel in the UI export with the colours.
+    const val UI_SECTION_ORDER = "sk_ui_section_order"
+    const val UI_SECTIONS_OPEN = "sk_ui_sections_open"
 
     // Player behavior
     const val KEEP_SCREEN_ON = "sk_keep_screen_on"
@@ -78,6 +129,14 @@ object ShiroikumaPreferences {
     const val PALETTE_YELLOW = 0xFFFFFF00.toInt()
     const val PALETTE_BLUE = 0xFF0000FF.toInt() // PowerAmp-style visualizer blue
 
+    // Colours that carry meaning — the settled defaults of the menu and section icon roles.
+    const val PALETTE_GREEN = 0xFF00A550.toInt()
+    const val PALETTE_HEAVY_BLUE = 0xFF0066FF.toInt()
+    const val PALETTE_LIGHT_BLUE = 0xFF00B0FF.toInt()
+    const val PALETTE_ORANGE = 0xFFFF8000.toInt()
+    const val PALETTE_ROSE = 0xFFFF3D7F.toInt()
+    const val PALETTE_RED = 0xFFFF0000.toInt()
+
     const val DEFAULT_BORDER_WIDTH = 1F
     const val MAX_BORDER_WIDTH = 8F
     const val DEFAULT_TEXT_SCALE = 1F
@@ -92,7 +151,43 @@ object ShiroikumaPreferences {
             TEXT_HEADER, TEXT_PRIMARY, TEXT_SECONDARY, TEXT_TERTIARY, TEXT_QUATERNARY,
             ICON_REGULAR, ICON_SECONDARY, ICON_DISABLED,
             ACCENT_PRIMARY, ACCENT_SECONDARY, SWITCH_OFF, SWITCH_OFF_DIM, VISUALIZER,
-            SETTINGS_NOTE)
+            SETTINGS_NOTE,
+            BUTTON_TEXT, BUTTON_FRAME, BUTTON_GROUND, BUTTON_DELETE,
+            DIALOG_GROUND, DIALOG_FRAME, DIALOG_TITLE, DIALOG_TEXT,
+            SWITCH_ON_OUTLINE, SWITCH_ON_DOT, SWITCH_OFF_DOT, CHECK_TICK,
+            MENU_LABEL, MENU_ROW_FRAME, MENU_DIVIDER,
+            MENU_ICON_CONNECT, MENU_ICON_WRITE, MENU_ICON_PERSON, MENU_ICON_SHARE,
+            MENU_ICON_VIEW, MENU_ICON_BLOCK, MENU_ICON_DELETE,
+            SECTION_BASE, SECTION_CONTROLS, SECTION_WORDS, SECTION_FRAME,
+            SECTION_REACH, SECTION_WARNING, SECTION_FLASH,
+            CHIP_TEXT, CHIP_FRAME)
+
+    /** Removes every stored colour, so each role shows its default again. */
+    fun resetAllColors() {
+        getSharedPreferences().edit { colorKeys.forEach { remove(it) } }
+    }
+
+    // ---------------------------------------------------------------------------------------------------------- //
+
+    fun getSectionOrder(): List<String> {
+        return getSharedPreferences().getString(UI_SECTION_ORDER, null)?.split(',')?.filter { it.isNotEmpty() } ?: emptyList()
+    }
+
+    fun setSectionOrder(order: List<String>) {
+        getSharedPreferences().edit { putString(UI_SECTION_ORDER, order.joinToString(",")) }
+    }
+
+    fun clearSectionOrder() {
+        getSharedPreferences().edit { remove(UI_SECTION_ORDER) }
+    }
+
+    fun getOpenSections(): Set<String> {
+        return getSharedPreferences().getString(UI_SECTIONS_OPEN, null)?.split(',')?.filter { it.isNotEmpty() }?.toSet() ?: emptySet()
+    }
+
+    fun setOpenSections(open: Set<String>) {
+        getSharedPreferences().edit { putString(UI_SECTIONS_OPEN, open.joinToString(",")) }
+    }
 
     // ---------------------------------------------------------------------------------------------------------- //
 
@@ -171,6 +266,34 @@ object ShiroikumaPreferences {
             // 0.55 of the way from the background to the text: #8C8C00 on black-yellow.
             SWITCH_OFF_DIM -> ColorUtils.blendARGB(background, text, 0.55F)
             VISUALIZER -> PALETTE_BLUE
+            BUTTON_TEXT, BUTTON_FRAME -> accent
+            BUTTON_GROUND -> background
+            BUTTON_DELETE -> PALETTE_RED
+            DIALOG_GROUND -> background
+            DIALOG_FRAME -> accent
+            DIALOG_TITLE, DIALOG_TEXT -> text
+            SWITCH_ON_OUTLINE, SWITCH_ON_DOT -> accent
+            SWITCH_OFF_DOT -> getEffectiveColor(SWITCH_OFF_DIM)
+            CHECK_TICK -> background
+            MENU_LABEL -> text
+            MENU_ROW_FRAME -> accent
+            // 0.7 of the way from the background to the accent: #B3B300 on black-yellow.
+            MENU_DIVIDER -> ColorUtils.blendARGB(background, accent, 0.7F)
+            MENU_ICON_CONNECT -> PALETTE_GREEN
+            MENU_ICON_WRITE -> PALETTE_HEAVY_BLUE
+            MENU_ICON_PERSON -> PALETTE_LIGHT_BLUE
+            MENU_ICON_SHARE -> PALETTE_ORANGE
+            MENU_ICON_VIEW -> accent
+            MENU_ICON_BLOCK -> PALETTE_ROSE
+            MENU_ICON_DELETE -> PALETTE_RED
+            SECTION_BASE -> accent
+            SECTION_CONTROLS -> PALETTE_GREEN
+            SECTION_WORDS -> PALETTE_LIGHT_BLUE
+            SECTION_FRAME -> PALETTE_HEAVY_BLUE
+            SECTION_REACH -> PALETTE_ORANGE
+            SECTION_WARNING -> PALETTE_RED
+            SECTION_FLASH -> PALETTE_ROSE
+            CHIP_TEXT, CHIP_FRAME -> accent
             else -> text
         }
     }

@@ -131,7 +131,7 @@ class SkRgbaColorPicker : ScopedBottomSheetFragment() {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = dp(6).toFloat()
             setColor(color)
-            setStroke(dp(1), 0x66888888)
+            setStroke(dp(1), ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.SETTINGS_NOTE))
         }
     }
 

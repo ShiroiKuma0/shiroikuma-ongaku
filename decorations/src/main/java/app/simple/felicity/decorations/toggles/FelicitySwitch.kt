@@ -9,6 +9,8 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Canvas
+import app.simple.felicity.preferences.ShiroikumaPreferences
+import androidx.core.graphics.ColorUtils
 import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
@@ -268,7 +270,49 @@ class FelicitySwitch @JvmOverloads constructor(
         trackRect.set(0f, 0f, w.toFloat(), h.toFloat())
     }
 
+    // Fork (白い熊 音楽 UI): paints for the outlined switch.
+    private val skOutlinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val skDotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+    private val skTrack = RectF()
+
+    /**
+     * Fork (白い熊 音楽 UI): the settled black-yellow switch — an outlined pill that is never
+     * filled, with a solid dot that sits right when on and left when off. Only the brightness
+     * and the dot's side change between the two states. The class and its API stay upstream's,
+     * so every `(view as FelicitySwitch)` cast in upstream's code keeps working.
+     */
+    private fun drawForkSwitch(canvas: Canvas) {
+        val density = resources.displayMetrics.density
+        val stroke = (2F * density).coerceAtLeast(1F)
+        val pos = thumbPos.coerceIn(0F, 1F)
+        val outline = ColorUtils.blendARGB(
+                ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.SWITCH_OFF_DIM),
+                ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.SWITCH_ON_OUTLINE), pos)
+        val dot = ColorUtils.blendARGB(
+                ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.SWITCH_OFF_DOT),
+                ShiroikumaPreferences.getEffectiveColor(ShiroikumaPreferences.SWITCH_ON_DOT), pos)
+
+        skTrack.set(stroke / 2F, stroke / 2F, width - stroke / 2F, height - stroke / 2F)
+        skOutlinePaint.color = outline
+        skOutlinePaint.strokeWidth = stroke
+        canvas.drawRoundRect(skTrack, skTrack.height() / 2F, skTrack.height() / 2F, skOutlinePaint)
+
+        val radius = height * 0.46F / 2F
+        val inset = stroke / 2F + (skTrack.height() / 2F - radius)
+        val left = skTrack.left + inset + radius
+        val right = skTrack.right - inset - radius
+        val effective = if (layoutDirection == LAYOUT_DIRECTION_RTL) 1F - pos else pos
+        skDotPaint.color = dot
+        canvas.drawCircle(left + (right - left) * effective, skTrack.centerY(), radius, skDotPaint)
+    }
+
     override fun onDraw(canvas: Canvas) {
+        if (!isInEditMode && ShiroikumaPreferences.isEnabled()) {
+            drawForkSwitch(canvas)
+            super.onDraw(canvas)
+            return
+        }
+
         // Ensure shadow state is up-to-date on every draw
         val hasShadow = animatedShadowRadiusPx > 0f && animatedShadowAlpha > 0f
         if (hasShadow) {

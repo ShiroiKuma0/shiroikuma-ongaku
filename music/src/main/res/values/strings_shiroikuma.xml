@@ -2,226 +2,283 @@
 <resources>
     <!-- 白い熊 音楽 UI (fork-only strings, kept out of upstream strings.xml for rebase safety) -->
     <string name="shiroikuma_ui" translatable="false">白い熊 音楽 UI</string>
-    <string name="shiroikuma_ui_desc" translatable="false">Black-yellow interface — colors, fonts, borders, sizes</string>
+    <string name="shiroikuma_ui_desc">Black-yellow interface — colors, fonts, borders, sizes</string>
 
-    <string name="sk_section_general" translatable="false">General</string>
-    <string name="sk_enable_theme" translatable="false">Enable 白い熊 theme</string>
+    <string name="sk_section_general">General</string>
+    <string name="sk_enable_theme">Enable 白い熊 theme</string>
 
-    <string name="sk_section_colors" translatable="false">Colors</string>
-    <string name="sk_group_foundation" translatable="false">Foundation</string>
-    <string name="sk_color_background" translatable="false">Background</string>
-    <string name="sk_color_text" translatable="false">Text</string>
-    <string name="sk_color_accent" translatable="false">Accent</string>
-    <string name="sk_color_border" translatable="false">Border</string>
-    <string name="sk_group_surfaces" translatable="false">Surfaces</string>
-    <string name="sk_color_highlight" translatable="false">Highlight</string>
-    <string name="sk_color_selected" translatable="false">Selected background</string>
-    <string name="sk_color_divider" translatable="false">Divider</string>
-    <string name="sk_color_spot" translatable="false">Spot</string>
-    <string name="sk_group_text" translatable="false">Text colors</string>
-    <string name="sk_color_text_header" translatable="false">Header</string>
-    <string name="sk_color_text_primary" translatable="false">Primary</string>
-    <string name="sk_color_text_secondary" translatable="false">Secondary</string>
-    <string name="sk_color_text_tertiary" translatable="false">Tertiary</string>
-    <string name="sk_color_settings_note" translatable="false">Settings note (dim gold)</string>
-    <string name="sk_color_text_quaternary" translatable="false">Quaternary</string>
-    <string name="sk_group_icons" translatable="false">Icons</string>
-    <string name="sk_color_icon_regular" translatable="false">Regular</string>
-    <string name="sk_color_icon_secondary" translatable="false">Secondary</string>
-    <string name="sk_color_icon_disabled" translatable="false">Disabled</string>
-    <string name="sk_group_accent" translatable="false">Accent colors</string>
-    <string name="sk_color_accent_primary" translatable="false">Accent primary</string>
-    <string name="sk_color_accent_secondary" translatable="false">Accent secondary</string>
-    <string name="sk_color_switch_off_dim" translatable="false">Switch off (outlined)</string>
-    <string name="sk_color_switch_off" translatable="false">Switch off state</string>
+    <string name="sk_section_colors">Colors</string>
+    <string name="sk_group_foundation">Foundation</string>
+    <string name="sk_color_background">Background</string>
+    <string name="sk_color_text">Text</string>
+    <string name="sk_color_accent">Accent</string>
+    <string name="sk_color_border">Border</string>
+    <string name="sk_group_surfaces">Surfaces</string>
+    <string name="sk_color_highlight">Highlight</string>
+    <string name="sk_color_selected">Selected background</string>
+    <string name="sk_color_divider">Divider</string>
+    <string name="sk_color_spot">Spot</string>
+    <string name="sk_group_text">Text colors</string>
+    <string name="sk_color_text_header">Header</string>
+    <string name="sk_color_text_primary">Primary</string>
+    <string name="sk_color_text_secondary">Secondary</string>
+    <string name="sk_color_text_tertiary">Tertiary</string>
+    <string name="sk_color_settings_note">Settings note (dim gold)</string>
+    <string name="sk_color_text_quaternary">Quaternary</string>
+    <string name="sk_group_icons">Icons</string>
+    <string name="sk_color_icon_regular">Regular</string>
+    <string name="sk_color_icon_secondary">Secondary</string>
+    <string name="sk_color_icon_disabled">Disabled</string>
+    <string name="sk_group_accent">Accent colors</string>
+    <string name="sk_color_accent_primary">Accent primary</string>
+    <string name="sk_color_accent_secondary">Accent secondary</string>
+    <string name="sk_color_switch_off_dim">Switch off (outlined)</string>
+    <string name="sk_color_switch_off">Switch off state</string>
 
-    <string name="sk_section_player" translatable="false">Player</string>
-    <string name="sk_color_visualizer" translatable="false">Visualizer color</string>
-    <string name="sk_keep_screen_on" translatable="false">Keep screen on while playing</string>
+    <string name="sk_section_player">Player</string>
+    <string name="sk_color_visualizer">Visualizer color</string>
+    <string name="sk_keep_screen_on">Keep screen on while playing</string>
 
-    <string name="sk_section_meteors" translatable="false">音楽端灯 (Edge meteors)</string>
-    <string name="sk_meteor_enable" translatable="false">Enable edge meteors</string>
-    <string name="sk_meteor_overlay" translatable="false">System-wide overlay</string>
-    <string name="sk_meteor_reactive" translatable="false">Music reactive (音楽反応)</string>
-    <string name="sk_meteor_reverse" translatable="false">Reverse direction</string>
-    <string name="sk_meteor_group_ribbons" translatable="false">Ribbons</string>
-    <string name="sk_meteor_count" translatable="false">Ribbon count</string>
-    <string name="sk_meteor_spawn_ms" translatable="false">Spawn interval</string>
-    <string name="sk_meteor_period_s" translatable="false">Loop period</string>
-    <string name="sk_meteor_min_len" translatable="false">Min length</string>
-    <string name="sk_meteor_max_len" translatable="false">Max length</string>
-    <string name="sk_meteor_group_band" translatable="false">Band &amp; glow</string>
-    <string name="sk_meteor_padding" translatable="false">Band thickness</string>
-    <string name="sk_meteor_radius" translatable="false">Band corner radius</string>
-    <string name="sk_meteor_corner_mask" translatable="false">Corner mask radius</string>
-    <string name="sk_meteor_glow" translatable="false">Glow size</string>
-    <string name="sk_meteor_glow_layers" translatable="false">Glow layers</string>
-    <string name="sk_meteor_glow_spread" translatable="false">Glow spread</string>
-    <string name="sk_meteor_glow_strength" translatable="false">Glow strength</string>
-    <string name="sk_meteor_head_glow" translatable="false">Head star size</string>
-    <string name="sk_meteor_twinkle" translatable="false">Twinkle depth</string>
-    <string name="sk_meteor_hue_drift" translatable="false">Hue drift</string>
-    <string name="sk_meteor_max_fps" translatable="false">Max FPS</string>
-    <string name="sk_meteor_group_reaction" translatable="false">Motion &amp; reaction</string>
-    <string name="sk_meteor_react_gain" translatable="false">Reaction gain</string>
-    <string name="sk_meteor_react_pulse" translatable="false">Beat pulse depth</string>
-    <string name="sk_meteor_react_kick" translatable="false">Beat kick depth</string>
-    <string name="sk_meteor_react_sharp" translatable="false">Beat pump sharpness</string>
-    <string name="sk_meteor_speed_min" translatable="false">Min speed</string>
-    <string name="sk_meteor_speed_max" translatable="false">Max speed</string>
-    <string name="sk_meteor_speed_change_s" translatable="false">Speed retarget period</string>
+    <string name="sk_section_meteors">音楽端灯 (Edge meteors)</string>
+    <string name="sk_meteor_enable">Enable edge meteors</string>
+    <string name="sk_meteor_overlay">System-wide overlay</string>
+    <string name="sk_meteor_reactive">Music reactive (音楽反応)</string>
+    <string name="sk_meteor_reverse">Reverse direction</string>
+    <string name="sk_meteor_group_ribbons">Ribbons</string>
+    <string name="sk_meteor_count">Ribbon count</string>
+    <string name="sk_meteor_spawn_ms">Spawn interval</string>
+    <string name="sk_meteor_period_s">Loop period</string>
+    <string name="sk_meteor_min_len">Min length</string>
+    <string name="sk_meteor_max_len">Max length</string>
+    <string name="sk_meteor_group_band">Band &amp; glow</string>
+    <string name="sk_meteor_padding">Band thickness</string>
+    <string name="sk_meteor_radius">Band corner radius</string>
+    <string name="sk_meteor_corner_mask">Corner mask radius</string>
+    <string name="sk_meteor_glow">Glow size</string>
+    <string name="sk_meteor_glow_layers">Glow layers</string>
+    <string name="sk_meteor_glow_spread">Glow spread</string>
+    <string name="sk_meteor_glow_strength">Glow strength</string>
+    <string name="sk_meteor_head_glow">Head star size</string>
+    <string name="sk_meteor_twinkle">Twinkle depth</string>
+    <string name="sk_meteor_hue_drift">Hue drift</string>
+    <string name="sk_meteor_max_fps">Max FPS</string>
+    <string name="sk_meteor_group_reaction">Motion &amp; reaction</string>
+    <string name="sk_meteor_react_gain">Reaction gain</string>
+    <string name="sk_meteor_react_pulse">Beat pulse depth</string>
+    <string name="sk_meteor_react_kick">Beat kick depth</string>
+    <string name="sk_meteor_react_sharp">Beat pump sharpness</string>
+    <string name="sk_meteor_speed_min">Min speed</string>
+    <string name="sk_meteor_speed_max">Max speed</string>
+    <string name="sk_meteor_speed_change_s">Speed retarget period</string>
 
-    <string name="sk_section_typography" translatable="false">Typography</string>
-    <string name="sk_font" translatable="false">Font</string>
-    <string name="sk_text_size" translatable="false">Text size</string>
-    <string name="sk_font_weight" translatable="false">Font weight</string>
+    <string name="sk_section_typography">Typography</string>
+    <string name="sk_font">Font</string>
+    <string name="sk_text_size">Text size</string>
+    <string name="sk_font_weight">Font weight</string>
 
-    <string name="sk_section_shape" translatable="false">Shape &amp; spacing</string>
-    <string name="sk_corner_radius" translatable="false">Corner radius</string>
-    <string name="sk_border_width" translatable="false">Border width</string>
-    <string name="sk_list_spacing" translatable="false">List spacing</string>
+    <string name="sk_section_shape">Shape &amp; spacing</string>
+    <string name="sk_corner_radius">Corner radius</string>
+    <string name="sk_border_width">Border width</string>
+    <string name="sk_list_spacing">List spacing</string>
 
-    <string name="sk_preview_header" translatable="false">白い熊 音楽 — Header</string>
-    <string name="sk_preview_primary" translatable="false">Primary text AaIiMmQq 0123456789 白い熊相撲道</string>
-    <string name="sk_preview_secondary" translatable="false">Secondary text — artists, albums, details</string>
-    <string name="sk_preview_tertiary" translatable="false">Tertiary text — hints and captions</string>
-    <string name="sk_preview_accent" translatable="false">Accent</string>
+    <string name="sk_preview_header">白い熊 音楽 — Header</string>
+    <string name="sk_preview_primary">Primary text AaIiMmQq 0123456789 白い熊相撲道</string>
+    <string name="sk_preview_secondary">Secondary text — artists, albums, details</string>
+    <string name="sk_preview_tertiary">Tertiary text — hints and captions</string>
+    <string name="sk_preview_accent">Accent</string>
 
-    <string name="sk_recent_colors" translatable="false">Recent colors</string>
+    <string name="sk_recent_colors">Recent colors</string>
     <string name="sk_red" translatable="false">R</string>
     <string name="sk_green" translatable="false">G</string>
     <string name="sk_blue" translatable="false">B</string>
     <string name="sk_alpha" translatable="false">A</string>
-    <string name="sk_apply" translatable="false">Apply</string>
-    <string name="sk_cancel" translatable="false">Cancel</string>
-    <string name="sk_default" translatable="false">Default</string>
-    <string name="sk_add_font" translatable="false">Add font…</string>
-    <string name="sk_system_default_font" translatable="false">System default</string>
-    <string name="sk_font_invalid" translatable="false">Not a usable font file (.ttf / .otf)</string>
-    <string name="sk_none" translatable="false">none</string>
+    <string name="sk_apply">Apply</string>
+    <string name="sk_cancel">Cancel</string>
+    <string name="sk_default">Default</string>
+    <string name="sk_add_font">Add font…</string>
+    <string name="sk_system_default_font">System default</string>
+    <string name="sk_font_invalid">Not a usable font file (.ttf / .otf)</string>
+    <string name="sk_none">none</string>
 
-    <string name="sk_section_automation" translatable="false">Automation</string>
-    <string name="sk_automation_enable" translatable="false">Enable automation intents</string>
-    <string name="sk_automation_enable_desc" translatable="false">Lets 自由作業盤 and 応用管理 drive export and import headlessly. The data door checks the caller’s package, uid and signing certificate on every request.</string>
-    <string name="sk_automation_require_token" translatable="false">Use authorization token?</string>
-    <string name="sk_automation_require_token_desc" translatable="false">Off by default: a pasted secret cannot survive a wipe, and the case this serves is 応用管理 restoring this app and its data onto a clean phone.</string>
-    <string name="sk_automation_token" translatable="false">Token</string>
-    <string name="sk_automation_token_copied" translatable="false">Token copied to clipboard</string>
-    <string name="sk_automation_regenerate" translatable="false">Regenerate token</string>
-    <string name="sk_automation_regenerate_desc" translatable="false">Replaces the token above at once. Anything still holding the old one stops being let in.</string>
-    <string name="sk_automation_token_regenerated" translatable="false">New token generated</string>
-    <string name="sk_automation_allfiles" translatable="false">All-files access (保存復元 path)</string>
-    <string name="sk_automation_allfiles_on" translatable="false">Granted</string>
-    <string name="sk_automation_allfiles_off" translatable="false">Not granted — tap to allow</string>
+    <string name="sk_section_automation">Automation</string>
+    <string name="sk_automation_enable">Enable automation intents</string>
+    <string name="sk_automation_enable_desc">Lets 自由作業盤 and 応用管理 drive export and import headlessly. The data door checks the caller’s package, uid and signing certificate on every request.</string>
+    <string name="sk_automation_require_token">Use authorization token?</string>
+    <string name="sk_automation_require_token_desc">Off by default: a pasted secret cannot survive a wipe, and the case this serves is 応用管理 restoring this app and its data onto a clean phone.</string>
+    <string name="sk_automation_token">Token</string>
+    <string name="sk_automation_token_copied">Token copied to clipboard</string>
+    <string name="sk_automation_regenerate">Regenerate token</string>
+    <string name="sk_automation_regenerate_desc">Replaces the token above at once. Anything still holding the old one stops being let in.</string>
+    <string name="sk_automation_token_regenerated">New token generated</string>
+    <string name="sk_automation_allfiles">All-files access (保存復元 path)</string>
+    <string name="sk_automation_allfiles_on">Granted</string>
+    <string name="sk_automation_allfiles_off">Not granted — tap to allow</string>
 
-    <string name="sk_section_library" translatable="false">Library</string>
-    <string name="sk_import_poweramp" translatable="false">Import PowerAmp ratings</string>
-    <string name="sk_import_poweramp_desc" translatable="false">Reads a .poweramp-backup file and turns every rated track into a favourite here.</string>
-    <string name="sk_poweramp_importing" translatable="false">Importing PowerAmp ratings…</string>
-    <string name="sk_poweramp_result" translatable="false">%1$d rated tracks: %2$d favorited, %3$d not found</string>
-    <string name="sk_poweramp_failed" translatable="false">PowerAmp import failed: %1$s</string>
-    <string name="sk_import_poweramp_art" translatable="false">Import PowerAmp album art</string>
-    <string name="sk_import_poweramp_art_desc" translatable="false">Reads a PowerAmp art export and embeds the covers into the matching files.</string>
-    <string name="sk_poweramp_art_importing" translatable="false">Importing PowerAmp album art…</string>
-    <string name="sk_poweramp_art_result" translatable="false">%1$d art files: %2$d songs updated, %3$d already had art, %4$d albums not matched, %5$d failed</string>
-    <string name="sk_poweramp_art_failed" translatable="false">PowerAmp art import failed: %1$s</string>
-    <string name="sk_download_album_art" translatable="false">Download missing album art</string>
-    <string name="sk_download_album_art_desc" translatable="false">Scans the library and fills every album without a cover from the Cover Art Archive. No picker — it runs straight away.</string>
-    <string name="sk_album_art_result" translatable="false">%1$d albums missing art: %2$d downloaded &amp; embedded (%3$d files), %4$d not found online, %5$d failed</string>
-    <string name="sk_album_art_failed" translatable="false">Album art download failed: %1$s</string>
+    <string name="sk_section_library">Library</string>
+    <string name="sk_import_poweramp">Import PowerAmp ratings</string>
+    <string name="sk_import_poweramp_desc">Reads a .poweramp-backup file and turns every rated track into a favourite here.</string>
+    <string name="sk_poweramp_importing">Importing PowerAmp ratings…</string>
+    <string name="sk_poweramp_result">%1$d rated tracks: %2$d favorited, %3$d not found</string>
+    <string name="sk_poweramp_failed">PowerAmp import failed: %1$s</string>
+    <string name="sk_import_poweramp_art">Import PowerAmp album art</string>
+    <string name="sk_import_poweramp_art_desc">Reads a PowerAmp art export and embeds the covers into the matching files.</string>
+    <string name="sk_poweramp_art_importing">Importing PowerAmp album art…</string>
+    <string name="sk_poweramp_art_result">%1$d art files: %2$d songs updated, %3$d already had art, %4$d albums not matched, %5$d failed</string>
+    <string name="sk_poweramp_art_failed">PowerAmp art import failed: %1$s</string>
+    <string name="sk_download_album_art">Download missing album art</string>
+    <string name="sk_download_album_art_desc">Scans the library and fills every album without a cover from the Cover Art Archive. No picker — it runs straight away.</string>
+    <string name="sk_album_art_result">%1$d albums missing art: %2$d downloaded &amp; embedded (%3$d files), %4$d not found online, %5$d failed</string>
+    <string name="sk_album_art_failed">Album art download failed: %1$s</string>
 
     <!-- Interactive "Download album art" picker (song menu + album page menu) -->
-    <string name="sk_download_art" translatable="false">Album art download/change</string>
-    <string name="sk_art_album_hint" translatable="false">Album</string>
-    <string name="sk_art_artist_hint" translatable="false">Artist</string>
-    <string name="sk_art_search" translatable="false">Search</string>
-    <string name="sk_art_searching" translatable="false">Searching covers…</string>
-    <string name="sk_art_no_results" translatable="false">No covers found</string>
-    <string name="sk_art_candidates" translatable="false">%1$d cover(s) found</string>
-    <string name="sk_art_network_error" translatable="false">Network error: %1$s</string>
-    <string name="sk_art_loading_preview" translatable="false">Loading full cover…</string>
-    <string name="sk_art_preview_failed" translatable="false">Could not load the full cover</string>
-    <string name="sk_art_embed_prompt" translatable="false">Embed into %1$d file(s)?</string>
-    <string name="sk_art_embedding" translatable="false">Embedding…</string>
-    <string name="sk_art_embed_result" translatable="false">Embedded into %1$d file(s)</string>
-    <string name="sk_art_embed_result_failed" translatable="false">Embedded into %1$d file(s), %2$d failed</string>
+    <string name="sk_download_art">Album art download/change</string>
+    <string name="sk_art_album_hint">Album</string>
+    <string name="sk_art_artist_hint">Artist</string>
+    <string name="sk_art_search">Search</string>
+    <string name="sk_art_searching">Searching covers…</string>
+    <string name="sk_art_no_results">No covers found</string>
+    <string name="sk_art_candidates">%1$d cover(s) found</string>
+    <string name="sk_art_network_error">Network error: %1$s</string>
+    <string name="sk_art_loading_preview">Loading full cover…</string>
+    <string name="sk_art_preview_failed">Could not load the full cover</string>
+    <string name="sk_art_embed_prompt">Embed into %1$d file(s)?</string>
+    <string name="sk_art_embedding">Embedding…</string>
+    <string name="sk_art_embed_result">Embedded into %1$d file(s)</string>
+    <string name="sk_art_embed_result_failed">Embedded into %1$d file(s), %2$d failed</string>
 
     <!-- Manual art sources in the interactive picker -->
-    <string name="sk_art_pick_image" translatable="false">Choose image from storage…</string>
-    <string name="sk_art_paste_image" translatable="false">Paste image</string>
-    <string name="sk_art_source_storage" translatable="false">Image from storage</string>
-    <string name="sk_art_source_clipboard" translatable="false">Image from clipboard</string>
-    <string name="sk_art_clipboard_no_image" translatable="false">Clipboard has no usable image</string>
-    <string name="sk_art_image_invalid" translatable="false">Could not decode that image</string>
+    <string name="sk_art_pick_image">Choose image from storage…</string>
+    <string name="sk_art_paste_image">Paste image</string>
+    <string name="sk_art_source_storage">Image from storage</string>
+    <string name="sk_art_source_clipboard">Image from clipboard</string>
+    <string name="sk_art_clipboard_no_image">Clipboard has no usable image</string>
+    <string name="sk_art_image_invalid">Could not decode that image</string>
 
     <!-- Export / Import (Kōjiki flow, kxkb look, ArcaneChat buttons) -->
-    <string name="sk_eim_section" translatable="false">Export / Import</string>
-    <string name="sk_eim_row" translatable="false">Export / Import…</string>
-    <string name="sk_eim_title" translatable="false">Export / Import — 白い熊 音楽</string>
-    <string name="sk_eim_desc" translatable="false">Export or import every setting — theme, meteors, automation, app settings, ratings, playlists — by category.</string>
-    <string name="sk_eim_dir_caption" translatable="false">Export directory (tap to choose)</string>
-    <string name="sk_eim_dir_unset" translatable="false">Not set — tap to choose a directory</string>
-    <string name="sk_eim_warn_nodir" translatable="false">No directory set yet — pick one to enable one-tap export.</string>
-    <string name="sk_eim_warn_none" translatable="false">No export in this directory yet.</string>
-    <string name="sk_eim_last_export" translatable="false">Last export: %1$s</string>
-    <string name="sk_eim_select_all" translatable="false">Select all</string>
-    <string name="sk_eim_cat_ui" translatable="false">白い熊 UI theme</string>
-    <string name="sk_eim_cat_meteors" translatable="false">音楽端灯 (Edge meteors)</string>
-    <string name="sk_eim_cat_automation" translatable="false">Automation (device-local)</string>
-    <string name="sk_eim_cat_app" translatable="false">App settings</string>
-    <string name="sk_eim_cat_ratings" translatable="false">Ratings (favorites)</string>
-    <string name="sk_eim_cat_playlists" translatable="false">Playlists</string>
-    <string name="sk_eim_export" translatable="false">Export</string>
-    <string name="sk_eim_import" translatable="false">Import</string>
-    <string name="sk_eim_none_selected" translatable="false">No categories selected.</string>
-    <string name="sk_eim_exporting" translatable="false">Exporting…</string>
-    <string name="sk_eim_importing" translatable="false">Importing…</string>
-    <string name="sk_eim_export_done_title" translatable="false">✓ Export finished</string>
-    <string name="sk_eim_export_ok" translatable="false">Exported: %1$s</string>
-    <string name="sk_eim_export_fail" translatable="false">Export failed: %1$s</string>
-    <string name="sk_eim_import_done_title" translatable="false">✓ Import finished</string>
-    <string name="sk_eim_import_done_body" translatable="false">Restored:\n\n%1$s\n\nRestart to apply everything.</string>
-    <string name="sk_eim_import_fail" translatable="false">Import failed: %1$s</string>
-    <string name="sk_eim_import_none" translatable="false">Not a 白い熊 音楽 export file</string>
-    <string name="sk_eim_restart_now" translatable="false">Restart now</string>
-    <string name="sk_eim_restart_later" translatable="false">Later</string>
-    <string name="sk_eim_keys_applied" translatable="false">%1$d keys applied</string>
-    <string name="sk_eim_ratings_result" translatable="false">%1$d favorited, %2$d not found</string>
-    <string name="sk_eim_playlists_result" translatable="false">%1$d created, %2$d merged, %3$d songs added, %4$d not found</string>
-    <string name="sk_eim_deferred" translatable="false">%1$d kept waiting for the next library scan</string>
+    <string name="sk_eim_section">Export / Import</string>
+    <string name="sk_eim_row">Export / Import…</string>
+    <string name="sk_eim_title">Export / Import — 白い熊 音楽</string>
+    <string name="sk_eim_desc">Export or import every setting — theme, meteors, automation, app settings, ratings, playlists — by category.</string>
+    <string name="sk_eim_dir_caption">Export directory (tap to choose)</string>
+    <string name="sk_eim_dir_unset">Not set — tap to choose a directory</string>
+    <string name="sk_eim_warn_nodir">No directory set yet — pick one to enable one-tap export.</string>
+    <string name="sk_eim_warn_none">No export in this directory yet.</string>
+    <string name="sk_eim_last_export">Last export: %1$s</string>
+    <string name="sk_eim_select_all">Select all</string>
+    <string name="sk_eim_cat_ui">白い熊 UI theme</string>
+    <string name="sk_eim_cat_meteors">音楽端灯 (Edge meteors)</string>
+    <string name="sk_eim_cat_automation">Automation (device-local)</string>
+    <string name="sk_eim_cat_app">App settings</string>
+    <string name="sk_eim_cat_ratings">Ratings (favorites)</string>
+    <string name="sk_eim_cat_playlists">Playlists</string>
+    <string name="sk_eim_export">Export</string>
+    <string name="sk_eim_import">Import</string>
+    <string name="sk_eim_none_selected">No categories selected.</string>
+    <string name="sk_eim_exporting">Exporting…</string>
+    <string name="sk_eim_importing">Importing…</string>
+    <string name="sk_eim_export_done_title">✓ Export finished</string>
+    <string name="sk_eim_export_ok">Exported: %1$s</string>
+    <string name="sk_eim_export_fail">Export failed: %1$s</string>
+    <string name="sk_eim_import_done_title">✓ Import finished</string>
+    <string name="sk_eim_import_done_body">Restored:\n\n%1$s\n\nRestart to apply everything.</string>
+    <string name="sk_eim_import_fail">Import failed: %1$s</string>
+    <string name="sk_eim_import_none">Not a 白い熊 音楽 export file</string>
+    <string name="sk_eim_restart_now">Restart now</string>
+    <string name="sk_eim_restart_later">Later</string>
+    <string name="sk_eim_keys_applied">%1$d keys applied</string>
+    <string name="sk_eim_ratings_result">%1$d favorited, %2$d not found</string>
+    <string name="sk_eim_playlists_result">%1$d created, %2$d merged, %3$d songs added, %4$d not found</string>
+    <string name="sk_eim_deferred">%1$d kept waiting for the next library scan</string>
 
     <!-- Directory-grant repair: the music-directory list survives a restore, the permission to read it does not. -->
-    <string name="sk_grant_lost_heading" translatable="false">Access lost — needs granting again (the picker opens there):</string>
-    <string name="sk_grant_title" translatable="false">Music directory access needs granting again</string>
-    <string name="sk_grant_body" translatable="false">This copy of 白い熊 音楽 no longer has permission to read a music directory it used to. Permission belongs to an installation, not to your data, so a restored or reinstalled copy always starts out this way — the directory list, favorites and playlists are intact and nothing can be scanned. Pick the same directory again and the library, favorites and playlists come back exactly as before.</string>
-    <string name="sk_grant_choose" translatable="false">Choose the directory</string>
-    <string name="sk_grant_forget" translatable="false">Forget it</string>
-    <string name="sk_grant_not_now" translatable="false">Not now</string>
-    <string name="sk_grant_regranted" translatable="false">Directory access restored — scanning the library</string>
+    <string name="sk_grant_lost_heading">Access lost — needs granting again (the picker opens there):</string>
+    <string name="sk_grant_title">Music directory access needs granting again</string>
+    <string name="sk_grant_body">This copy of 白い熊 音楽 no longer has permission to read a music directory it used to. Permission belongs to an installation, not to your data, so a restored or reinstalled copy always starts out this way — the directory list, favorites and playlists are intact and nothing can be scanned. Pick the same directory again and the library, favorites and playlists come back exactly as before.</string>
+    <string name="sk_grant_choose">Choose the directory</string>
+    <string name="sk_grant_forget">Forget it</string>
+    <string name="sk_grant_not_now">Not now</string>
+    <string name="sk_grant_regranted">Directory access restored — scanning the library</string>
 
     <!-- Library status pill above the mini player: the scan, and a restore waiting for it. -->
-    <string name="sk_status_scanning" translatable="false">Scanning the library…</string>
-    <string name="sk_status_scanning_n" translatable="false">Scanning the library — 楽曲 %1$d/%2$d</string>
-    <string name="sk_status_pending" translatable="false">Restore waiting for the scan: %1$d favorites · %2$d playlists (%3$d songs)</string>
-    <string name="sk_status_pending_idle" translatable="false">Restore waiting for a library scan: %1$d favorites · %2$d playlists (%3$d songs)</string>
-    <string name="sk_status_applied" translatable="false">✓ Restored %1$d favorites · %2$d playlists (%3$d songs)</string>
+    <string name="sk_status_scanning">Scanning the library…</string>
+    <string name="sk_status_scanning_n">Scanning the library — 楽曲 %1$d/%2$d</string>
+    <string name="sk_status_pending">Restore waiting for the scan: %1$d favorites · %2$d playlists (%3$d songs)</string>
+    <string name="sk_status_pending_idle">Restore waiting for a library scan: %1$d favorites · %2$d playlists (%3$d songs)</string>
+    <string name="sk_status_applied">✓ Restored %1$d favorites · %2$d playlists (%3$d songs)</string>
 
     <!-- The waiting room: every favourite / playlist song a restore could not attach, reviewed one by one. -->
-    <string name="sk_pending_row" translatable="false">Waiting restore…</string>
-    <string name="sk_pending_row_status" translatable="false">%1$d favorites · %2$d playlist songs could not be matched yet — tap to review</string>
-    <string name="sk_pending_title" translatable="false">Waiting restore</string>
-    <string name="sk_pending_body" translatable="false">These favorites and playlist songs came from the backup but matched nothing in the library — by document id or by path. Under each is what the library holds under the same file name: use it, pick one, or discard the entry. Nothing here is guessed for you.</string>
-    <string name="sk_pending_playlist" translatable="false">Playlist 「%1$s」</string>
-    <string name="sk_pending_no_match" translatable="false">No song with this file name in the library.</string>
-    <string name="sk_pending_one_match" translatable="false">In the library: %1$s</string>
-    <string name="sk_pending_many_matches" translatable="false">%1$d songs in the library carry this file name.</string>
-    <string name="sk_pending_use" translatable="false">Use</string>
-    <string name="sk_pending_choose" translatable="false">Choose…</string>
-    <string name="sk_pending_discard" translatable="false">Discard</string>
-    <string name="sk_pending_discard_all" translatable="false">Discard all</string>
-    <string name="sk_pending_use_all" translatable="false">Use all suggestions</string>
-    <string name="sk_pending_retry" translatable="false">Retry now</string>
-    <string name="sk_pending_close" translatable="false">Close</string>
-    <string name="sk_pending_none" translatable="false">Nothing is waiting — everything is restored.</string>
-    <string name="sk_pending_used_n" translatable="false">✓ %1$d suggestions used</string>
+    <string name="sk_pending_row">Waiting restore…</string>
+    <string name="sk_pending_row_status">%1$d favorites · %2$d playlist songs could not be matched yet — tap to review</string>
+    <string name="sk_pending_title">Waiting restore</string>
+    <string name="sk_pending_body">These favorites and playlist songs came from the backup but matched nothing in the library — by document id or by path. Under each is what the library holds under the same file name: use it, pick one, or discard the entry. Nothing here is guessed for you.</string>
+    <string name="sk_pending_playlist">Playlist 「%1$s」</string>
+    <string name="sk_pending_no_match">No song with this file name in the library.</string>
+    <string name="sk_pending_one_match">In the library: %1$s</string>
+    <string name="sk_pending_many_matches">%1$d songs in the library carry this file name.</string>
+    <string name="sk_pending_use">Use</string>
+    <string name="sk_pending_choose">Choose…</string>
+    <string name="sk_pending_discard">Discard</string>
+    <string name="sk_pending_discard_all">Discard all</string>
+    <string name="sk_pending_use_all">Use all suggestions</string>
+    <string name="sk_pending_retry">Retry now</string>
+    <string name="sk_pending_close">Close</string>
+    <string name="sk_pending_none">Nothing is waiting — everything is restored.</string>
+    <string name="sk_pending_used_n">✓ %1$d suggestions used</string>
+
+    <!-- 白い熊 音楽 UI page: the settings link, the folding sections and the per-item colour roles -->
+    <string name="sk_app_settings">App settings</string>
+    <string name="sk_app_settings_desc">Library, audio, behaviour and everything else the app itself offers.</string>
+    <string name="sk_section_buttons">Buttons</string>
+    <string name="sk_section_foundation">Foundation</string>
+    <string name="sk_section_text">Text</string>
+    <string name="sk_section_surfaces">Surfaces and lists</string>
+    <string name="sk_section_switches">Switches</string>
+    <string name="sk_section_dialogs">Dialogs</string>
+    <string name="sk_section_icons">Icons</string>
+    <string name="sk_section_menus">Menus</string>
+    <string name="sk_section_page">Settings page</string>
+    <string name="sk_section_maintenance">Maintenance</string>
+    <string name="sk_color_button_text">Button label</string>
+    <string name="sk_color_button_frame">Button frame</string>
+    <string name="sk_color_button_ground">Button ground</string>
+    <string name="sk_color_button_delete">Button that deletes</string>
+    <string name="sk_color_dialog_ground">Dialog ground</string>
+    <string name="sk_color_dialog_frame">Dialog frame</string>
+    <string name="sk_color_dialog_title">Dialog title</string>
+    <string name="sk_color_dialog_text">Dialog text</string>
+    <string name="sk_color_switch_on_outline">Switch on: outline</string>
+    <string name="sk_color_switch_on_dot">Switch on: dot</string>
+    <string name="sk_color_switch_off_dot">Switch off: dot</string>
+    <string name="sk_color_check_tick">Tick of a check box</string>
+    <string name="sk_color_menu_label">Menu label</string>
+    <string name="sk_color_menu_row_frame">Menu row frame</string>
+    <string name="sk_color_menu_divider">Menu divider</string>
+    <string name="sk_group_menu_icons">Icons, by what a row does</string>
+    <string name="sk_color_menu_icon_connect">Plays, starts, refreshes, resets</string>
+    <string name="sk_color_menu_icon_write">Writes, edits, searches</string>
+    <string name="sk_color_menu_icon_person">Artist, album, genre</string>
+    <string name="sk_color_menu_icon_share">Shares, adds to a queue or playlist</string>
+    <string name="sk_color_menu_icon_view">Views, opens, settings</string>
+    <string name="sk_color_menu_icon_block">Skips, hides, cancels</string>
+    <string name="sk_color_menu_icon_delete">Deletes, removes</string>
+    <string name="sk_group_section_icons">Section icons of this page</string>
+    <string name="sk_color_section_base">The base: the app and its settings</string>
+    <string name="sk_color_section_controls">Controls: what you operate</string>
+    <string name="sk_color_section_words">Words, written and read</string>
+    <string name="sk_color_section_frame">The frame and its boxes</string>
+    <string name="sk_color_section_reach">The app reaches out: asks, offers, hands over</string>
+    <string name="sk_color_section_warning">Warning: resets, wipes, diagnostics</string>
+    <string name="sk_color_section_flash">A brief flash</string>
+    <string name="sk_group_chips">Index chips</string>
+    <string name="sk_color_chip_text">Chip label</string>
+    <string name="sk_color_chip_frame">Chip frame</string>
+    <string name="sk_reset_section_order">Reset section order</string>
+    <string name="sk_reset_section_order_desc">Puts the sections of this page back in their original order.</string>
+    <string name="sk_reset_section_order_done">Section order reset</string>
+    <string name="sk_reset_all_colors">Reset all colours</string>
+    <string name="sk_reset_all_colors_desc">Every colour on this page goes back to its default.</string>
+    <string name="sk_reset_all_colors_title">Reset all colours?</string>
+    <string name="sk_reset_all_colors_body">Every colour you have set on this page is replaced by its default. Fonts, sizes and the other settings stay as they are.</string>
+    <string name="sk_reset_all_colors_confirm">Reset</string>
+    <string name="sk_reset_all_colors_done">All colours reset</string>
 </resources>

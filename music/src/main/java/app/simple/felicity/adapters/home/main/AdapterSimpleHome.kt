@@ -45,6 +45,7 @@ class AdapterSimpleHome(private val data: MutableList<Any>) : RecyclerView.Adapt
                 val dataItem = data[position] as Panel
                 holder.binding.title.text = holder.context.getString(dataItem.titleResId)
                 holder.binding.icon.setImageResource(dataItem.iconResId)
+                holder.binding.icon.setForkRoleFromTitle(dataItem.titleResId) // Fork: icon coloured by role
 
                 holder.binding.container.setOnClickListener {
                     adapterSimpleHomeCallbacks?.onItemClicked(dataItem, holder.bindingAdapterPosition, holder.binding.container)
@@ -54,6 +55,7 @@ class AdapterSimpleHome(private val data: MutableList<Any>) : RecyclerView.Adapt
                 val dataItem = data[position] as Panel
                 holder.binding.title.text = holder.context.getString(dataItem.titleResId)
                 holder.binding.icon.setImageResource(dataItem.iconResId)
+                holder.binding.icon.setForkRoleFromTitle(dataItem.titleResId) // Fork: icon coloured by role
 
                 holder.binding.container.setOnClickListener {
                     adapterSimpleHomeCallbacks?.onItemClicked(dataItem, holder.bindingAdapterPosition, holder.binding.container)

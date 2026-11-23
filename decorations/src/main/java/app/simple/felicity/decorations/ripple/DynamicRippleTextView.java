@@ -148,7 +148,28 @@ public class DynamicRippleTextView extends TypeFaceTextView {
         }
     }
     
+    // Fork (白い熊 音楽 UI): the icon of a button or menu row is coloured by what the row does.
+    @Nullable
+    @Override
+    protected Integer forkDrawableTint() {
+        return app.simple.felicity.decorations.shiroikuma.SkPills.iconTint(this);
+    }
+    
+    @Override
+    public void setEnabled(boolean enabled) {
+        super.setEnabled(enabled);
+        if (isClickable() && app.simple.felicity.decorations.shiroikuma.SkPills.isButton(this)) {
+            setAlpha(enabled ? 1F : 0.38F);
+        }
+    }
+    
     private void setHighlightBackgroundColor() {
+        // Fork (白い熊 音楽 UI): every text button and menu row is an outlined pill.
+        if (app.simple.felicity.decorations.shiroikuma.SkPills.isButton(this)) {
+            app.simple.felicity.decorations.shiroikuma.SkPills.style(this);
+            return;
+        }
+        
         if (AccessibilityPreferences.INSTANCE.isHighlightMode()) {
             LayoutBackground.setBackground(getContext(), this, null);
             setBackgroundTintList(ColorStateList.valueOf(ThemeManager.INSTANCE.getTheme().getViewGroupTheme().getHighlightColor()));

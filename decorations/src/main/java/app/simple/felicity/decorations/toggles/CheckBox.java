@@ -119,12 +119,16 @@ public class CheckBox extends View implements ThemeChangedListener, SharedPrefer
         checkStrokePaint.setStyle(Paint.Style.STROKE);
         checkStrokePaint.setStrokeCap(Paint.Cap.ROUND);
         checkStrokePaint.setStrokeJoin(Paint.Join.ROUND);
-        checkStrokePaint.setColor(Color.WHITE);
+        // Fork (白い熊 音楽 UI): no white in the theme — the tick is a settable role.
+        int tick = !isInEditMode() && app.simple.felicity.decorations.shiroikuma.SkPills.enabled()
+                ? app.simple.felicity.decorations.shiroikuma.SkPills.color(app.simple.felicity.preferences.ShiroikumaPreferences.CHECK_TICK)
+                : Color.WHITE;
+        checkStrokePaint.setColor(tick);
         
         checkedIcon = ContextCompat.getDrawable(getContext(), R.drawable.ic_check);
         
         if (checkedIcon != null) {
-            checkedIcon.setTint(Color.WHITE);
+            checkedIcon.setTint(tick);
         }
         
         if (!isInEditMode()) {

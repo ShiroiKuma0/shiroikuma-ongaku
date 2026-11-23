@@ -34,6 +34,7 @@ import app.simple.felicity.decorations.corners.DynamicCornerFrameLayout
 import app.simple.felicity.decorations.corners.DynamicCornerLinearLayout
 import app.simple.felicity.decorations.corners.DynamicCornersNestedScrollView
 import app.simple.felicity.decorations.ripple.RippleUtils
+import app.simple.felicity.decorations.shiroikuma.SkPills
 import app.simple.felicity.decorations.typeface.TypeFaceTextView
 import app.simple.felicity.decorations.typeface.TypefaceStyle
 import app.simple.felicity.theme.managers.ThemeManager
@@ -134,7 +135,8 @@ class SharedScrollViewPopupNonContainer @JvmOverloads constructor(
                 setPadding(hPad, vPad, hPad * 2, vPad)
                 isClickable = true
                 isFocusable = true
-                RippleUtils.setForegroundDrawable(this)
+                // Fork (白い熊 音楽 UI): a row of an action menu is a full-width outlined pill.
+                if (!SkPills.menuRow(this, hasAnyIcon, item.title)) RippleUtils.setForegroundDrawable(this)
                 setOnClickListener {
                     when (item.title) {
                         is Int -> onMenuItemClick(item.title)
@@ -156,7 +158,7 @@ class SharedScrollViewPopupNonContainer @JvmOverloads constructor(
                     scaleType = ImageView.ScaleType.FIT_CENTER
                     if (item.icon != 0) {
                         setImageDrawable(ContextCompat.getDrawable(context, item.icon))
-                        imageTintList = ColorStateList.valueOf(ThemeManager.accent.primaryAccentColor)
+                        imageTintList = ColorStateList.valueOf(SkPills.menuIconColor(context, hasAnyIcon, item.title, ThemeManager.accent.primaryAccentColor))
                     } else {
                         // Transparent placeholder to maintain icon-column width
                         visibility = View.INVISIBLE
@@ -175,8 +177,8 @@ class SharedScrollViewPopupNonContainer @JvmOverloads constructor(
             }
 
             val titleView = TypeFaceTextView(context).apply {
-                setTypeFaceStyle(TypefaceStyle.BOLD.style)
-                setTextColor(ThemeManager.theme.textViewTheme.primaryTextColor)
+                setTypeFaceStyle(if (SkPills.isActionMenu(hasAnyIcon)) TypefaceStyle.REGULAR.style else TypefaceStyle.BOLD.style)
+                setTextColor(SkPills.menuLabelColor(context, hasAnyIcon, item.title, ThemeManager.theme.textViewTheme.primaryTextColor))
                 text = when (item.title) {
                     is Int -> context.getString(item.title)
                     is String -> item.title
@@ -198,6 +200,7 @@ class SharedScrollViewPopupNonContainer @JvmOverloads constructor(
             }
 
             itemLayout.addView(textColumn)
+            SkPills.addMenuChevron(itemLayout, hasAnyIcon, item.title)
             linearLayout.addView(itemLayout)
         }
 
@@ -227,7 +230,8 @@ class SharedScrollViewPopupNonContainer @JvmOverloads constructor(
 
         val popupWidth = popupScrollView.measuredWidth
         val popupHeight = popupScrollView.measuredHeight
-        val maxHeight = (screenHeight * 2f / 3f).toInt()
+        // Fork (白い熊 音楽 UI): use the whole height before scrolling.
+        val maxHeight = if (SkPills.enabled()) screenHeight - 2 * marginPx else (screenHeight * 2f / 3f).toInt()
 
         val finalHeight = if (popupHeight > maxHeight) maxHeight else CoordinatorLayout.LayoutParams.WRAP_CONTENT
 

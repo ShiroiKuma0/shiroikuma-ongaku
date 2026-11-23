@@ -223,12 +223,12 @@ class EqualizerPresets : MediaFragment() {
                 anchorView = anchorView,
                 menuItems = if (preset.isBuiltIn) {
                     listOf(
-                            PopupMenuItem(title = R.string.apply_preset),
+                            PopupMenuItem(title = R.string.apply_preset, icon = R.drawable.ic_check), // Fork: icons make it an action menu
                     )
                 } else {
                     listOf(
-                            PopupMenuItem(title = R.string.apply_preset),
-                            PopupMenuItem(title = R.string.delete),
+                            PopupMenuItem(title = R.string.apply_preset, icon = R.drawable.ic_check), // Fork: icons make it an action menu
+                            PopupMenuItem(title = R.string.delete, icon = R.drawable.ic_delete),
                     )
                 },
                 onMenuItemClick = {

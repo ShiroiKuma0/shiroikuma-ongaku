@@ -101,6 +101,7 @@ class GenericPreferencesAdapter(
 
                 if (preference.icon != -1) {
                     holder.binding.icon.setImageResource(preference.icon)
+                    holder.binding.icon.setForkRoleFromTitle(preference.title) // Fork: icon coloured by role
                 }
 
                 holder.binding.popup.setOnClickListener {
@@ -120,6 +121,7 @@ class GenericPreferencesAdapter(
                 holder.binding.summary.setSummary(preference)
                 if (preference.icon != -1) {
                     holder.binding.icon.setImageResource(preference.icon)
+                    holder.binding.icon.setForkRoleFromTitle(preference.title) // Fork: icon coloured by role
                 }
                 holder.binding.root.parent?.requestLayout()
 
@@ -141,6 +143,7 @@ class GenericPreferencesAdapter(
                 holder.binding.summary.setSummary(preference)
                 if (preference.icon != -1) {
                     holder.binding.icon.setImageResource(preference.icon)
+                    holder.binding.icon.setForkRoleFromTitle(preference.title) // Fork: icon coloured by role
                 }
                 holder.binding.slider.setProgress(seekbarState.position, false)
                 holder.binding.slider.setDefaultProgress(seekbarState.default)
@@ -180,6 +183,7 @@ class GenericPreferencesAdapter(
                 holder.binding.summary.setSummary(preference)
                 if (preference.icon != -1) {
                     holder.binding.icon.setImageResource(preference.icon)
+                    holder.binding.icon.setForkRoleFromTitle(preference.title) // Fork: icon coloured by role
                 }
 
                 holder.binding.container.setOnClickListener {
@@ -197,6 +201,7 @@ class GenericPreferencesAdapter(
                 holder.binding.summary.setSummary(preference)
                 if (preference.icon != -1) {
                     holder.binding.icon.setImageResource(preference.icon)
+                    holder.binding.icon.setForkRoleFromTitle(preference.title) // Fork: icon coloured by role
                 }
                 holder.binding.switchToggle.setChecked(preference.valueAsBooleanProvider ?: false, false)
 
@@ -221,6 +226,7 @@ class GenericPreferencesAdapter(
 
                 if (preference.icon != -1) {
                     holder.binding.icon.setImageResource(preference.icon)
+                    holder.binding.icon.setForkRoleFromTitle(preference.title) // Fork: icon coloured by role
                 }
 
                 val state = preference.valueAsButtonGroupStateProvider
@@ -242,6 +248,7 @@ class GenericPreferencesAdapter(
                 holder.binding.summary.setSummary(preference)
                 if (preference.icon != -1) {
                     holder.binding.icon.setImageResource(preference.icon)
+                    holder.binding.icon.setForkRoleFromTitle(preference.title) // Fork: icon coloured by role
                 }
 
                 holder.binding.container.setOnClickListener {
@@ -259,6 +266,7 @@ class GenericPreferencesAdapter(
                 holder.binding.summary.setSummary(preference)
                 if (preference.icon != -1) {
                     holder.binding.icon.setImageResource(preference.icon)
+                    holder.binding.icon.setForkRoleFromTitle(preference.title) // Fork: icon coloured by role
                 }
 
                 holder.binding.container.setOnClickListener {

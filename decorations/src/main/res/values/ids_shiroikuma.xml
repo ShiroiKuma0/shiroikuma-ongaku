@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fork (白い熊 音楽 UI): holds the layout listener that keeps a label's icon sized by its text. -->
+    <item name="sk_label_icon_listener" type="id" />
+</resources>
