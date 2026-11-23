@@ -9,6 +9,8 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.StrictMode
 import android.util.Log
 import android.view.WindowManager
@@ -189,8 +191,22 @@ open class BaseActivity : AppCompatActivity(), SharedPreferences.OnSharedPrefere
             }
             mediaController = existing
             onReady?.invoke(existing)
-            restoreLastSongStateFromDatabase()
-            generateAlbumArtPalette()
+
+            // Fork (白い熊, 2026-11-12): the restore is posted to the main looper, never called
+            // inline. initMediaController() runs from BaseActivity.onCreate, which means from
+            // inside the subclass's own super.onCreate() call — before MainActivity has inflated
+            // its binding. A reused controller that already holds a queue makes
+            // restoreLastSongStateFromDatabase() reach onStateReady() synchronously, and
+            // MainActivity.onStateReady touches binding.miniPlayer, so the launch died with
+            // "lateinit property binding has not been initialized" on every relaunch that had
+            // music loaded: a fold, a rotation, a night-mode flip, docking the phone in the car.
+            // Posting lets the whole onCreate chain finish first. The asynchronous branch below
+            // was never affected, because its listener fires long after onCreate has returned.
+            Handler(Looper.getMainLooper()).post {
+                if (isFinishing || isDestroyed) return@post
+                restoreLastSongStateFromDatabase()
+                generateAlbumArtPalette()
+            }
             return
         }
 

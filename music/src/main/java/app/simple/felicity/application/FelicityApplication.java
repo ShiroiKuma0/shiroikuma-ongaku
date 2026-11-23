@@ -18,6 +18,19 @@ public class FelicityApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        // Fork (白い熊, 2026-11-12): initialize the app-wide preference singleton here, in
+        // every process, before any component of that process runs. It used to be initialized
+        // only in BaseActivity.attachBaseContext, so a process whose first component was a
+        // service died inside that service's constructor: FelicityPlayerService builds
+        // AudioProcessorManager as a field, which builds VisualizerProcessor, whose first
+        // initializer reads AudioPreferences.getFftResolution() — and getSharedPreferences()
+        // throws when nothing has initialized it yet. Android Auto binds the MediaLibraryService
+        // with no Activity in sight, so every car connection killed the app before
+        // Service.onCreate was ever reached, and a Bluetooth media button on a cold process does
+        // the same. Only the plain preferences are initialized here: the encrypted ones cost a
+        // keystore round-trip and are read solely from the Activity path, which keeps
+        // initializing them in attachBaseContext.
+        app.simple.felicity.manager.SharedPreferences.INSTANCE.init(this);
         resetAudioDatabaseForSAFMigration();
         // Fork (白い熊, 2026-11-10): loads the diagnostics switches, renames any *.log files
         // an older build left behind, and applies the keep-for-N-days window.
