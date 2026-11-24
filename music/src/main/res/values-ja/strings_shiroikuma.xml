@@ -234,6 +234,7 @@
     <string name="sk_color_dialog_frame">ダイアログの枠</string>
     <string name="sk_color_dialog_title">ダイアログの題</string>
     <string name="sk_color_dialog_text">ダイアログの文字</string>
+    <string name="sk_color_dialog_note">ダイアログの補足</string>
     <string name="sk_color_switch_on_outline">スイッチ入：輪郭</string>
     <string name="sk_color_switch_on_dot">スイッチ入：丸</string>
     <string name="sk_color_switch_off_dot">スイッチ切：丸</string>

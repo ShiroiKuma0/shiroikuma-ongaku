@@ -246,6 +246,7 @@
     <string name="sk_color_dialog_frame">Dialog frame</string>
     <string name="sk_color_dialog_title">Dialog title</string>
     <string name="sk_color_dialog_text">Dialog text</string>
+    <string name="sk_color_dialog_note">Dialog note</string>
     <string name="sk_color_switch_on_outline">Switch on: outline</string>
     <string name="sk_color_switch_on_dot">Switch on: dot</string>
     <string name="sk_color_switch_off_dot">Switch off: dot</string>

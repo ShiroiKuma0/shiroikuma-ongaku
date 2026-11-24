@@ -36,6 +36,8 @@ abstract class ScopedBottomSheetFragment : BottomSheetDialogFragment(),
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        // Fork (白い熊 音楽 UI): the dialog's panel and texts take the dialog colour roles.
+        app.simple.felicity.decorations.shiroikuma.SkPills.markDialog(view)
 
         dialog?.window?.attributes?.windowAnimations = R.style.BottomDialogAnimation
         dialog?.window?.setDimAmount(ViewUtils.DIM_AMOUNT)

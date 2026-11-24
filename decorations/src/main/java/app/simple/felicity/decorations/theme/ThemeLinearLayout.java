@@ -52,6 +52,11 @@ public class ThemeLinearLayout extends LinearLayout implements ThemeChangedListe
     }
     
     private void setBackground(boolean animate) {
+        // Fork (白い熊 音楽 UI): the panel of a dialog keeps its own ground role.
+        if (app.simple.felicity.decorations.shiroikuma.SkPills.isDialogPanel(this)) {
+            setBackgroundTintList(ColorStateList.valueOf(app.simple.felicity.decorations.shiroikuma.SkPills.color(app.simple.felicity.preferences.ShiroikumaPreferences.DIALOG_GROUND)));
+            return;
+        }
         if (animate) {
             valueAnimator = Utils.animateBackgroundColor(this,
                     ThemeManager.INSTANCE.getTheme().getViewGroupTheme().getBackgroundColor());

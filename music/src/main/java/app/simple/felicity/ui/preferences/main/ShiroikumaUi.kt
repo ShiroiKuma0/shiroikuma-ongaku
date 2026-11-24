@@ -300,6 +300,7 @@ class ShiroikumaUi : PreferenceFragment() {
             addColorRow(R.string.sk_color_dialog_frame, ShiroikumaPreferences.DIALOG_FRAME, indent = 1)
             addColorRow(R.string.sk_color_dialog_title, ShiroikumaPreferences.DIALOG_TITLE, indent = 1)
             addColorRow(R.string.sk_color_dialog_text, ShiroikumaPreferences.DIALOG_TEXT, indent = 1)
+            addColorRow(R.string.sk_color_dialog_note, ShiroikumaPreferences.DIALOG_NOTE, indent = 1)
         },
         Sec("icons", R.string.sk_section_icons, R.drawable.ic_image, ShiroikumaPreferences.SECTION_BASE) {
             addColorRow(R.string.sk_color_icon_regular, ShiroikumaPreferences.ICON_REGULAR, indent = 1)

@@ -266,6 +266,13 @@ public class HighlightTextView extends TypeFaceTextView {
             super.onThemeChanged(ThemeManager.INSTANCE.getTheme(), animate);
             lastDrawableTintColor = ThemeManager.INSTANCE.getTheme().getIconTheme().getRegularIconColor();
         }
+        
+        // Fork (白い熊 音楽 UI): an icon coloured by its role keeps that colour in every state.
+        Integer forkTint = forkDrawableTint();
+        if (forkTint != null) {
+            TextViewCompat.setCompoundDrawableTintList(this, ColorStateList.valueOf(forkTint));
+            lastDrawableTintColor = forkTint;
+        }
     }
     
     @Override

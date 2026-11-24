@@ -124,6 +124,11 @@ class Dashboard : BaseHomeFragment() {
 
         binding.scrollView.requireAttachedMiniPlayer()
 
+        // Fork (白い熊 音楽 UI): the bar buttons are coloured by what they do.
+        binding.settings.setForkRoleFromName("preferences")
+        binding.search.setForkRoleFromName("search")
+        binding.refreshMixes.setForkRoleFromName("refresh")
+
         binding.settings.setOnClickListener {
             openPreferencesPanel()
         }

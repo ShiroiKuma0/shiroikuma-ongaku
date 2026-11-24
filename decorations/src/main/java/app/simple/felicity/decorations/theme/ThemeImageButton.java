@@ -71,7 +71,22 @@ public class ThemeImageButton extends AppCompatImageButton implements ThemeChang
         setTint(getTintColor(tintMode), true);
     }
     
+    // Fork (白い熊 音楽 UI): a bar button coloured by what it does, told from a name.
+    private app.simple.felicity.decorations.shiroikuma.SkPills.Role skRole = null;
+    
+    public void setForkRoleFromName(String name) {
+        skRole = app.simple.felicity.decorations.shiroikuma.SkPills.listRoleForName(name);
+        setTint(0, false);
+    }
+    
     protected void setTint(int endColor, boolean animate) {
+        if (skRole != null && app.simple.felicity.decorations.shiroikuma.SkPills.enabled() && isEnabled()) {
+            setImageTintList(ColorStateList.valueOf(app.simple.felicity.decorations.shiroikuma.SkPills.roleColor(skRole)));
+            return;
+        }
+        if (skRole != null && endColor == 0) {
+            endColor = getTintColor(tintMode);
+        }
         if (animate) {
             valueAnimator = ValueAnimator.ofArgb(Objects.requireNonNull(getImageTintList()).getDefaultColor(), endColor);
             valueAnimator.setDuration(getResources().getInteger(R.integer.animation_duration));

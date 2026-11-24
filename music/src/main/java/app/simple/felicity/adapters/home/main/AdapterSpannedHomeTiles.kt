@@ -1,11 +1,14 @@
 package app.simple.felicity.adapters.home.main
 
+import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import app.simple.felicity.databinding.AdapterGridImageBinding
 import app.simple.felicity.databinding.AdapterSpannedPanelTileBinding
 import app.simple.felicity.decorations.overscroll.VerticalListViewHolder
+import app.simple.felicity.decorations.shiroikuma.SkPills
+import app.simple.felicity.decorations.typeface.TypeFaceTextView
 import app.simple.felicity.glide.util.AudioCoverUtils.loadArtCover
 import app.simple.felicity.repository.models.Audio
 import app.simple.felicity.viewmodels.panels.SimpleHomeViewModel.Companion.Panel
@@ -73,6 +76,16 @@ class AdapterSpannedHomeTiles(
                 val panelHolder = holder as PanelHolder
                 panelHolder.binding.icon.setImageResource(tile.iconRes)
                 panelHolder.binding.title.setText(tile.titleRes)
+                // Fork (白い熊 音楽 UI): an unfilled tile, its icon coloured by what it opens.
+                if (SkPills.enabled()) {
+                    val name = try {
+                        panelHolder.itemView.resources.getResourceEntryName(tile.titleRes)
+                    } catch (_: Exception) {
+                        ""
+                    }
+                    panelHolder.binding.icon.imageTintList = ColorStateList.valueOf(SkPills.listRoleColorForName(name))
+                    panelHolder.binding.title.setTextColorMode(TypeFaceTextView.PRIMARY)
+                }
                 panelHolder.binding.container.setOnClickListener {
                     callbacks?.onPanelTileClicked(tile)
                 }

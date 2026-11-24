@@ -16,6 +16,7 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.widget.TextViewCompat
+import app.simple.felicity.decoration.R
 import app.simple.felicity.decorations.typeface.TypeFace
 import app.simple.felicity.decorations.typeface.TypeFaceTextView
 import app.simple.felicity.preferences.AppearancePreferences
@@ -183,6 +184,49 @@ object SkPills {
         @Deprecated("Deprecated in Java")
         override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
     }
+
+    // ------------------------------------------------------------------ upstream's dialogs
+
+    /**
+     * Marks [root] as the view of one of upstream's dialogs and paints its panel in the dialog
+     * roles. Every text inside then takes the dialog's title, text or note role by itself.
+     */
+    @JvmStatic
+    fun markDialog(root: View) {
+        root.setTag(R.id.sk_dialog_root, true)
+        if (!enabled()) return
+        paintDialogPanels(root, 0)
+    }
+
+    private fun paintDialogPanels(view: View, depth: Int) {
+        val shape = view.background as? com.google.android.material.shape.MaterialShapeDrawable
+        if (shape != null) {
+            view.setTag(R.id.sk_dialog_panel, true)
+            view.backgroundTintList = ColorStateList.valueOf(color(ShiroikumaPreferences.DIALOG_GROUND))
+            shape.setStroke(2F * view.resources.displayMetrics.density, color(ShiroikumaPreferences.DIALOG_FRAME))
+            return
+        }
+        if (depth >= 2 || view !is ViewGroup) return
+        for (i in 0 until view.childCount) paintDialogPanels(view.getChildAt(i), depth + 1)
+    }
+
+    /** The root of the upstream dialog [view] sits in, or null. */
+    @JvmStatic
+    fun dialogRoot(view: View): View? {
+        var current: View? = view
+        while (current != null) {
+            if (current.getTag(R.id.sk_dialog_root) != null) return current
+            current = current.parent as? View
+        }
+        return null
+    }
+
+    @JvmStatic
+    fun isDialogPanel(view: View): Boolean = enabled() && view.getTag(R.id.sk_dialog_panel) != null
+
+    /** The role of a list entry or a bar button named [name], as a colour. */
+    @JvmStatic
+    fun listRoleColorForName(name: String): Int = roleColor(listRoleForName(name))
 
     // ------------------------------------------------------------------ upstream's text buttons
 

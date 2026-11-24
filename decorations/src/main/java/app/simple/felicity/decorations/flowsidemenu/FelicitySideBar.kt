@@ -254,6 +254,12 @@ class FelicitySideBar @JvmOverloads constructor(
         private val button: CircularImageButton = itemView as CircularImageButton
         fun bind(item: SidebarItem) {
             button.setImageResource(item.icon)
+            // Fork (白い熊 音楽 UI): the icon is coloured by what it opens.
+            button.setForkRoleFromName(try {
+                resources.getResourceEntryName(item.icon)
+            } catch (_: Exception) {
+                ""
+            })
             button.setOnClickListener {
                 item.onClick?.invoke()
                 onItemClick?.invoke(getItems()[bindingAdapterPosition].icon, it)

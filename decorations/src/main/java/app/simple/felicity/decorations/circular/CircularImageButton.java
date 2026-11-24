@@ -133,7 +133,19 @@ public class CircularImageButton extends AppCompatImageButton implements ThemeCh
         }
     }
     
+    // Fork (白い熊 音楽 UI): a side-bar button coloured by what it opens, told from a name.
+    private app.simple.felicity.decorations.shiroikuma.SkPills.Role skRole = null;
+    
+    public void setForkRoleFromName(String name) {
+        skRole = app.simple.felicity.decorations.shiroikuma.SkPills.listRoleForName(name);
+        setTint(getTintColor(TINT_MODE), false);
+    }
+    
     private void setTint(int endColor, boolean animate) {
+        if (skRole != null && app.simple.felicity.decorations.shiroikuma.SkPills.enabled()) {
+            setImageTintList(ColorStateList.valueOf(app.simple.felicity.decorations.shiroikuma.SkPills.roleColor(skRole)));
+            return;
+        }
         if (animate) {
             valueAnimator = ValueAnimator.ofArgb(Objects.requireNonNull(getImageTintList()).getDefaultColor(), endColor);
             valueAnimator.setDuration(getResources().getInteger(R.integer.animation_duration));

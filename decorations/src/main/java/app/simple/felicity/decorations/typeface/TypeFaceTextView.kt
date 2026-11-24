@@ -37,6 +37,9 @@ open class TypeFaceTextView : AppCompatTextView, ThemeChangedListener, SharedPre
     private var drawableTintMode = DRAWABLE_REGULAR
     private var isDrawableHidden = true
     private var lastDrawableColor = Color.GRAY
+    private var attrFontStyle = BOLD // Fork: the weight the layout asked for
+    private var forkDialogRole: String? = null // Fork: the dialog role of this text, once attached
+    private var forkIconRole: app.simple.felicity.decorations.shiroikuma.SkPills.Role? = null
     private var baseTextSizePx = 0F // unscaled size from XML/style, fork text-scale applies on top
 
     var fontStyle = MEDIUM
@@ -62,7 +65,8 @@ open class TypeFaceTextView : AppCompatTextView, ThemeChangedListener, SharedPre
 
     private fun init() {
         if (isInEditMode) return
-        typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), typedArray.getInt(R.styleable.TypeFaceTextView_appFontStyle, BOLD), context)
+        attrFontStyle = typedArray.getInt(R.styleable.TypeFaceTextView_appFontStyle, BOLD)
+        typeface = TypeFace.getTypeFace(AppearancePreferences.getAppFont(), attrFontStyle, context)
         colorMode = typedArray.getInt(R.styleable.TypeFaceTextView_textColorStyle, PRIMARY)
         drawableTintMode = typedArray.getInt(R.styleable.TypeFaceTextView_drawableTintStyle, DRAWABLE_REGULAR)
         isDrawableHidden = typedArray.getBoolean(R.styleable.TypeFaceTextView_isDrawableHidden, true)
@@ -91,6 +95,45 @@ open class TypeFaceTextView : AppCompatTextView, ThemeChangedListener, SharedPre
             registerSharedPreferenceChangeListener()
         }
         ThemeManager.addListener(this)
+        resolveForkDialogRole()
+    }
+
+    /**
+     * Fork (白い熊 音楽 UI): a text inside one of upstream's dialogs takes a dialog role — the
+     * first bold primary text is the title, other primary text the body, dimmer text the note.
+     * Buttons and accent-coloured values keep their own roles.
+     */
+    private fun resolveForkDialogRole() {
+        forkDialogRole = null
+        val pills = app.simple.felicity.decorations.shiroikuma.SkPills
+        if (!pills.enabled()) return
+        val root = pills.dialogRoot(this) ?: return
+        if (this is app.simple.felicity.decorations.ripple.DynamicRippleTextView && pills.isButton(this)) return
+        forkDialogRole = when (colorMode) {
+            HEADER, PRIMARY -> {
+                val title = root.getTag(R.id.sk_dialog_title)
+                if (title === this || (title == null && (colorMode == HEADER || attrFontStyle >= BOLD))) {
+                    root.setTag(R.id.sk_dialog_title, this)
+                    ShiroikumaPreferences.DIALOG_TITLE
+                } else {
+                    ShiroikumaPreferences.DIALOG_TEXT
+                }
+            }
+            SECONDARY, TERTIARY, QUATERNARY -> ShiroikumaPreferences.DIALOG_NOTE
+            else -> null
+        }
+        if (forkDialogRole != null) setTextColor(false)
+    }
+
+    /** Fork (白い熊 音楽 UI): colours the compound icon by what the row named [titleResId] opens. */
+    fun setForkRoleFromTitle(titleResId: Int) {
+        val name = try {
+            resources.getResourceEntryName(titleResId)
+        } catch (_: Exception) {
+            ""
+        }
+        forkIconRole = app.simple.felicity.decorations.shiroikuma.SkPills.listRoleForName(name)
+        setDrawableTint(false)
     }
 
     override fun onDetachedFromWindow() {
@@ -110,6 +153,10 @@ open class TypeFaceTextView : AppCompatTextView, ThemeChangedListener, SharedPre
     }
 
     private fun setTextColor(animate: Boolean) {
+        forkDialogRole?.let {
+            setTextColor(ShiroikumaPreferences.getEffectiveColor(it))
+            return
+        }
         if (animate) {
             when (colorMode) {
                 HEADER -> this.animateColorChange(ThemeManager.theme.textViewTheme.headerTextColor)
@@ -139,7 +186,11 @@ open class TypeFaceTextView : AppCompatTextView, ThemeChangedListener, SharedPre
      * Fork (白い熊 音楽 UI): a subclass that colours its compound icon by what it does returns
      * that colour here, and upstream's tint mode is then skipped.
      */
-    protected open fun forkDrawableTint(): Int? = null
+    protected open fun forkDrawableTint(): Int? {
+        val role = forkIconRole ?: return null
+        val pills = app.simple.felicity.decorations.shiroikuma.SkPills
+        return if (pills.enabled()) pills.roleColor(role) else null
+    }
 
     private fun setDrawableTint(animate: Boolean) {
         forkDrawableTint()?.let {

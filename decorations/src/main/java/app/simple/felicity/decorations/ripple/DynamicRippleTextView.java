@@ -152,7 +152,8 @@ public class DynamicRippleTextView extends TypeFaceTextView {
     @Nullable
     @Override
     protected Integer forkDrawableTint() {
-        return app.simple.felicity.decorations.shiroikuma.SkPills.iconTint(this);
+        Integer own = super.forkDrawableTint();
+        return own != null ? own : app.simple.felicity.decorations.shiroikuma.SkPills.iconTint(this);
     }
     
     @Override

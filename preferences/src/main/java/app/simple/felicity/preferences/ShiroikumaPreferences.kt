@@ -68,11 +68,12 @@ object ShiroikumaPreferences {
     const val BUTTON_GROUND = "sk_button_ground"
     const val BUTTON_DELETE = "sk_button_delete"
 
-    // Dialog roles (the fork's own dialogs; upstream's share the foundation and text roles)
+    // Dialog roles, for the fork's own dialogs and for every one of upstream's
     const val DIALOG_GROUND = "sk_dialog_ground"
     const val DIALOG_FRAME = "sk_dialog_frame"
     const val DIALOG_TITLE = "sk_dialog_title"
     const val DIALOG_TEXT = "sk_dialog_text"
+    const val DIALOG_NOTE = "sk_dialog_note"
 
     // Switch roles — outline and dot, on and off. The off outline is SWITCH_OFF_DIM.
     const val SWITCH_ON_OUTLINE = "sk_switch_on_outline"
@@ -153,7 +154,7 @@ object ShiroikumaPreferences {
             ACCENT_PRIMARY, ACCENT_SECONDARY, SWITCH_OFF, SWITCH_OFF_DIM, VISUALIZER,
             SETTINGS_NOTE,
             BUTTON_TEXT, BUTTON_FRAME, BUTTON_GROUND, BUTTON_DELETE,
-            DIALOG_GROUND, DIALOG_FRAME, DIALOG_TITLE, DIALOG_TEXT,
+            DIALOG_GROUND, DIALOG_FRAME, DIALOG_TITLE, DIALOG_TEXT, DIALOG_NOTE,
             SWITCH_ON_OUTLINE, SWITCH_ON_DOT, SWITCH_OFF_DOT, CHECK_TICK,
             MENU_LABEL, MENU_ROW_FRAME, MENU_DIVIDER,
             MENU_ICON_CONNECT, MENU_ICON_WRITE, MENU_ICON_PERSON, MENU_ICON_SHARE,
@@ -272,6 +273,7 @@ object ShiroikumaPreferences {
             DIALOG_GROUND -> background
             DIALOG_FRAME -> accent
             DIALOG_TITLE, DIALOG_TEXT -> text
+            DIALOG_NOTE -> getEffectiveColor(TEXT_SECONDARY)
             SWITCH_ON_OUTLINE, SWITCH_ON_DOT -> accent
             SWITCH_OFF_DOT -> getEffectiveColor(SWITCH_OFF_DIM)
             CHECK_TICK -> background

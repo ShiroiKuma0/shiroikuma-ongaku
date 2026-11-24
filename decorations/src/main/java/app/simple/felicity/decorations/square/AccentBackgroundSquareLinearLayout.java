@@ -33,6 +33,9 @@ public class AccentBackgroundSquareLinearLayout extends LinearLayout implements 
     }
     
     private void init() {
+        if (forkTile()) {
+            return;
+        }
         setBackgroundColor(ThemeManager.INSTANCE.getAccent().getPrimaryAccentColor());
     }
     
@@ -81,6 +84,25 @@ public class AccentBackgroundSquareLinearLayout extends LinearLayout implements 
     @Override
     public void onAccentChanged(@NonNull Accent accent) {
         ThemeChangedListener.super.onAccentChanged(accent);
+        if (forkTile()) {
+            return;
+        }
         setBackgroundColor(accent.getPrimaryAccentColor());
+    }
+    
+    /**
+     * Fork (白い熊 音楽 UI): a tile is never filled — the button ground with a thin button frame,
+     * so that its icon can carry a role colour.
+     */
+    private boolean forkTile() {
+        if (isInEditMode() || !app.simple.felicity.decorations.shiroikuma.SkPills.enabled()) {
+            return false;
+        }
+        android.graphics.drawable.GradientDrawable tile = new android.graphics.drawable.GradientDrawable();
+        tile.setColor(app.simple.felicity.decorations.shiroikuma.SkPills.color(app.simple.felicity.preferences.ShiroikumaPreferences.BUTTON_GROUND));
+        tile.setStroke(Math.max(1, Math.round(1.25F * getResources().getDisplayMetrics().density)),
+                app.simple.felicity.decorations.shiroikuma.SkPills.color(app.simple.felicity.preferences.ShiroikumaPreferences.BUTTON_FRAME));
+        setBackground(tile);
+        return true;
     }
 }

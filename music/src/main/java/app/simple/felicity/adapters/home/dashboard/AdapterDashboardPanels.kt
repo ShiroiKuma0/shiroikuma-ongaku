@@ -34,6 +34,7 @@ class AdapterDashboardPanels(
     override fun onBindViewHolder(holder: PanelHolder, position: Int) {
         val panel = panels[position]
         holder.binding.title.setStartDrawable(panel.iconResId)
+        holder.binding.title.setForkRoleFromTitle(panel.titleResId) // Fork: icon coloured by role
         holder.binding.title.text = holder.itemView.context.getString(panel.titleResId)
         holder.binding.title.setOnClickListener {
             callbacks?.onPanelClicked(panels[holder.bindingAdapterPosition])

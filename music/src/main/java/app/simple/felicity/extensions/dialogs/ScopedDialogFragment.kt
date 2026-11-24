@@ -37,6 +37,8 @@ open class ScopedDialogFragment : DialogFragment(), SharedPreferences.OnSharedPr
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        // Fork (白い熊 音楽 UI): the dialog's panel and texts take the dialog colour roles.
+        app.simple.felicity.decorations.shiroikuma.SkPills.markDialog(view)
 
         val window = dialog!!.window ?: return
         val displayMetrics = DisplayMetrics()

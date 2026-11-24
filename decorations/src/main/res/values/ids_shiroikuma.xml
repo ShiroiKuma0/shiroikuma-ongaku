@@ -2,4 +2,8 @@
 <resources>
     <!-- Fork (白い熊 音楽 UI): holds the layout listener that keeps a label's icon sized by its text. -->
     <item name="sk_label_icon_listener" type="id" />
+    <!-- Fork (白い熊 音楽 UI): marks the root of one of upstream's dialogs, its panel, and its title. -->
+    <item name="sk_dialog_root" type="id" />
+    <item name="sk_dialog_panel" type="id" />
+    <item name="sk_dialog_title" type="id" />
 </resources>
