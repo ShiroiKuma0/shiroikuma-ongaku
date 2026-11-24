@@ -470,3 +470,54 @@ Five rebase conflicts and two semantic ones — the heaviest sync since the fork
 ### Packaging
 
 - versionName `0.0.33_alpha+001`, versionCode `330001`, foss flavor, arm64-v8a only, signed with the same key as every build since `0.0.26_alpha` (certificate SHA-256 `926145a9…6451f47`), so it updates the previous build in place.
+
+## 0.0.35_alpha+003 (2026-11-24, base 0.0.35_alpha)
+
+### Major features
+
+**The black-yellow theme, applied in full**
+
+- **Every button is an outlined pill.** Upstream’s text buttons — in dialogs, sheets, panels and the player — are drawn as pills in one central place: the main action of a block with a 3 dp frame and bold label, every other with a 1.25 dp frame; a button that deletes lends its red to frame and label; a disabled one drops to 38 %. Nothing is filled.
+- **Every menu row is a full-width pill.** Popup, long-press and overflow menus draw each action as an outlined pill across the whole menu width, its icon inside at the left and a › at the right when the row opens something. Group dividers are a clear 1 dp darker-accent line, and a menu no longer scrolls while the screen has room for it.
+- **Icons are coloured by what the row does** — seven roles: play, start and refresh in green, editing in heavy blue, people and collections in light blue, sharing, queues and playlists in orange, viewing in the accent, skipping and cancelling in rose, deleting in red. This holds in menus, in the settings lists, in the simple home list, on the Dashboard’s panel chips and bar buttons, on the ArtFlow side bar, and on the tiled home.
+- **The tiled home’s panel tiles are no longer filled.** They carry the button ground and a thin button frame, so their icons can show a role colour and their labels the text colour.
+- **Switches are outlined pills with a solid dot**, right and accent when on, left and an opaque dim yellow when off; check boxes take their tick colour from a role.
+- **The 白い熊 音楽 UI page folds.** Its eighteen sections are folded by default, each heading with its own icon in one of seven section colours. Under the title sit a pill that opens the app’s own settings and a wrapping index of chips — tap one to unfold its section and jump there, long-press to drag it, and the sections reorder to match. Fold state and section order are remembered, travel in the export, and can be reset.
+- **Every item has a colour role of its own**, set in the section it belongs to: button text, frame, ground and delete red; dialog ground, frame, title, text and note; switch outline and dot, on and off; the check-box tick; menu label, row frame, divider and the seven icon roles; the seven section-icon colours; chip text and frame. Each resets by itself, and “Reset all colours” sits in Maintenance behind a confirmation.
+- **Upstream’s dialogs take the dialog roles.** Every bottom sheet and dialog paints its panel from the dialog ground and frame, and its texts from the title, text and note roles; buttons and accent-coloured values inside keep their own roles.
+
+**Japanese for the whole app**
+
+- Felicity has no Japanese translation. This build carries the fork’s own: all 555 of upstream’s strings, its 6 plurals and its 22 billing strings, beside the 300 strings the fork itself adds — the UI page, the diagnostics, the restore dialogs. “日本語 (Japanese)” is in the language list.
+- The key sets of the English and Japanese files are compared before every build, so no screen shows English between Japanese lines.
+
+### Rebased onto Felicity 0.0.35_alpha
+
+The fork stack — now 73 commits — replays onto upstream’s new release tag, 89 upstream commits on from `0.0.33_alpha` and across `0.0.34_alpha`; the build counter restarts (versionCode `350003`).
+
+**What upstream brings**
+
+- **AutoEQ headphone profiles** in a section of their own in the EQ presets panel, for 10-band and PEQ profiles, with several DSP fixes for PEQ. The separate “Import PEQ Preset” button is gone.
+- **A band input dialog** to type equalizer band values by hand (#169).
+- **A weather effect** over the whole app — autumn, summer or winter — with a weather chip on the Dashboard.
+- **A sleep timer**, with a button on every player screen and a chip on the Dashboard.
+- **Dynamic immersive mode** for the player panels, hiding parts of the interface while playing; toggled in the User Interface preferences.
+- **Volume knob position** is selectable (#176), and forward and rewind buttons can be shown on the player.
+- **Lyrics search** shows its best matches and previews of the lyrics in the results.
+- **Fixes:** album art squeezed in the mini player (#173), swipe-down not working over the album art in the player panels (#174).
+
+### Fork patches that met upstream’s changes
+
+- **The player screens.** Upstream’s sleep-timer button, seek buttons and immersive fade landed in the same `BasePlayerFragment` and player layouts the fork’s visualizer, edge meteors and playback dim live in. Both sides were kept: upstream’s new calls beside the fork’s, and the sleep-timer button re-added to the toolbars the fork had moved.
+- **The immersive transition assumed a `ViewGroup` root**, which the fork’s default player no longer has; it now casts and skips the transition otherwise. Only the compiler caught this.
+- **The Dashboard’s settings long-press**, the visualizer processor’s imports and the version lines in `music/build.gradle` resolved as on every sync.
+- **The trial patch needed nothing.**
+
+### Fixes & behavior
+
+- **A process whose first component is a service no longer dies.** Android Auto binding the media library service, or a Bluetooth media button on a cold process, crashed in the player service’s field initializers; the plain preference singleton is now initialized in the application’s `onCreate`.
+- **Relaunching with music loaded no longer crashes.** The last-song restore of a reused media controller is posted to the main looper, so it cannot reach the main activity before its binding is inflated.
+
+### Packaging
+
+- versionName `0.0.35_alpha+003`, versionCode `350003`, foss flavor, arm64-v8a only, signed with the same key as every build since `0.0.26_alpha`, so it updates the previous build in place. Builds `+001` and `+002` were intermediate and are not published.
