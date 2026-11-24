@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Billing screen strings for the Play Store flavor -->
+    <string name="play_store_purchase_summary">Google Play を通して、安全に購入を済ませます。</string>
+    <string name="billing_connecting">Google Play に接続しています…</string>
+    <string name="billing_unavailable">この端末では Google Play の課金を利用できません。</string>
+    <string name="billing_error">問題が起きました：%1$s</string>
+    <string name="purchase_complete">準備が整いました。白い熊 音楽の完全版へようこそ。</string>
+    <string name="already_purchased">すでに購入済みです — 完全版をお楽しみください。</string>
+    <string name="purchase_restored">購入を復元しました。おかえりなさい。</string>
+    <string name="days_left">残り %1$d 日</string>
+    <string name="trial_expired_short">試用期間終了</string>
+    <string name="full_version_active">完全版が有効</string>
+
+    <!-- Feature list shown on the purchase screen -->
+    <string name="feature_unlimited_playback">途切れることのない、無制限の再生。</string>
+    <string name="feature_equalizer">プリセットつきの内蔵イコライザー。</string>
+    <string name="feature_milkdrop">MilkDrop ビジュアライザー。</string>
+    <string name="feature_themes">さまざまに調整できる美しいテーマ。</string>
+    <string name="feature_lyrics">聴いているあいだ、その場で表示される同期歌詞。</string>
+    <string name="feature_wifi_server">ライブラリを同じネットワーク上のどのブラウザーにも配信できる、ローカル Wi-Fi サーバー。</string>
+    <string name="feature_no_subscription">買い切りです。一度払えば自分のものになり、継続の料金はかかりません。</string>
+    <string name="feature_updates">今後の更新はすべて、追加の料金なしで含まれます。</string>
+    <string name="all_features_summary">制限のない完全版を手に入れます。</string>
+
+    <!-- Restore purchase button and result messages -->
+    <string name="restore_purchase">購入を復元</string>
+    <string name="restore_purchase_failed">このアカウントには購入が見つかりません。\n\n白い熊 音楽を別の Google アカウントで購入した場合は、Play ストアでそのアカウントに切り替えて、もう一度お試しください。誤りだと思われる場合は、サポートにご連絡ください。</string>
+    <string name="restore_purchase_restoring">復元しています…</string>
+</resources>
